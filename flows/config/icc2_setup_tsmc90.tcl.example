@@ -1,0 +1,55 @@
+# Copy to flows/local/icc2_setup.tcl for either IC_EDA_FULL TSMC90 profile.
+# Keep proprietary PDK, NDM, Liberty, generated-view, and RC paths local.
+set rdtc_tech_file REPLACE_WITH_TSMC90_9LM2THICK_ASTRO_TF
+set rdtc_tech_lef ""
+set rdtc_tech_name tsmc90_aci_core_1p0v_9lm2thick
+set rdtc_tech_layers {
+  M1 1 routing horizontal M2 2 routing vertical
+  M3 3 routing horizontal M4 4 routing vertical
+  M5 5 routing horizontal M6 6 routing vertical
+  M7 7 routing horizontal M8 8 routing vertical
+  M9 9 routing horizontal
+}
+set rdtc_stdcell_db REPLACE_WITH_TSMC90_ACI_TYPICAL_1P0V_DB
+set rdtc_stdcell_lef REPLACE_WITH_TSMC90_ACI_STANDARD_CELL_LEF
+set rdtc_stdcell_library typical
+set rdtc_stdcell_workspace rdtc_tsmc90_stdcell
+set rdtc_sram_workspace rdtc_tsmc90_memory
+
+set rdtc_memory_variant $::env(RDTC_TSMC90_MEMORY_VARIANT)
+set rdtc_memory_root "$::env(RDTC_BUILD_ROOT)/sram_tsmc90"
+if {$rdtc_memory_variant eq "sram128x128"} {
+  set rdtc_sram_db "$rdtc_memory_root/SRAM_DP_ADV_tt_1.0_25.0_syn.db"
+  set rdtc_sram_lef "$rdtc_memory_root/SRAM_DP_ADV.vclef"
+  set rdtc_sram_cell SRAM_DP_ADV
+} elseif {$rdtc_memory_variant eq "rf64x128"} {
+  set rdtc_sram_db "$rdtc_memory_root/RF_2P_ADV_tt_1.0_25.0_syn.db"
+  set rdtc_sram_lef "$rdtc_memory_root/RF_2P_ADV.vclef"
+  set rdtc_sram_cell RF_2P_ADV
+} else {
+  error "Unsupported RDTC_TSMC90_MEMORY_VARIANT: $rdtc_memory_variant"
+}
+
+set rdtc_stdcell_ndm "$::env(RDTC_BUILD_ROOT)/icc2_libs/rdtc_tsmc90_stdcell.ndm"
+set rdtc_sram_ndm "$::env(RDTC_BUILD_ROOT)/icc2_libs/rdtc_tsmc90_memory.ndm"
+set rdtc_reference_ndms [list $rdtc_stdcell_ndm $rdtc_sram_ndm]
+set rdtc_design_library "$::env(RDTC_BUILD_ROOT)/icc2/rdtc_tsmc90.dlib"
+set rdtc_dc_netlist "$::env(RDTC_BUILD_ROOT)/dc_baseline/mrtc_rdtc_wb_wrapper_baseline.v"
+set rdtc_dc_sdc "$::env(RDTC_BUILD_ROOT)/dc_baseline/mrtc_rdtc_wb_wrapper_baseline.sdc"
+set rdtc_core_utilization 0.50
+set rdtc_core_aspect_ratio 1.0
+set rdtc_core_offset 10.0
+set rdtc_expected_sram_count 2
+set rdtc_require_pg_hook 1
+set rdtc_pg_hook "$::env(RDTC_FLOW_ROOT)/flows/local/icc2_pg_tsmc90.tcl"
+
+# The installed Astro technology file provides geometry but its CapTable and
+# CapModel sections are not ICC2 parasitic technology. Floorplan-only mode is
+# therefore the default. Full mode must use the audited settings below.
+set rdtc_rc_mode unavailable
+set rdtc_parasitic_temperature 25.0
+# set rdtc_rc_mode native_tluplus
+# set rdtc_tluplus_file REPLACE_WITH_MATCHING_TSMC90_9LM2THICK_TLUPLUS
+# set rdtc_tluplus_layermap REPLACE_WITH_MATCHING_TSMC90_LAYER_MAP
+# set rdtc_parasitic_tech_name tsmc90_rc_typ
+# set rdtc_parasitic_sanity_check advanced

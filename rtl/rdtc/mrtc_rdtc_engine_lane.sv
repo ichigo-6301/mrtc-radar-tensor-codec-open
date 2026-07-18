@@ -1,0 +1,81 @@
+module mrtc_rdtc_engine_lane #(
+  parameter int PHASES_PER_BEAT = mrtc_pkg::MRTC_PHASES_PER_BEAT,
+  parameter int AXIS_DATA_W = mrtc_pkg::MRTC_COMPLEX_SAMPLE_W * PHASES_PER_BEAT,
+  parameter int COMP_BLOCK_BYTES = mrtc_pkg::MRTC_COMP_BLOCK_BYTES,
+  parameter int PREFIX_COMPLEX_SAMPLES = mrtc_pkg::MRTC_PREFIX_COMPLEX_SAMPLES
+) (
+  input  logic                   clk,
+  input  logic                   rst_n,
+  input  logic                   i_soft_reset,
+  input  logic                   i_clear_status,
+  input  logic [AXIS_DATA_W-1:0] s_axis_raw_tdata,
+  input  logic                   s_axis_raw_tvalid,
+  output logic                   s_axis_raw_tready,
+  input  logic                   s_axis_raw_tlast,
+  input  logic [7:0]             s_axis_raw_tuser,
+  output logic [AXIS_DATA_W-1:0] m_axis_comp_tdata,
+  output logic                   m_axis_comp_tvalid,
+  input  logic                   m_axis_comp_tready,
+  output logic                   m_axis_comp_tlast,
+  output logic [7:0]             m_axis_comp_tuser,
+  input  logic [7:0]             cfg_codec_mode,
+  input  logic [7:0]             cfg_rice_mode,
+  input  logic [3:0]             cfg_fixed_k,
+  input  logic [15:0]            cfg_frame_id,
+  input  logic [15:0]            cfg_block_id,
+  input  logic [15:0]            cfg_tensor_spatial_size,
+  input  logic [15:0]            cfg_tensor_doppler_size,
+  input  logic [15:0]            cfg_tensor_range_size,
+  output logic                   stat_busy,
+  output logic                   stat_done,
+  output logic [31:0]            stat_raw_bytes,
+  output logic [31:0]            stat_comp_bytes,
+  output logic [31:0]            stat_num_blocks,
+  output logic [31:0]            stat_error,
+  output logic [31:0]            stat_raw_bypass_blocks,
+  output logic [31:0]            stat_stall_input_cycles,
+  output logic [31:0]            stat_stall_output_cycles
+);
+  logic engine_rst_n;
+
+  assign engine_rst_n = rst_n && !i_soft_reset;
+
+  mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
+    .PHASES_PER_BEAT           (PHASES_PER_BEAT),
+    .AXIS_DATA_W               (AXIS_DATA_W),
+    .COMP_BLOCK_BYTES          (COMP_BLOCK_BYTES),
+    .PREFIX_COMPLEX_SAMPLES    (PREFIX_COMPLEX_SAMPLES),
+    .ENABLE_INTERNAL_RAW_BYPASS(1'b0)
+  ) u_engine (
+    .clk,
+    .rst_n(engine_rst_n),
+    .i_clear_status,
+    .s_axis_raw_tdata,
+    .s_axis_raw_tvalid,
+    .s_axis_raw_tready,
+    .s_axis_raw_tlast,
+    .s_axis_raw_tuser,
+    .m_axis_comp_tdata,
+    .m_axis_comp_tvalid,
+    .m_axis_comp_tready,
+    .m_axis_comp_tlast,
+    .m_axis_comp_tuser,
+    .cfg_codec_mode,
+    .cfg_rice_mode,
+    .cfg_fixed_k,
+    .cfg_frame_id,
+    .cfg_block_id_base(cfg_block_id),
+    .cfg_tensor_spatial_size,
+    .cfg_tensor_doppler_size,
+    .cfg_tensor_range_size,
+    .stat_busy,
+    .stat_done,
+    .stat_raw_bytes,
+    .stat_comp_bytes,
+    .stat_num_blocks,
+    .stat_error,
+    .stat_raw_bypass_blocks,
+    .stat_stall_input_cycles,
+    .stat_stall_output_cycles
+  );
+endmodule

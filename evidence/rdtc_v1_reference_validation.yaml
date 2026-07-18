@@ -1,0 +1,10 @@
+title: RDTC v1 reference-model validation summary
+status: verified
+source_commit: bf27b88d77c422ed385e35bb2f19335e054af244
+configuration: I16Q16 BLOCK_MODE_A legal vectors with RAW_BYPASS, ZERO_RICE, DELTA_RICE, multi-block, and AXI packing cases
+tools:
+  - MATLAB R2024b vector generation and MATLAB/C cross-check
+  - gcc/make C reference-model tests
+  - Questa DPI-C smoke simulation
+result: pass
+caveat: This summary covers the published legal-vector and regression set only. It is not an exhaustive formal proof.

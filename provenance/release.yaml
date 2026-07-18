@@ -1,0 +1,9 @@
+kind: public_ip_release
+schema_version: 1.0.0
+repository_name: mrtc-radar-tensor-codec-open
+profile: rdtc_v1_public_release
+release_version: dual-profile-rc1
+source_commit: 41b33f7057c341cc4b952f51b00eb886f42c5fe2
+delivery_commit: e8ffff9ece4a8bbcef7ac4ea24f43bcb09356390
+license: MIT
+bundle_type: public-ip

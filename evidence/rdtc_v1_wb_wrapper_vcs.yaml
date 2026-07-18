@@ -1,0 +1,8 @@
+title: RDTC v1 dual-AXIS128 wrapper regression summary
+status: verified
+source_commit: bf27b88d77c422ed385e35bb2f19335e054af244
+configuration: dual AXIS128 lanes, 4096-byte raw blocks, independent backpressure and completion handling
+tool: vcs O-2018.09-SP2
+required_cases: 10
+result: pass
+caveat: Finite wrapper regression evidence only; no formal verification or coverage-closure claim is made.

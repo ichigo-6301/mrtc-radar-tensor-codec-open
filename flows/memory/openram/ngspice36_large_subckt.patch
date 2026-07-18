@@ -1,0 +1,12 @@
+--- a/src/frontend/subckt.c
++++ b/src/frontend/subckt.c
+@@ -100,7 +100,7 @@ static int  numdevs(char *s);
+ static wordlist *modtranslate(struct card *deck, char *subname, wordlist *new_modnames);
+ static void devmodtranslate(struct card *deck, char *subname, wordlist * const orig_modnames);
+ static int inp_numnodes(char c);
++
+-#define N_GLOBAL_NODES 1005
++#define N_GLOBAL_NODES 20005
++
+ /*---------------------------------------------------------------------
+  * table is used in settrans and gettrans -- it holds the netnames used

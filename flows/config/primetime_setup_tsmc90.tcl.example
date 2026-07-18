@@ -1,0 +1,13 @@
+# Copy to flows/local/primetime_setup.tcl for either TSMC90 profile.
+set rdtc_stdcell_db REPLACE_WITH_TSMC90_ACI_TYPICAL_1P0V_DB
+set rdtc_memory_variant $::env(RDTC_TSMC90_MEMORY_VARIANT)
+if {$rdtc_memory_variant eq "sram128x128"} {
+  set rdtc_sram_db "$::env(RDTC_BUILD_ROOT)/sram_tsmc90/SRAM_DP_ADV_tt_1.0_25.0_syn.db"
+} elseif {$rdtc_memory_variant eq "rf64x128"} {
+  set rdtc_sram_db "$::env(RDTC_BUILD_ROOT)/sram_tsmc90/RF_2P_ADV_tt_1.0_25.0_syn.db"
+} else {
+  error "Unsupported RDTC_TSMC90_MEMORY_VARIANT: $rdtc_memory_variant"
+}
+set rdtc_postroute_netlist "$::env(RDTC_BUILD_ROOT)/icc2/mrtc_rdtc_wb_wrapper_postroute.v"
+set rdtc_postroute_sdc "$::env(RDTC_BUILD_ROOT)/icc2/mrtc_rdtc_wb_wrapper_postroute.sdc"
+set rdtc_postroute_spef "$::env(RDTC_BUILD_ROOT)/icc2/mrtc_rdtc_wb_wrapper_postroute.spef"

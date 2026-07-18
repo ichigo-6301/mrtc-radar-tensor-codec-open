@@ -1,0 +1,33 @@
+kind: generated_macro_contract
+schema_version: 1.0.0
+macro: mrtc_rdtc_prefix_1r1w_64x128
+organization: 64x128
+ports: 1R1W
+words_per_row: 2
+requested_corner:
+  process: TT
+  voltage_v: 1.1
+  temperature_c: 25
+characterization: openram_analytical
+generator: OpenRAM
+generator_commit: e16d9eb0b4495e8beee441ced3fcad68391155e6
+generated_views: build_only
+hash_manifest: build/rdtc_v1_45nm/sram_openram/macro_manifest.json
+actual_corner:
+  process: TT
+  voltage_v: 1.0
+  temperature_c: 25
+lef_size_um:
+  width: 439.375
+  height: 92.89
+candidate_view_hashes:
+  verilog: e152a118db4375dab0c0618be662ad9040657b5ced81e39fdd5424f98f0b2c21
+  liberty: efddbc7113e3f73510f14a1f9cffaa9dd142bc285ab9a9f22da72393f3cec976
+  lef: 645948f9ad80250c1603a838e22c5e647734fb1ea72a405ab53dd0ae49fcf801
+  gds: cf6147eb945233de65ab1ce519e8c3189372145be89f0430797fa866a53a8898
+  spice: 58a69a60dabe2b9d0f0962d56079ec92c22770359392ef1064f568f84fa9fb97
+  db: e1b9765dcc10e83e8f09e357a11cd17d89ea8e10924daf70c59cb1d65569917c
+status: partial
+notes:
+  - The generated Liberty corner is authoritative and may differ from the requested voltage.
+  - Generated Liberty, DB, LEF, GDS, SPICE, and Verilog views are not distributed.

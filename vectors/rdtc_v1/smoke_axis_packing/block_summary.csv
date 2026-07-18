@@ -1,0 +1,2 @@
+block_idx,block_name,codec_mode,frame_id,block_id,num_samples,raw_bytes,compressed_bytes,raw_bypass,selected_k,last_block,input_csv,hex_file,header_csv
+0,axis_pack_delta_fixedk4,2,1,8,1024,4096,1470,0,4,1,block_000_input_samples.csv,block_000_axis_comp_expected.hex,block_000_header.csv

@@ -1,0 +1,43 @@
+title: RDTC v1 register-expanded implementation profiles
+status: partial
+source_commit: 41b33f7
+top: mrtc_rdtc_wb_wrapper
+profile: register-expanded
+memory_mode: prefix buffers mapped to standard-cell registers; SRAM macro count is zero
+constraint: internal single-clock profile with 100 ps setup uncertainty; no IO timing claim
+public_results:
+  - technology: NanGate15
+    pvt: TT/0.8 V/25 C
+    liberty_time_unit: 1ps
+    sdc_time_scale: 1000.0
+    tool: dc_shell O-2018.06-SP1
+    points:
+      - {frequency_mhz: 400, setup_wns_ns: 1.30721, setup_tns_ns: 0.0, violating_paths: 0, area_um2: 99062.610716, macro_count: 0}
+      - {frequency_mhz: 600, setup_wns_ns: 0.66541, setup_tns_ns: 0.0, violating_paths: 0, area_um2: 99063.937820, macro_count: 0}
+      - {frequency_mhz: 800, setup_wns_ns: 0.22945, setup_tns_ns: 0.0, violating_paths: 0, area_um2: 99064.134428, macro_count: 0}
+    caveat: Open-source NanGate15 NLDM; Library Compiler warnings are retained in the private run log. DC-only estimate.
+  - technology: Nangate45
+    pvt: TT/1.1 V/25 C
+    tool: dc_shell O-2018.06-SP1
+    points:
+      - {frequency_mhz: 400, setup_wns_ns: 0.0, setup_tns_ns: 0.0, violating_paths: 0, area_um2: 367783.036376, macro_count: 0}
+      - {frequency_mhz: 600, setup_wns_ns: 0.0, setup_tns_ns: 0.0, violating_paths: 0, area_um2: 373012.596203, macro_count: 0}
+      - {frequency_mhz: 800, setup_wns_ns: -0.14, setup_tns_ns: -858.86, violating_paths: 21241, area_um2: 380819.430123, macro_count: 0}
+    caveat: 600 MHz is the highest setup-closed DC point. Physical results use the 600 MHz mapped netlist with a 400 MHz implementation constraint.
+  - technology: Nangate45/OpenROAD/OpenRCX
+    pvt: TT/1.1 V/25 C nominal academic platform
+    tool: OpenROAD ORFS and PrimeTime O-2018.06-SP1
+    physical_target_mhz: 400
+    dc_source_mhz: 600
+    route_drc_violations: 0
+    antenna_violations: 0
+    area_um2: 418007
+    utilization: 0.312108
+    setup_wns_ns: 0.80
+    hold_wns_ns: 0.04
+    constraint_violations: 0
+    handoff_sha256:
+      netlist: ad390c40f00ef04f5fd1fa73d357286d0cf4dbf8cc93ad5e9f1da77d85c07402
+      sdc: f5c06e554753afbc672e065c74d63d80526087054606f4b5a435fd7b90360f7c
+      spef: 28207202a43b2255a157fa6408b1b3fd2beeb7067e240ec6be58665f148b7e05
+    caveat: Internal reg-to-reg academic timing using OpenRCX; no IO closure, OCV/MMMC, foundry signoff, DRC/LVS, or silicon claim.

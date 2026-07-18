@@ -1,0 +1,19 @@
+proc require_env {name} {
+  if {![info exists ::env($name)] || $::env($name) eq ""} {
+    error "Missing required environment variable: $name"
+  }
+  return $::env($name)
+}
+
+set root [require_env RDTC_FLOW_ROOT]
+set filelist [require_env RDTC_FILELIST]
+set top [require_env RDTC_TOP]
+set build_root [require_env RDTC_BUILD_ROOT]
+file mkdir "$build_root/cdc"
+cd $root
+
+read_file -type sourcelist $filelist
+set_option top $top
+set_option enableSV yes
+set_option mthresh 65536
+set_option projectwdir "$build_root/cdc"

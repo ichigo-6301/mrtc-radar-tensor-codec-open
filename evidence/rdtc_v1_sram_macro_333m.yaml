@@ -1,0 +1,28 @@
+title: RDTC v1 45 nm SRAM-macro post-route summary
+status: partial
+source_commit: b3ac1bb
+top: mrtc_rdtc_wb_wrapper
+profile: sram-macro
+configuration: two 64x128 1RW1R OpenRAM macros; 3.000 ns physical clock; same-run post-route netlist, SDC, and SPEF
+technology: Nangate45/OpenROAD/OpenRCX
+pvt: TT/1.1 V/25 C nominal academic platform
+tools:
+  - OpenRAM e16d9eb0b4495e8beee441ced3fcad68391155e6
+  - OpenROAD ORFS pinned container
+  - OpenRCX
+  - PrimeTime O-2018.06-SP1
+results:
+  route_drc_violations: 0
+  antenna_net_violations: 0
+  antenna_pin_violations: 0
+  setup_wns_ns: 0.57
+  setup_tns_ns: 0.0
+  hold_wns_ns: 0.04
+  hold_tns_ns: 0.0
+  constraint_violations: 0
+  sram_min_cap_waiver_endpoints: 256
+handoff_sha256:
+  netlist: e3f9eb2e116ef20552d3d16d166d75999178202a3e82719f238101f2133490d1
+  sdc: 96efb690d29f2517e9e4799d88b578ee76a9ceae12feb60c488a1cd439774e04
+  spef: b387989264c975fc9b49859871e8bf16c1ec2385317c860825bbb03d9f758867
+caveat: Internal reg-to-reg academic timing only. OpenRAM characterization is analytical, 256 unused SRAM dout0 minimum-cap endpoints are waived, and no IO closure, OCV/MMMC, macro DRC/LVS/PEX, foundry signoff, or silicon claim is made.

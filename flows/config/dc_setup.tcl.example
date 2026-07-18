@@ -1,0 +1,11 @@
+# Copy to flows/local/dc_setup.tcl. Keep all technology payload paths local.
+# Use the matching OSU FreePDK45 standard-cell DB and generated OpenRAM DB.
+set stdcell_db REPLACE_WITH_LOCAL_GSCL45NM_DB
+set sram_db REPLACE_WITH_LOCAL_RDTC_PREFIX_SRAM_DB
+set search_path [list [file dirname $stdcell_db] [file dirname $sram_db]]
+set target_library [list $stdcell_db]
+set link_library [concat "*" $target_library [list $sram_db]]
+
+set rdtc_use_sram_macro 1
+set rdtc_sram_cell mrtc_rdtc_prefix_1r1w_64x128
+set rdtc_expected_sram_count 2

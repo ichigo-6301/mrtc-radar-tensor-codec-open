@@ -1,0 +1,6 @@
+# Copy to flows/local/lec_setup.tcl. Define reference and implementation containers.
+# The baseline, gated, and scan comparison modes must use separate local setups.
+set_app_var synopsys_auto_setup true
+# read_verilog -r REPLACE_WITH_REFERENCE_RTL_FILELIST
+# read_verilog -i REPLACE_WITH_IMPLEMENTATION_NETLIST
+# set_top mrtc_rdtc_wb_wrapper

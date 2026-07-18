@@ -1,0 +1,59 @@
+# Copy this file to flows/local/toolchain.mk and edit local tool locations only.
+# Do not commit flows/local/, PDK paths, library paths, license settings, or credentials.
+
+RDTC_TOOL_SPYGLASS ?= spyglass
+RDTC_TOOL_PYTHON ?= python3
+RDTC_TOOL_VLIB ?= vlib
+RDTC_TOOL_VLOG ?= vlog
+RDTC_TOOL_VSIM ?= vsim
+RDTC_TOOL_VCS ?= vcs
+RDTC_TOOL_DC ?= dc_shell
+RDTC_TOOL_LC ?= lc_shell
+RDTC_SYNOPSYS_LC_ROOT ?= REPLACE_WITH_LIBRARY_COMPILER_INSTALL_ROOT
+RDTC_TOOL_OPENRAM_PYTHON ?= python3
+RDTC_TSMC90_RF_GENERATOR ?= REPLACE_WITH_LOCAL_TSMC90_RF_2P_ADV
+RDTC_TSMC90_SRAM_GENERATOR ?= REPLACE_WITH_LOCAL_TSMC90_SRAM_DP_ADV
+RDTC_TOOL_GRDGENXO ?= grdgenxo
+RDTC_TOOL_DFT ?= dc_shell
+RDTC_TOOL_LEC ?= fm_shell
+RDTC_TOOL_ICC2_LM ?= icc2_lm_shell
+RDTC_TOOL_ICC2 ?= icc2_shell
+RDTC_TOOL_OPENROAD ?= bash
+RDTC_TOOL_PRIMETIME ?= pt_shell
+RDTC_DOCKER ?= docker
+RDTC_ORFS_IMAGE ?= openroad/orfs@sha256:REPLACE_WITH_REVIEWED_IMAGE_DIGEST
+RDTC_OPENRAM_HOME ?= REPLACE_WITH_LOCAL_OPENRAM_CHECKOUT
+RDTC_NGSPICE_REAL ?= REPLACE_WITH_LOCAL_NGSPICE_46_KLU_BINARY
+RDTC_NGSPICE_SOURCE_ARCHIVE ?= REPLACE_WITH_LOCAL_NGSPICE_46_SOURCE_ARCHIVE
+RDTC_SKY130_PDK_ROOT ?= REPLACE_WITH_LOCAL_SKY130_PDK_ROOT
+RDTC_SKY130_SRAM_CELL_ROOT ?= REPLACE_WITH_LOCAL_SKY130_SRAM_CELL_CHECKOUT
+RDTC_OPENRAM_REUSE_DIR ?=
+RDTC_FREEPDK45_ROOT ?= REPLACE_WITH_LOCAL_FREEPDK45_V14_ROOT
+RDTC_RC_OUTPUT_DIR ?= REPLACE_WITH_IGNORED_SHARED_RC_OUTPUT_DIRECTORY
+
+# Register-expanded DC profiles select one of these local DBs from the
+# technology label in the defconfig. Do not publish proprietary library paths.
+RDTC_NANGATE15_DB ?= REPLACE_WITH_LOCAL_NANGATE15_TYPICAL_DB
+RDTC_NANGATE45_DB ?= REPLACE_WITH_LOCAL_ORFS_NANGATE45_TYPICAL_DB
+RDTC_ICSPROUT55_DB ?= REPLACE_WITH_LOCAL_ICSPROUT55_TYPICAL_DB
+RDTC_REGISTER_DC_SETUP ?= $(ROOT)/flows/local/dc_setup_registers.tcl
+
+# These setup files remain local because they name local PDK and library views.
+RDTC_DC_SETUP ?= $(ROOT)/flows/local/dc_setup.tcl
+RDTC_DFT_SETUP ?= $(ROOT)/flows/local/dft_setup.tcl
+RDTC_LEC_SETUP ?= $(ROOT)/flows/local/lec_setup.tcl
+RDTC_ICC2_SETUP ?= $(ROOT)/flows/local/icc2_setup.tcl
+RDTC_PRIMETIME_SETUP ?= $(ROOT)/flows/local/primetime_setup.tcl
+
+# Repository-relative defaults may be overridden for a local profile.
+RDTC_FILELIST ?= $(ROOT)/flows/manifests/rdtc_v1.f
+RDTC_SDC ?= $(ROOT)/flows/constraints/rdtc_v1_internal_400m.sdc
+RDTC_TOP ?= mrtc_rdtc_wb_wrapper
+RDTC_BUILD_ROOT ?= $(ROOT)/build/rdtc_v1_45nm
+
+# Read-only timing-audit inputs. Keep host paths in flows/local/toolchain.mk.
+# RDTC_AUDIT_DC_ROOT := /path/to/build/dc900/dc_baseline
+# RDTC_AUDIT_PT_RUNS := pnr600=/path/to/build/pnr600/primetime pnr500=/path/to/build/pnr500/primetime
+# RDTC_AUDIT_OPENROAD_RUNS := pnr600=/path/to/openroad/pnr600/logs/base pnr500=/path/to/openroad/pnr500/logs/base
+# RDTC_AUDIT_DC_NETLIST_COPIES := pnr600=/path/to/pnr600/dc_baseline/top.v pnr500=/path/to/pnr500/dc_baseline/top.v
+# RDTC_AUDIT_LIBRARY_REPORTS := /path/to/library_a.normalized.rpt /path/to/library_b.normalized.rpt

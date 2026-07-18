@@ -1,0 +1,39 @@
+# Copy to flows/local/icc2_setup.tcl. Keep all local PDK and generated-view paths here.
+# Define exactly one audited technology source. A technology LEF must include
+# routing/cut layers, routing directions, pitch/width/spacing, vias, and sites.
+set rdtc_tech_file ""
+set rdtc_tech_lef REPLACE_WITH_LOCAL_TECHNOLOGY_LEF
+set rdtc_tech_name REPLACE_WITH_LOCAL_TECHNOLOGY_NAME
+# Ordered layer skeleton consumed before technology-LEF attributes and vias.
+# Use {} for non-routing directions.
+# set rdtc_tech_layers {layer_name layer_number layer_type direction ...}
+# set rdtc_site_name REPLACE_WITH_LOCAL_SITE_NAME
+# set rdtc_site_width REPLACE_WITH_LOCAL_SITE_WIDTH
+# set rdtc_site_height REPLACE_WITH_LOCAL_SITE_HEIGHT
+set rdtc_stdcell_db REPLACE_WITH_LOCAL_GSCL45NM_DB
+set rdtc_stdcell_lef REPLACE_WITH_LOCAL_GSCL45NM_LEF
+set rdtc_stdcell_library REPLACE_WITH_LOCAL_STDCELL_LIBRARY_NAME
+set rdtc_sram_db REPLACE_WITH_LOCAL_RDTC_PREFIX_SRAM_DB
+set rdtc_sram_lef REPLACE_WITH_LOCAL_RDTC_PREFIX_SRAM_LEF
+
+# Full place/CTS/route requires an audited TLUPlus model matching the physical
+# technology above. A Cadence captable, ITF source, or another process node's
+# TLUPlus model is not interchangeable with this input.
+set rdtc_tluplus_file REPLACE_WITH_LOCAL_FREEPDK45_TLUPLUS
+set rdtc_tluplus_layermap ""
+set rdtc_parasitic_tech_name freepdk45_typ
+set rdtc_parasitic_temperature 25.0
+set rdtc_parasitic_sanity_check advanced
+
+set rdtc_dc_netlist "$::env(RDTC_BUILD_ROOT)/dc_baseline/mrtc_rdtc_wb_wrapper_baseline.v"
+set rdtc_dc_sdc "$::env(RDTC_BUILD_ROOT)/dc_baseline/mrtc_rdtc_wb_wrapper_baseline.sdc"
+set rdtc_stdcell_ndm "$::env(RDTC_BUILD_ROOT)/icc2_libs/rdtc_freepdk45_stdcell.ndm"
+set rdtc_sram_ndm "$::env(RDTC_BUILD_ROOT)/icc2_libs/rdtc_freepdk45_sram.ndm"
+set rdtc_reference_ndms [list $rdtc_stdcell_ndm $rdtc_sram_ndm]
+set rdtc_design_library "$::env(RDTC_BUILD_ROOT)/icc2/rdtc_v1.dlib"
+
+set rdtc_core_utilization 0.50
+set rdtc_core_aspect_ratio 1.0
+set rdtc_core_offset 10.0
+set rdtc_expected_sram_count 2
+set rdtc_sram_cell mrtc_rdtc_prefix_1r1w_64x128

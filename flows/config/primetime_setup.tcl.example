@@ -1,0 +1,6 @@
+# Copy to flows/local/primetime_setup.tcl. Keep local libraries and generated paths here.
+set rdtc_stdcell_db REPLACE_WITH_LOCAL_GSCL45NM_DB
+set rdtc_sram_db REPLACE_WITH_LOCAL_RDTC_PREFIX_SRAM_DB
+set rdtc_postroute_netlist "$::env(RDTC_BUILD_ROOT)/icc2/mrtc_rdtc_wb_wrapper_postroute.v"
+set rdtc_postroute_sdc "$::env(RDTC_BUILD_ROOT)/icc2/mrtc_rdtc_wb_wrapper_postroute.sdc"
+set rdtc_postroute_spef "$::env(RDTC_BUILD_ROOT)/icc2/mrtc_rdtc_wb_wrapper_postroute.spef"

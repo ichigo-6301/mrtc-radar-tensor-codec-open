@@ -1,0 +1,12 @@
+# Copy to flows/local/icc2_pg_tsmc90.tcl and confirm the local library pins.
+create_net -power VDD
+create_net -ground VSS
+connect_pg_net -net VDD [get_pins -hierarchical -filter "port_type == power"]
+connect_pg_net -net VSS [get_pins -hierarchical -filter "port_type == ground"]
+
+create_pg_ring_pattern rdtc_core_ring \
+  -horizontal_layer M9 -horizontal_width 4.0 -horizontal_spacing 2.0 \
+  -vertical_layer M8 -vertical_width 4.0 -vertical_spacing 2.0
+set_pg_strategy rdtc_core_ring_strategy -core \
+  -pattern {{name: rdtc_core_ring} {nets: {VDD VSS}} {offset: {2 2}}}
+compile_pg -strategies rdtc_core_ring_strategy

@@ -1,0 +1,78 @@
+kind: claims
+schema_version: 1.0.0
+claims:
+  - id: rdtc_v1_reference_bit_exact
+    profile: rdtc_v1_public_release
+    statement: "RDTC v1 MATLAB vectors, the C/DPI-C reference model, and the published RTL legal-vector regressions agree for RAW_BYPASS, ZERO_RICE, and DELTA_RICE."
+    metric: bit_exact_equivalence
+    value: pass
+    unit: result
+    benchmark: published RDTC v1 legal-vector set
+    configuration: I16Q16 BLOCK_MODE_A stream packets including multi-block and AXI packing vectors
+    source_ref: bf27b88d77c422ed385e35bb2f19335e054af244
+    tool: "MATLAB R2024b, gcc/make, and Questa"
+    evidence:
+      - rdtc_v1_reference_validation_public
+    status: verified
+    caveat: Applies to the documented legal-vector and regression set; it is not an exhaustive formal proof.
+    public: true
+  - id: rdtc_v1_register_expanded_nangate15_800m_dc
+    profile: rdtc_v1_register_expanded
+    statement: The register-expanded RDTC wrapper met the internal 800 MHz Design Compiler constraint in the published NanGate15 comparison profile.
+    metric: setup_wns
+    value: 0.22945
+    unit: ns
+    benchmark: NanGate15 register-expanded DC matrix
+    configuration: "TT/0.8 V/25 C, 1 ps Liberty time unit, 100 ps setup uncertainty"
+    source_ref: 41b33f7
+    tool: dc_shell O-2018.06-SP1
+    evidence:
+      - rdtc_v1_register_expanded_public
+    status: verified
+    caveat: "Open-source NLDM and Library Compiler warnings; internal DC estimate only, with no P&R, IO, or foundry signoff claim."
+    public: true
+  - id: rdtc_v1_register_expanded_nangate45_pnr400_pt
+    profile: rdtc_v1_register_expanded
+    statement: The register-expanded RDTC wrapper completed the documented 45 nm academic OpenROAD/OpenRCX flow and passed the matching 400 MHz PrimeTime internal setup and hold checks.
+    metric: setup_wns
+    value: 0.8
+    unit: ns
+    benchmark: "Nangate45 register-expanded P&R/PT candidate"
+    configuration: "600 MHz DC-mapped netlist, 400 MHz physical target, 60% capacitance and 65% slew repair guardbands"
+    source_ref: 41b33f7
+    tool: OpenROAD ORFS and PrimeTime O-2018.06-SP1
+    evidence:
+      - rdtc_v1_register_expanded_public
+    status: verified
+    caveat: "Internal reg-to-reg academic timing only; no IO closure, OCV/MMMC, foundry signoff, DRC/LVS, or silicon claim."
+    public: true
+  - id: rdtc_v1_sram_macro_nangate45_333m_pt
+    profile: rdtc_v1_sram_macro
+    statement: The SRAM-macro RDTC wrapper completed the documented 45 nm academic OpenROAD/OpenRCX flow and passed the matching 333 MHz PrimeTime internal setup and hold checks.
+    metric: setup_wns
+    value: 0.57
+    unit: ns
+    benchmark: Nangate45 SRAM-macro post-route STA candidate
+    configuration: "two 64x128 1RW1R OpenRAM macros, 3.000 ns physical clock, same-run SPEF"
+    source_ref: b3ac1bb
+    tool: "OpenROAD ORFS, OpenRCX, and PrimeTime O-2018.06-SP1"
+    evidence:
+      - rdtc_v1_sram_macro_333m_public
+    status: verified
+    caveat: "Internal reg-to-reg academic timing only; SRAM analytical characterization, min-cap waiver, no IO closure, OCV/MMMC, macro DRC/LVS/PEX, foundry signoff, or silicon claim."
+    public: true
+  - id: rdtc_v1_wb_wrapper_vcs_regression
+    profile: rdtc_v1_public_release
+    statement: The frozen dual-AXIS128 RDTC writeback-wrapper VCS regression passed its required cases.
+    metric: required_case_count
+    value: 10
+    unit: cases
+    benchmark: frozen dual-AXIS128 wrapper VCS suite
+    configuration: 4096-byte raw blocks with independent lane backpressure and completion handling
+    source_ref: bf27b88d77c422ed385e35bb2f19335e054af244
+    tool: vcs O-2018.09-SP2
+    evidence:
+      - rdtc_v1_wb_wrapper_vcs_public
+    status: verified
+    caveat: "This is a finite wrapper regression result, not formal verification or coverage closure."
+    public: true

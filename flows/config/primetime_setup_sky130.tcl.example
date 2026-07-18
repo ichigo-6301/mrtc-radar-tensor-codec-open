@@ -1,0 +1,10 @@
+# Copy to flows/local/primetime_setup.tcl for SKY130 profiles.
+set rdtc_stdcell_db "$::env(RDTC_BUILD_ROOT)/sky130_libs/sky130_fd_sc_hd__tt_025C_1v80.db"
+if {$::env(RDTC_MEMORY_MODE) eq "macro"} {
+  set rdtc_sram_db "$::env(RDTC_BUILD_ROOT)/sram_openram/sky130_sram_1kbyte_1rw1r_32x256_8.db"
+} else {
+  set rdtc_sram_db ""
+}
+set rdtc_postroute_netlist "$::env(RDTC_BUILD_ROOT)/openroad/handoff/mrtc_rdtc_wb_wrapper_postroute.v"
+set rdtc_postroute_sdc "$::env(RDTC_BUILD_ROOT)/openroad/handoff/mrtc_rdtc_wb_wrapper_postroute.sdc"
+set rdtc_postroute_spef "$::env(RDTC_BUILD_ROOT)/openroad/handoff/mrtc_rdtc_wb_wrapper_postroute.spef"

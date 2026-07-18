@@ -1,0 +1,15 @@
+MRTC RDTC public source release
+
+The public source files in this release are offered under the MIT License.
+
+Generated FPGA IP, commercial PDK files, standard-cell and SRAM libraries,
+implementation databases, external data sets, and tool installation payloads are
+not distributed with this repository. Use the documented generation or
+acquisition steps for those dependencies.
+
+OpenRAM is an external SRAM compiler distributed under its own license. The
+OSU FreePDK45 standard-cell views and FreePDK45 technology files are external
+academic technology assets. Synopsys Library Compiler, Design Compiler, ICC2,
+and PrimeTime are commercial tools. None of these tools, technology payloads,
+generated macro views, or generated implementation databases are covered by
+this repository's MIT License or included in the source release.

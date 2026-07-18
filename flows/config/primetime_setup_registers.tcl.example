@@ -1,0 +1,13 @@
+# Copy to flows/local/primetime_setup_registers.tcl for register-expanded STA.
+if {![info exists ::env(RDTC_STDCELL_DB)] || $::env(RDTC_STDCELL_DB) eq ""} {
+  error "Missing RDTC_STDCELL_DB for register-expanded PrimeTime"
+}
+set rdtc_stdcell_db $::env(RDTC_STDCELL_DB)
+if {![file isfile $rdtc_stdcell_db]} {
+  error "Missing register-expanded standard-cell DB: $rdtc_stdcell_db"
+}
+set search_path [list [file dirname $rdtc_stdcell_db]]
+set rdtc_sram_db ""
+set rdtc_postroute_netlist "$::env(RDTC_BUILD_ROOT)/openroad/handoff/$::env(RDTC_TOP)_postroute.v"
+set rdtc_postroute_sdc "$::env(RDTC_BUILD_ROOT)/openroad/handoff/$::env(RDTC_TOP)_postroute.sdc"
+set rdtc_postroute_spef "$::env(RDTC_BUILD_ROOT)/openroad/handoff/$::env(RDTC_TOP)_postroute.spef"

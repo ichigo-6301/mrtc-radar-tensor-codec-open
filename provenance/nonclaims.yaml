@@ -1,0 +1,21 @@
+kind: nonclaims
+schema_version: 1.0.0
+nonclaims:
+  - id: rdtc_v1_no_pointcloud_or_rle_rtl
+    profile: rdtc_v1_public_release
+    statement: "RDTC v1 does not claim PointCloud RTL, RLE_RICE RTL, AXI-MM or DMA-descriptor integration."
+    reason: These functions are outside the published RDTC v1 lossless codec scope.
+    status: not_claimed
+    public: true
+  - id: rdtc_v1_no_asic_signoff
+    profile: rdtc_v1_public_release
+    statement: "RDTC v1 does not claim IO timing closure, OCV/MMMC closure, foundry signoff, macro DRC/LVS/PEX, DFT/ATPG, LEC, GLS/SDF, or silicon readiness."
+    reason: "The public implementation evidence is academic internal reg-to-reg timing with explicit PDK, RC, memory-model, and integration-boundary caveats."
+    status: not_claimed
+    public: true
+  - id: rdtc_v1_no_board_pass
+    profile: rdtc_v1_public_release
+    statement: RDTC v1 does not claim a board PASS result.
+    reason: No public hardware console log with a defined PASS marker is registered for this release.
+    status: not_claimed
+    public: true

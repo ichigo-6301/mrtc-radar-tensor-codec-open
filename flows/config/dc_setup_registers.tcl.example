@@ -1,0 +1,15 @@
+# Copy to flows/local/dc_setup_registers.tcl. The selected defconfig and
+# ignored toolchain.mk provide RDTC_STDCELL_DB for the requested technology.
+if {![info exists ::env(RDTC_STDCELL_DB)] || $::env(RDTC_STDCELL_DB) eq ""} {
+  error "Missing RDTC_STDCELL_DB for register-expanded synthesis"
+}
+set rdtc_stdcell_db $::env(RDTC_STDCELL_DB)
+if {![file isfile $rdtc_stdcell_db]} {
+  error "Missing register-expanded standard-cell DB: $rdtc_stdcell_db"
+}
+set search_path [list [file dirname $rdtc_stdcell_db]]
+set target_library [list $rdtc_stdcell_db]
+set link_library [concat "*" $target_library]
+set rdtc_use_sram_macro 0
+set rdtc_rtl_defines {}
+set rdtc_memory_model_files {}

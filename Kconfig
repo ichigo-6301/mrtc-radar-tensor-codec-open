@@ -1,0 +1,231 @@
+mainmenu "MRTC RDTC v1 implementation flow"
+
+config RDTC_V1
+	bool "Enable the RDTC v1 public release profile"
+	default y
+
+config RDTC_TOP
+	string "Elaboration top module"
+	default "mrtc_rdtc_wb_wrapper"
+
+menu "Implementation profile"
+
+config FLOW_PRODUCT_PROFILE
+	string "Implementation product profile"
+	default "sram-macro"
+	help
+		Use register-expanded when the prefix buffer is mapped into standard
+		cells, or sram-macro when the two 64x128 hard memories are bound.
+
+config FLOW_TECHNOLOGY
+	string "Technology and memory-planning label"
+	default "freepdk45_openram"
+
+config FLOW_CLOCK_PERIOD_NS
+	string "Legacy/default target clock period in ns"
+	default "2.500"
+	help
+		Used as the fallback for synthesis, physical implementation, and
+		STA when the stage-specific period below is empty.
+
+config FLOW_SDC_TIME_SCALE
+	string "Scale from documented ns to library time units"
+	default "1.0"
+	help
+		Use 1000.0 for libraries whose Liberty time_unit is 1ps. Documented
+		clock periods remain in ns; the constraint adapter applies this scale.
+
+config FLOW_DC_CLOCK_PERIOD_NS
+	string "Design Compiler clock period in ns"
+	default ""
+	help
+		Optional synthesis-only target. A tighter DC target can provide a
+		faster mapped netlist for a looser physical implementation target.
+
+config FLOW_PNR_CLOCK_PERIOD_NS
+	string "Physical implementation clock period in ns"
+	default ""
+	help
+		Optional OpenROAD/ICC2 target applied when the mapped netlist is
+		imported. Leave empty to use the legacy/default period.
+
+config FLOW_STA_CLOCK_PERIOD_NS
+	string "Post-route STA clock period in ns"
+	default ""
+	help
+		Expected PrimeTime analysis period. It normally matches the P&R
+		period and is recorded separately to make the handoff auditable.
+
+config FLOW_HOLD_SLACK_MARGIN_NS
+	string "OpenROAD CTS hold repair slack margin in ns"
+	default "-0.05"
+	help
+		Set the physical implementation hold-repair target independently of
+		the synthesis clock period. Use 0.00 for hold-closure experiments.
+
+config FLOW_SETUP_SLACK_MARGIN_NS
+	string "OpenROAD setup repair slack margin in ns"
+	default "0.00"
+	help
+		Reserve bounded setup margin during physical optimization so routed
+		and extracted timing drift does not consume a zero-slack result.
+
+config FLOW_CAP_MARGIN_PERCENT
+	string "OpenROAD max-capacitance repair margin in percent"
+	default ""
+	help
+		Optionally over-fix max capacitance during global-route repair to
+		cover detailed-route extraction drift. Empty preserves the platform
+		default; record non-empty values as a physical guardband experiment.
+
+config FLOW_SLEW_MARGIN_PERCENT
+	string "OpenROAD max-transition repair margin in percent"
+	default ""
+	help
+		Optionally over-fix max transition during global-route repair to
+		cover detailed-route extraction drift. Empty preserves the platform
+		default; record non-empty values as a physical guardband experiment.
+
+config FLOW_GRT_HOLD_SLACK_MARGIN_NS
+	string "OpenROAD global-route hold repair slack margin in ns"
+	default ""
+	help
+		Override the CTS hold guardband when global routing starts. Leave
+		empty to preserve the CTS margin, or use 0.00 to repair only actual
+		global-route hold violations after a guarded CTS run.
+
+config FLOW_POST_GRT_HOLD_REPAIR_PASSES
+	string "Post-global-route incremental hold repair passes"
+	default "0"
+	help
+		Run bounded hold repair and incremental rerouting after the normal
+		global-route repair sequence. Zero preserves the baseline flow.
+
+config FLOW_POST_GRT_HOLD_SLACK_MARGIN_NS
+	string "Post-global-route hold repair slack margin in ns"
+	default "0.00"
+	help
+		Apply a local guardband only during the bounded post-global-route
+		repair passes so detailed-route parasitics do not reopen hold paths.
+
+config FLOW_TARGETED_DRC_ECO
+	string "Profile-specific pre-detail-route DRC ECO"
+	default ""
+	help
+		Select a reviewed, fail-closed physical ECO by name. Leave empty for
+		the generic flow. The rdtc333_spice_eco1 option is tied to the pinned
+		333 MHz mapped-netlist and OpenROAD profile.
+
+config FLOW_EXPECTED_DC_NETLIST_SHA256
+	string "Expected mapped DC netlist SHA256"
+	default ""
+	help
+		Optional fail-closed identity check for a physical implementation
+		handoff. Leave empty for exploratory profiles.
+
+config FLOW_DC_HANDOFF_BUILD_TAG
+	string "Build tag containing the mapped DC handoff"
+	default ""
+	help
+		Use a separate physical build tag when a P&R guardband iteration
+		reuses a frozen DC netlist from another ignored build directory.
+
+config FLOW_STA_UNUSED_RW_DOUT_MIN_CAP_WAIVER
+	bool "Waive unused 1RW1R dout0 minimum-capacitance checks"
+	default n
+	help
+		Allow only the exact 256 minimum-capacitance checks on the unused
+		dout0[127:0] bus of the two RDTC 1RW1R SRAM instances. Any missing,
+		extra, or differently named violation still fails post-route STA.
+
+config FLOW_BUILD_TAG
+	string "Ignored build directory tag"
+	default "rdtc_v1_45nm"
+
+config FLOW_MEMORY_MODE
+	string "Prefix-buffer implementation"
+	default "macro"
+	help
+		Use macro for a technology memory leaf or registers for the
+		standard-cell-expanded comparison profile.
+
+config FLOW_TSMC90_MEMORY_VARIANT
+	string "TSMC90 prefix-memory variant"
+	default "rf64x128"
+	help
+		Use rf64x128 for the exact-depth two-port register-file macro or
+		sram128x128 for the true dual-port SRAM with its upper address bit
+		tied low. This setting is ignored by non-TSMC90 profiles.
+
+config FLOW_OPENROAD_PLATFORM
+	string "ORFS platform name"
+	default "nangate45"
+
+config FLOW_PNR_BACKEND
+	string "Physical implementation backend"
+	default "openroad"
+	help
+		Use openroad for the reproducible academic profile or icc2 for the
+		Synopsys-only vendor-PDK profile.
+
+config FLOW_PNR_SCOPE
+	string "Physical implementation scope"
+	default "full"
+
+endmenu
+
+menu "Enabled stages"
+
+config FLOW_LIBRARY_PREP
+	bool "Compile and audit technology standard-cell libraries"
+	default n
+
+config FLOW_SRAM_PREP
+	bool "Memory macro preparation, audit, and Library Compiler DB"
+	default y
+
+config FLOW_RC_PREP
+	bool "FreePDK45 academic ITF and TLUPlus generation"
+	default n
+
+config FLOW_RTL_SIM
+	bool "Questa/ModelSim RTL regression smoke"
+	default y
+
+config FLOW_LINT
+	bool "SpyGlass RTL lint"
+	default y
+
+config FLOW_CDC
+	bool "SpyGlass CDC/RDC"
+	default y
+
+config FLOW_DC_BASELINE
+	bool "Design Compiler baseline synthesis"
+	default y
+
+config FLOW_DC_GATED
+	bool "Design Compiler clock-gated synthesis"
+	default y
+
+config FLOW_DFT
+	bool "Scan DFT insertion"
+	default y
+
+config FLOW_LEC
+	bool "Formal equivalence checking"
+	default y
+
+config FLOW_PNR
+	bool "OpenROAD/OpenRCX physical implementation"
+	default n
+
+config FLOW_ICC2_LIBS
+	bool "ICC2 Library Manager reference-library build"
+	default n
+
+config FLOW_STA
+	bool "PrimeTime post-layout STA"
+	default n
+
+endmenu

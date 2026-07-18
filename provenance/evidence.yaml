@@ -1,0 +1,40 @@
+kind: evidence_manifest
+schema_version: 1.0.0
+evidence:
+  - id: rdtc_v1_reference_validation_public
+    path: evidence/rdtc_v1_reference_validation.yaml
+    type: reference_model_validation_summary
+    source_ref: bf27b88d77c422ed385e35bb2f19335e054af244
+    tool: "MATLAB R2024b, gcc/make, and Questa"
+    claims:
+      - rdtc_v1_reference_bit_exact
+    sha256: fe82bd881efbdd090b07470c5e35080db3992fd26fe21eec4295067a70eb0d31
+    public: true
+  - id: rdtc_v1_register_expanded_public
+    path: evidence/rdtc_v1_register_expanded.yaml
+    type: multi_node_dc_and_physical_summary
+    source_ref: 41b33f7
+    tool: "dc_shell O-2018.06-SP1, OpenROAD ORFS, OpenRCX, and PrimeTime O-2018.06-SP1"
+    claims:
+      - rdtc_v1_register_expanded_nangate15_800m_dc
+      - rdtc_v1_register_expanded_nangate45_pnr400_pt
+    sha256: 48d6de81c81067b60fb7ec8fd6128d60a3dd5e0ff93cdc7c5fa4099a300db09a
+    public: true
+  - id: rdtc_v1_sram_macro_333m_public
+    path: evidence/rdtc_v1_sram_macro_333m.yaml
+    type: physical_postroute_sta_summary
+    source_ref: b3ac1bb
+    tool: "OpenROAD ORFS, OpenRCX, and PrimeTime O-2018.06-SP1"
+    claims:
+      - rdtc_v1_sram_macro_nangate45_333m_pt
+    sha256: ee0c8d8004613f399853e13c76a175244ead7b0ea07bea216041f987f71f6b9e
+    public: true
+  - id: rdtc_v1_wb_wrapper_vcs_public
+    path: evidence/rdtc_v1_wb_wrapper_vcs.yaml
+    type: regression_summary
+    source_ref: bf27b88d77c422ed385e35bb2f19335e054af244
+    tool: vcs O-2018.09-SP2
+    claims:
+      - rdtc_v1_wb_wrapper_vcs_regression
+    sha256: 53d16931151293e7e54d23648dbbe01c442ac6ea77ea21b7f3b475a53973cdb1
+    public: true

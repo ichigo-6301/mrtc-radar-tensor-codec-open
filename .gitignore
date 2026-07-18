@@ -1,0 +1,30 @@
+# Generated simulator and implementation artifacts
+build/
+work/
+.config
+flows/local/
+__pycache__/
+ref_model/results/
+simv*
+*.daidir/
+*.wlf
+*.fsdb
+.Xil/
+*.jou
+*.log
+
+# Tool and technology payloads
+pdk/
+tool_cache/
+*.lib
+*.db
+*.lef
+*.gds
+*.oas
+
+# Credentials
+*.token
+*.secret
+*.key
+*.pem
+credentials*

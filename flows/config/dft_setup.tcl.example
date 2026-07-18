@@ -1,0 +1,6 @@
+# Copy to flows/local/dft_setup.tcl. Source the local DC setup and define scan policy.
+source $::env(RDTC_DC_SETUP)
+set_dft_signal -view spec -type ScanClock -port clk -timing {45 55}
+set_dft_signal -view spec -type Reset -port rst_n -active_state 0
+# Define ScanEnable and memory-test controls for the selected integration profile.
+# set_dft_signal -view spec -type ScanEnable -port REPLACE_WITH_SCAN_ENABLE -active_state 1
