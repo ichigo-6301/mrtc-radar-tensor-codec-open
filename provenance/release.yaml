@@ -4,6 +4,6 @@ repository_name: mrtc-radar-tensor-codec-open
 profile: rdtc_v1_public_release
 release_version: register550-rc1
 source_commit: 41b33f7057c341cc4b952f51b00eb886f42c5fe2
-delivery_commit: 0beae1a6848953130f993b9decbf745fe335cf06
+delivery_commit: 273e41e99ad90c04de68ca0c420d4f8260b181ca
 license: MIT
 bundle_type: public-ip

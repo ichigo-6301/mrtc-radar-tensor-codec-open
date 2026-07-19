@@ -1,0 +1,10 @@
+# Keep release checksums stable across Windows and Linux clones.
+* text=auto eol=lf
+
+*.gif binary
+*.ico binary
+*.jpg binary
+*.jpeg binary
+*.pdf binary
+*.png binary
+*.zip binary
