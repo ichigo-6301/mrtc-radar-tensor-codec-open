@@ -31,6 +31,21 @@ claims:
     status: verified
     caveat: "Open-source NLDM and Library Compiler warnings; internal DC estimate only, with no P&R, IO, or foundry signoff claim."
     public: true
+  - id: rdtc_v1_register_ics55_rvt_800m_dc
+    profile: rdtc_v1_register_ics55_rvt_dc
+    statement: The register-expanded RDTC wrapper met the internal 800 MHz Design Compiler constraint with the reviewed ICS55 RVT public-preview library.
+    metric: setup_wns
+    value: 0.00
+    unit: ns
+    benchmark: ICS55 RVT register-expanded DC matrix
+    configuration: "ICsprout55 v1.10.100 H7CR RVT, TT/1.2 V/25 C, 100 ps setup uncertainty"
+    source_ref: 41b33f7057c341cc4b952f51b00eb886f42c5fe2
+    tool: Synopsys Design Compiler O-2018.06-SP1
+    evidence:
+      - rdtc_v1_register_ics55_rvt_dc_public
+    status: verified
+    caveat: "Internal ideal-clock DC estimate only; no P&R, route parasitics, complete IO timing, reset recovery/removal, OCV/MMMC, foundry signoff, production-readiness, or silicon claim."
+    public: true
   - id: rdtc_v1_register_expanded_nangate45_pnr400_pt
     profile: rdtc_v1_register_expanded
     statement: The register-expanded RDTC wrapper completed the documented 45 nm academic OpenROAD/OpenRCX flow and passed the matching 400 MHz PrimeTime internal setup and hold checks.

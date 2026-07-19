@@ -26,9 +26,10 @@ Both profiles preserve the same external RTL interfaces, AXI behavior, register 
 |---|---|---|---|
 | `rdtc_v1_register_nangate45_550` | verified | Register-expanded Nangate45 | 700 MHz DC-closed netlist; 550 MHz OpenROAD/OpenRCX/PT internal reg-to-reg closure |
 | `rdtc_v1_sram_nangate45_333` | partial | 2 x `64x128 1RW1R` SRAM macros | 333 MHz internal reg-to-reg result; analytical-SRAM and waiver caveats retained |
+| `rdtc_v1_register_ics55_rvt_dc` | verified | Register-expanded ICS55 RVT | 400/800 MHz DC points are constraint-clean; highest setup-closed point is 800 MHz; DC-only |
 | `rdtc_v1_register_ics55_ecos_preview` | planned | ICS55/ECOS preview | No public result, evidence, or implementation claim yet |
 
-The 55 nm register-expanded synthesis matrix remains private. Metrics are not published until license and publication authorization are confirmed, and no 15/55 nm post-route Fmax is claimed.
+The 55 nm comparison uses the Apache-2.0 ICsprout55 `v1.10.100` public-preview PDK and publishes only register-expanded DC evidence. PDK payloads and raw commercial reports are not distributed, and no 15/55 nm post-route Fmax is claimed.
 
 ## System Position And Interfaces
 
@@ -41,7 +42,7 @@ RDTC consumes block-organized complex Range-Doppler samples and produces compres
 | C reference model and public vectors | verified | RAW/ZERO/DELTA tests pass |
 | RTL elaboration and Questa regression | verified | Icarus PASS; public full regression PASS |
 | SpyGlass Lint | partial | 0 fatal, 0 error, 225 warnings |
-| Register-expanded 15/45 nm DC | verified | 400/600/700/800 MHz matrix recorded; the 45 nm 700 MHz point closes and 800 MHz does not |
+| Register-expanded 15/45/55 nm DC | verified | ICS55 RVT 400/800 MHz points are constraint-clean and 800 MHz is the highest setup-closed point; 600 MHz retains 2/3 transition/capacitance violations |
 | Register-expanded 45 nm P&R/PT | verified | 550 MHz; zero route DRC/antenna violations; setup/hold WNS +0.26/+0.04 ns |
 | SRAM-macro 45 nm P&R/PT | partial | 333 MHz; setup/hold WNS +0.57/+0.04 ns; analytical-SRAM and min-cap-waiver caveats retained |
 

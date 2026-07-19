@@ -8,7 +8,7 @@ Public ASIC content is organized as two independent profiles: `register-expanded
 
 The public 45 nm physical profile uses OpenROAD/OpenRCX and PrimeTime. It imports the 700 MHz DC netlist, reapplies a 550 MHz P&R/STA constraint, and completes placement, CTS, route, and SPEF generation. Route DRC and antenna net/pin counts are zero; PrimeTime setup/hold WNS is +0.26/+0.04 ns with 100% setup/hold coverage. A total of 1,756 asynchronous-reset pins remain outside max-delay coverage. This is internal reg-to-reg academic timing, not complete IO, reset recovery/removal, OCV/MMMC, or foundry signoff.
 
-Only DC comparison results are published for 15 nm. The 55 nm matrix remains in the private delivery until library-license and publication authorization are confirmed. Removing SRAM does not provide a matching parasitic technology, so no 15/55 nm post-route Fmax is claimed.
+DC-only comparisons are published for both 15 nm and 55 nm. The 55 nm profile uses ICsprout55 public-preview `v1.10.100` H7CR RVT at TT/1.2 V/25 C: setup closes at 400/600/800 MHz, and 800 MHz is the highest executed constraint-clean setup-closed point. The 600 MHz point remains `partial` because two max-transition nets and three max-capacitance nets violate their limits. Removing SRAM does not provide matching parasitic technology, and DC closure does not imply P&R closure, so this DC claim makes no 55 nm post-route Fmax claim.
 
 ## SRAM-macro
 

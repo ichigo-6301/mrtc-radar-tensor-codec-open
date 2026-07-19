@@ -8,7 +8,7 @@
 
 公开 45 nm physical profile 使用 OpenROAD/OpenRCX 和 PrimeTime：以 700 MHz DC netlist 为输入，在 550 MHz 重新施加 P&R/STA 约束，完成 placement、CTS、route 和 SPEF。route DRC 与 antenna net/pin 均为 0，PrimeTime setup/hold WNS 为 +0.26/+0.04 ns，setup/hold coverage 为 100%。1756 个异步 reset pin 不在 max-delay coverage 内。该结果是内部 reg-to-reg academic timing，不是完整 IO、reset recovery/removal、OCV/MMMC 或 foundry signoff。
 
-15 nm 只发布 DC 对比结果；55 nm 矩阵保留在私有 delivery，直到库许可证和公开授权确认。移除 SRAM 不会自动提供匹配的寄生技术，因此 15/55 nm 不声明 post-route Fmax。
+15 nm 与 55 nm 都发布 DC-only 对比。55 nm 使用 ICsprout55 public-preview `v1.10.100` H7CR RVT、TT/1.2 V/25 C：400/600/800 MHz setup 均闭合，800 MHz 是最高已运行且 constraint-clean 的闭合点；600 MHz 仍有 2 个 max-transition net 和 3 个 max-capacitance net，因此该单点为 `partial`。移除 SRAM 不会自动提供匹配的寄生技术，DC closure 也不等于 P&R closure，因此本 DC claim 不声明 55 nm post-route Fmax。
 
 ## SRAM-macro
 

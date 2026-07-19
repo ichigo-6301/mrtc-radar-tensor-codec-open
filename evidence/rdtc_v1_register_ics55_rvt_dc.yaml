@@ -1,0 +1,98 @@
+title: RDTC v1 register-expanded ICS55 RVT Design Compiler profile
+profile_id: rdtc_v1_register_ics55_rvt_dc
+profile_maturity: verified
+source_commit: 41b33f7057c341cc4b952f51b00eb886f42c5fe2
+top: mrtc_rdtc_wb_wrapper
+product_profile: register-expanded
+memory_mode: registers
+macro_count: 0
+claim_scope: internal_reg_to_reg_dc_only
+pdk:
+  repository: openecos-projects/icsprout55-pdk
+  release: v1.10.100
+  release_commit: e696e093129ca2212487aa169af74d06ebd86eb6
+  license: Apache-2.0
+  maturity: preview
+library:
+  name: ics55_LLSC_H7C_V1p10C100
+  cell_set: ics55_LLSC_H7CR
+  vt_flavor: RVT
+  pvt: TT/1.2 V/25 C
+  liberty_time_unit: 1ns
+  liberty_sha256: 38a9f9056a7e4417451e0aaa137efaf0461ee1fc574a8b2ad53622def34bb2b7
+  compiled_db_sha256: 50ae2e44ef855cf9b6ba5b1789978f01597b3ab3f50b693df6b126a1e35af7e9
+tool: Synopsys Design Compiler O-2018.06-SP1
+input_identity:
+  filelist_sha256: 570cc9babd17a3db1ca3ac85b7a228aa642177b699f64aeabf5e06b2835ed453
+  rtl_content_manifest_sha256: 842b6c8550d951b348f7246b296356cb0b971b561514ade953392acb7a4e9a53
+  constraint_source_sha256: 3b3194d88983ea6e2d2c4c765e31d7a74a4bf5370a59372285578026c2589328
+constraint:
+  clock: internal single clock
+  setup_uncertainty_ns: 0.100
+  hold_uncertainty_ns: 0.000
+  clock_model: ideal
+  complete_top_level_io_timing: false
+  inputs_without_clock_relative_delay: 498
+  unconstrained_max_delay_endpoints: 672
+results:
+  ics55_dc400:
+    status: verified
+    frequency_mhz: 400
+    period_ns: 2.500000
+    setup_wns_ns: 0.00
+    setup_tns_ns: 0.00
+    violating_setup_paths: 0
+    total_cell_area_um2: 520945.034442
+    leaf_cell_count: 180415
+    combinational_cell_count: 141841
+    sequential_cell_count: 38574
+    macro_count: 0
+    max_transition_violations: 0
+    max_capacitance_violations: 0
+    mapped_netlist_sha256: a08d8bc271e8eece83b30fa791f5cddc26a1a36b1463e5a2d6577928e0ccdc05
+    output_sdc_sha256: 3c2649d7ece54d78cb6dc70839d049bcf9eff05f93f52e6b42fe602ae4609277
+  ics55_dc600:
+    status: partial
+    frequency_mhz: 600
+    period_ns: 1.666667
+    setup_wns_ns: 0.00
+    setup_tns_ns: 0.00
+    violating_setup_paths: 0
+    total_cell_area_um2: 534334.634083
+    leaf_cell_count: 197472
+    combinational_cell_count: 158902
+    sequential_cell_count: 38570
+    macro_count: 0
+    max_transition_violations: 2
+    max_capacitance_violations: 3
+    mapped_netlist_sha256: 5318cd5850c404c9cfd1bf7469d8a377d5174c823e1fdaeae672449ac5f8604f
+    output_sdc_sha256: dbea278aa71db8cad8a804e30f292ae04d3d39371ffb005c95aecfe102753cc1
+    caveat: Setup closes, but two transition nets and three capacitance nets remain active constraint violations.
+  ics55_dc800:
+    status: verified
+    frequency_mhz: 800
+    period_ns: 1.250000
+    setup_wns_ns: 0.00
+    setup_tns_ns: 0.00
+    violating_setup_paths: 0
+    total_cell_area_um2: 566341.713394
+    leaf_cell_count: 228065
+    combinational_cell_count: 189489
+    sequential_cell_count: 38576
+    macro_count: 0
+    max_transition_violations: 0
+    max_capacitance_violations: 0
+    mapped_netlist_sha256: c81cc9f71fca8d9a2bac2e27699a3cb7354a6f29489222eb277bd60a6daf5979
+    output_sdc_sha256: e9f7276fc38251c1c6faa960f1bb6c42603e6e87a700b0b3085780d2ab327459
+highest_setup_closed_point_mhz: 800
+audit:
+  analyze_elaborate_link_compile_ultra: pass
+  check_design: pass
+  unresolved_cells: 0
+  blackbox_count: 0
+  memory_expansion: prefix storage implemented as standard-cell registers
+  leakage_constraint_note: The O-2018.06 library/tool combination reports the default zero max-leakage limit as an obsolete model artifact, not a meaningful design power limit.
+caveats:
+  - DC-only estimate with an ideal internal clock; no placement, route, or route parasitics are included.
+  - No complete top-level IO timing, reset recovery/removal, OCV, MMMC, foundry signoff, production-readiness, or silicon claim.
+  - The public preview PDK release is attributable, but no PDK payload, Liberty/DB, mapped netlist, or raw commercial report is distributed.

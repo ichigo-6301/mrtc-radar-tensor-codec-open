@@ -24,4 +24,6 @@ allowed_memory_modes:
   - macro
 allowed_claim_scopes:
   - internal_reg_to_reg
-
+  - internal_reg_to_reg_dc_only
+  - physical_implementation_pnr_only
+  - internal_postroute_timing_preview

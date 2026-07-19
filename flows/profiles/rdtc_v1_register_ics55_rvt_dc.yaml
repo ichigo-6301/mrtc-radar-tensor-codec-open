@@ -1,0 +1,21 @@
+schema_version: 1.0.0
+kind: rdtc_implementation_profile
+profile_id: rdtc_v1_register_ics55_rvt_dc
+product_profile: register-expanded
+maturity: verified
+technology: ICS55
+pdk_repository: openecos-projects/icsprout55-pdk
+pdk_release: v1.10.100
+pdk_commit: e696e093129ca2212487aa169af74d06ebd86eb6
+library: ics55_LLSC_H7C_V1p10C100
+cell_set: ics55_LLSC_H7CR
+vt_flavor: RVT
+pvt: TT/1.2 V/25 C
+top: mrtc_rdtc_wb_wrapper
+memory_mode: registers
+macro_count: 0
+synthesis_backend: Design Compiler O-2018.06-SP1
+highest_setup_closed_point_mhz: 800
+physical_implementation: not_part_of_this_claim
+claim_scope: internal_reg_to_reg_dc_only
+evidence: evidence/rdtc_v1_register_ics55_rvt_dc.yaml

@@ -23,6 +23,16 @@ evidence:
     sha256: 85824c35c2a6a7a0588f95b43424abc609bf8ddc16d920b231030f19a9d4e30e
     public: true
     maturity: verified
+  - id: rdtc_v1_register_ics55_rvt_dc_public
+    path: evidence/rdtc_v1_register_ics55_rvt_dc.yaml
+    type: dc_frequency_matrix_summary
+    source_ref: 41b33f7057c341cc4b952f51b00eb886f42c5fe2
+    tool: Synopsys Design Compiler O-2018.06-SP1
+    claims:
+      - rdtc_v1_register_ics55_rvt_800m_dc
+    sha256: 6696ccf3839b3ea1b1bc927e86db408fc5ac8d12fdb0abc12e18233671d17b72
+    public: true
+    maturity: verified
   - id: rdtc_v1_sram_macro_333m_public
     path: evidence/rdtc_v1_sram_macro_333m.yaml
     type: physical_postroute_sta_summary
