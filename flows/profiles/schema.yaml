@@ -1,0 +1,27 @@
+schema_version: 1.0.0
+kind: rdtc_profile_schema
+allowed_maturity:
+  - verified
+  - partial
+  - experimental
+  - planned
+  - private_not_claimed
+required_fields:
+  - profile_id
+  - product_profile
+  - maturity
+  - technology
+  - top
+  - memory_mode
+  - macro_count
+  - claim_scope
+  - evidence
+allowed_product_profiles:
+  - register-expanded
+  - sram-macro
+allowed_memory_modes:
+  - registers
+  - macro
+allowed_claim_scopes:
+  - internal_reg_to_reg
+

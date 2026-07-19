@@ -1,0 +1,18 @@
+schema_version: 1.0.0
+kind: rdtc_implementation_profile
+profile_id: rdtc_v1_sram_nangate45_333
+product_profile: sram-macro
+maturity: partial
+technology: Nangate45
+top: mrtc_rdtc_wb_wrapper
+memory_mode: macro
+macro_count: 2
+macro_organization: 64x128_1RW1R
+pnr_target_mhz: 333
+sta_target_mhz: 333
+pnr_backend: openroad
+extraction_backend: openrcx
+sta_backend: primetime
+claim_scope: internal_reg_to_reg
+evidence: evidence/rdtc_v1_sram_macro_333m.yaml
+

@@ -1,5 +1,5 @@
 title: RDTC v1 45 nm SRAM-macro post-route summary
-status: partial
+profile_maturity: partial
 source_commit: b3ac1bb
 top: mrtc_rdtc_wb_wrapper
 profile: sram-macro
@@ -11,6 +11,10 @@ tools:
   - OpenROAD ORFS pinned container
   - OpenRCX
   - PrimeTime O-2018.06-SP1
+result_maturity:
+  nangate45_pnr333:
+    status: verified
+    caveat: The measured internal timing result is verified, while the overall SRAM profile remains partial.
 results:
   route_drc_violations: 0
   antenna_net_violations: 0

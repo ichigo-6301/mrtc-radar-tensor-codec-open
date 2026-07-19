@@ -1,0 +1,18 @@
+schema_version: 1.0.0
+kind: rdtc_implementation_profile
+profile_id: rdtc_v1_register_nangate45_550
+product_profile: register-expanded
+maturity: verified
+technology: Nangate45
+top: mrtc_rdtc_wb_wrapper
+memory_mode: registers
+macro_count: 0
+dc_target_mhz: 700
+pnr_target_mhz: 550
+sta_target_mhz: 550
+pnr_backend: openroad
+extraction_backend: openrcx
+sta_backend: primetime
+claim_scope: internal_reg_to_reg
+evidence: evidence/rdtc_v1_register_expanded.yaml
+

@@ -10,6 +10,7 @@ evidence:
       - rdtc_v1_reference_bit_exact
     sha256: fe82bd881efbdd090b07470c5e35080db3992fd26fe21eec4295067a70eb0d31
     public: true
+    maturity: verified
   - id: rdtc_v1_register_expanded_public
     path: evidence/rdtc_v1_register_expanded.yaml
     type: multi_node_dc_and_physical_summary
@@ -19,8 +20,9 @@ evidence:
       - rdtc_v1_register_expanded_nangate15_800m_dc
       - rdtc_v1_register_expanded_nangate45_pnr400_pt
       - rdtc_v1_register_expanded_nangate45_pnr550_pt
-    sha256: 80b936aaa380702c4e425ccaf8589d83db28a3f3560ac4ab3f7f23e1854f7ede
+    sha256: 85824c35c2a6a7a0588f95b43424abc609bf8ddc16d920b231030f19a9d4e30e
     public: true
+    maturity: verified
   - id: rdtc_v1_sram_macro_333m_public
     path: evidence/rdtc_v1_sram_macro_333m.yaml
     type: physical_postroute_sta_summary
@@ -28,8 +30,9 @@ evidence:
     tool: "OpenROAD ORFS, OpenRCX, and PrimeTime O-2018.06-SP1"
     claims:
       - rdtc_v1_sram_macro_nangate45_333m_pt
-    sha256: ee0c8d8004613f399853e13c76a175244ead7b0ea07bea216041f987f71f6b9e
+    sha256: 3cac0ca3150516094d693954b19e1afd8f6f5c08164d070c2dc595ea1312b066
     public: true
+    maturity: partial
   - id: rdtc_v1_wb_wrapper_vcs_public
     path: evidence/rdtc_v1_wb_wrapper_vcs.yaml
     type: regression_summary
@@ -39,3 +42,4 @@ evidence:
       - rdtc_v1_wb_wrapper_vcs_regression
     sha256: 53d16931151293e7e54d23648dbbe01c442ac6ea77ea21b7f3b475a53973cdb1
     public: true
+    maturity: verified

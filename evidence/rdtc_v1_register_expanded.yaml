@@ -1,10 +1,19 @@
 title: RDTC v1 register-expanded implementation profiles
-status: partial
+profile_maturity: verified
 source_commit: 41b33f7
 top: mrtc_rdtc_wb_wrapper
 profile: register-expanded
 memory_mode: prefix buffers mapped to standard-cell registers; SRAM macro count is zero
 constraint: internal single-clock profile with 100 ps setup uncertainty; no IO timing claim
+results:
+  nangate15_dc800:
+    status: verified
+  nangate45_dc700:
+    status: verified
+  nangate45_pnr400:
+    status: verified
+  nangate45_pnr550:
+    status: verified
 public_results:
   - technology: NanGate15
     pvt: TT/0.8 V/25 C
