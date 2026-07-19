@@ -99,6 +99,8 @@ def verify_release_identity(root, ref, allow_untagged=False):
         if allow_untagged:
             return release, ref_commit, "not-found"
         raise RuntimeError("release tag does not exist: {}".format(tag))
+    if git(root, "cat-file", "-t", tag) != "tag":
+        raise RuntimeError("release tag must be annotated: {}".format(tag))
     tag_commit = git(root, "rev-list", "-n", "1", tag)
     if tag_commit != ref_commit:
         raise RuntimeError("release tag mismatch: tag={} ref={}".format(tag_commit, ref_commit))
