@@ -8,3 +8,5 @@ The public repository has two stable implementation boundaries:
 Future work is tracked per profile: IO timing constraints, CDC/RDC, clock gating, scan DFT, LEC, same-voltage SRAM characterization, macro DRC/LVS/PEX, and node- and stack-matched signoff extraction technology. A stage changes status only after its scripts, configuration, executed tool output, and evidence are complete.
 
 No post-route Fmax is claimed for 15/55 nm in this candidate. Physical implementation for those profiles requires authorized parasitic technology matched to the node and layer stack. The SRAM profile will not continue a new high-frequency sweep; 333 MHz is the current public physical comparison boundary.
+
+`rdtc_v1_register_ics55_ecos_preview` is currently `planned` only. No ICS55/ECOS P&R, STA, or frequency result will be published before authorization, reproducible configuration, and evidence are complete.

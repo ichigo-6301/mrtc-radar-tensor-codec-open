@@ -10,6 +10,19 @@ databases, or raw reports.
 The top-level `Makefile` uses `Kconfig` for profile and stage selection.
 
 ```text
+make rdtc_v1_public_preflight_defconfig
+make showconfig
+make validate-profile
+make -C ref_model/c test
+make rtl-smoke
+```
+
+The public default enables only the Icarus RTL smoke path. It does not enable
+commercial simulators, lint, CDC, synthesis, DFT, LEC, P&R, STA, SRAM
+generation, or any PDK-dependent stage. Named implementation profiles remain
+available when their local dependencies are configured:
+
+```text
 make rdtc_v1_45nm_defconfig
 make rdtc_v1_tsmc90_rf64x128_partial_defconfig
 make rdtc_v1_tsmc90_sram128x128_partial_defconfig

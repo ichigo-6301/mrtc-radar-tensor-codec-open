@@ -6,7 +6,7 @@ MRTC RDTC is a streaming lossless-compression digital IP for Range-Doppler tenso
 
 ## Current Public Release
 
-The current public release is **RDTC v1 lossless codec IP**. RDTC is placed between radar-sensing data producers and storage, transport, or downstream processing stages. It provides streaming compression and decompression with bit-exact recoverability for the currently supported modes.
+The current public release is **RDTC v1 lossless codec IP `register550-rc2`**. This release hardens structure and reproducibility without changing RTL, reference behavior, bitstream, interfaces, register map, or published implementation metrics.
 
 ## Features
 
@@ -22,10 +22,11 @@ The current public release is **RDTC v1 lossless codec IP**. RDTC is placed betw
 
 Both profiles preserve the same external RTL interfaces, AXI behavior, register map, and bitstream format. Only the physical implementation of the prefix buffer changes.
 
-| Profile | Prefix Buffer | Public Technology Scope | Current Status |
+| Profile ID | Maturity | Scope | Current Result |
 |---|---|---|---|
-| `register-expanded` | Standard-cell registers; zero SRAM macros | 15 nm DC; 45 nm DC + OpenROAD/OpenRCX + PrimeTime | 15 nm 800 MHz DC internal timing passes; 45 nm uses a 700 MHz closed DC netlist and completes route plus internal reg-to-reg STA at 550 MHz |
-| `sram-macro` | One `64x128 1RW1R` OpenRAM macro per engine; two total | 45 nm DC + OpenROAD/OpenRCX + PrimeTime | Route and internal reg-to-reg STA pass at 333 MHz; the overall profile remains `partial` |
+| `rdtc_v1_register_nangate45_550` | verified | Register-expanded Nangate45 | 700 MHz DC-closed netlist; 550 MHz OpenROAD/OpenRCX/PT internal reg-to-reg closure |
+| `rdtc_v1_sram_nangate45_333` | partial | 2 x `64x128 1RW1R` SRAM macros | 333 MHz internal reg-to-reg result; analytical-SRAM and waiver caveats retained |
+| `rdtc_v1_register_ics55_ecos_preview` | planned | ICS55/ECOS preview | No public result, evidence, or implementation claim yet |
 
 The 55 nm register-expanded synthesis matrix remains private. Metrics are not published until license and publication authorization are confirmed, and no 15/55 nm post-route Fmax is claimed.
 
@@ -51,7 +52,8 @@ Verified results, conditions, and nonclaims are listed in [Results](docs/en/resu
 Open-source preflight:
 
 ```bash
-make rdtc_v1_45nm_defconfig
+make rdtc_v1_public_preflight_defconfig
+make showconfig
 make -C ref_model/c test
 make rtl-smoke
 ```
@@ -73,4 +75,5 @@ Select a profile with `make rdtc_v1_register_45nm_dc700_pnr550_cap60_defconfig` 
 - [FPGA Implementation](docs/en/fpga_implementation.md)
 - [ASIC Implementation](docs/en/asic_implementation.md)
 - [Implementation Flow](flows/README.md)
+- [Release Model](docs/en/release_model.md)
 - [Roadmap](docs/en/roadmap.md)
