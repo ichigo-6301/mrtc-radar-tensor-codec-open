@@ -91,12 +91,15 @@ def verify_release_identity(root, ref, allow_untagged=False):
     if subprocess.call(["git", "-C", str(root), "merge-base", "--is-ancestor", base_commit, ref_commit]) != 0:
         raise RuntimeError("public release base is not an ancestor of the tested commit")
     tag = release["release_tag"]
-    try:
-        tag_commit = git(root, "rev-list", "-n", "1", tag)
-    except subprocess.CalledProcessError:
+    tag_exists = subprocess.call(
+        ["git", "-C", str(root), "show-ref", "--verify", "--quiet", "refs/tags/" + tag],
+        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+    ) == 0
+    if not tag_exists:
         if allow_untagged:
             return release, ref_commit, "not-found"
         raise RuntimeError("release tag does not exist: {}".format(tag))
+    tag_commit = git(root, "rev-list", "-n", "1", tag)
     if tag_commit != ref_commit:
         raise RuntimeError("release tag mismatch: tag={} ref={}".format(tag_commit, ref_commit))
     if ref == "HEAD" and git(root, "rev-parse", "HEAD") != tag_commit:
@@ -134,4 +137,3 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
-
