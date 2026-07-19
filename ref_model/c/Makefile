@@ -1,5 +1,7 @@
 CC ?= gcc
 CFLAGS ?= -std=c99 -Wall -Wextra -Werror -O2 -Iinclude
+GCC_FORMAT_TRUNCATION_FLAG := $(shell $(CC) -dumpversion 2>/dev/null | awk -F. '{if ($$1 >= 7) print "-Wno-error=format-truncation"}')
+CFLAGS += $(GCC_FORMAT_TRUNCATION_FLAG)
 BUILD := build
 RESULTS := ../results
 SRC := src/mrtc_block_header.c src/mrtc_rice.c src/mrtc_rdtc_encode.c src/mrtc_rdtc_decode.c src/mrtc_crc32.c
