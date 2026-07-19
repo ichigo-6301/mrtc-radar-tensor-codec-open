@@ -264,7 +264,7 @@ public-preflight:
 	@$(MAKE) rtl-smoke
 	@$(PROFILE_VALIDATOR)
 	@$(CHECKSUM_GENERATOR) --ref HEAD --check
-	@$(PYTHON) -m unittest flows/scripts/test_flowctl_primetime.py provenance/test_verify_release.py -v
+	@$(PYTHON) -m unittest flows/scripts/test_flowctl_primetime.py flows/scripts/test_validate_profile.py provenance/test_verify_release.py -v
 	@$(PYTHON) flows/scripts/check_public_docs.py
 	@$(PYTHON) flows/scripts/scan_public_release.py --ref HEAD
 

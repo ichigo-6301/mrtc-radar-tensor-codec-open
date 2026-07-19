@@ -29,7 +29,7 @@ jobs:
       - run: python provenance/verify_release.py --ref HEAD --allow-untagged
       - if: startsWith(github.ref, 'refs/tags/')
         run: python provenance/verify_release.py --ref HEAD
-      - run: python -m unittest flows/scripts/test_flowctl_primetime.py provenance/test_verify_release.py -v
+      - run: python -m unittest flows/scripts/test_flowctl_primetime.py flows/scripts/test_validate_profile.py provenance/test_verify_release.py -v
       - run: python flows/scripts/scan_public_release.py --ref HEAD
 
   public-functional-preflight:
@@ -48,7 +48,7 @@ jobs:
       - run: make showconfig
       - run: make -C ref_model/c test
       - run: make rtl-smoke
-      - run: python -m unittest flows/scripts/test_flowctl_primetime.py provenance/test_verify_release.py -v
+      - run: python -m unittest flows/scripts/test_flowctl_primetime.py flows/scripts/test_validate_profile.py provenance/test_verify_release.py -v
       - run: git diff --exit-code
 
   documentation-and-scope:
@@ -62,4 +62,3 @@ jobs:
           python-version: "3.11"
       - run: python flows/scripts/check_public_docs.py
       - run: python flows/scripts/scan_public_release.py --ref HEAD
-
