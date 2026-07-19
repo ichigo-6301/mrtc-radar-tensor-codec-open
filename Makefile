@@ -3,6 +3,7 @@ CONFIG ?= .config
 DEFCONFIG ?= configs/rdtc_v1_public_preflight_defconfig
 LOCAL_CONFIG ?= flows/local/toolchain.mk
 PYTHON ?= python3
+RELEASE_REF ?= rdtc-v1-register550-rc2
 KCONFIG_MCONF ?= mconf
 FLOWCTL := $(PYTHON) flows/scripts/flowctl.py --root "$(ROOT)" --config "$(CONFIG)"
 PROFILE_VALIDATOR := $(PYTHON) flows/scripts/validate_profile.py --root "$(ROOT)" --config "$(CONFIG)"
@@ -253,17 +254,17 @@ validate-profile:
 	@$(PROFILE_VALIDATOR)
 
 verify-checksums:
-	@$(CHECKSUM_GENERATOR) --ref HEAD --check
+	@$(CHECKSUM_GENERATOR) --ref "$(RELEASE_REF)" --check
 
 verify-release:
-	@$(RELEASE_VERIFIER) --ref HEAD
+	@$(RELEASE_VERIFIER) --ref "$(RELEASE_REF)"
 
 public-preflight:
 	@$(MAKE) showconfig
 	@$(MAKE) -C ref_model/c test
 	@$(MAKE) rtl-smoke
 	@$(PROFILE_VALIDATOR)
-	@$(CHECKSUM_GENERATOR) --ref HEAD --check
+	@$(CHECKSUM_GENERATOR) --ref "$(RELEASE_REF)" --check
 	@$(PYTHON) -m unittest flows/scripts/test_flowctl_primetime.py flows/scripts/test_validate_profile.py provenance/test_verify_release.py -v
 	@$(PYTHON) flows/scripts/check_public_docs.py
 	@$(PYTHON) flows/scripts/scan_public_release.py --ref HEAD
