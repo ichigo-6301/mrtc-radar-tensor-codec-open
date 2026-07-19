@@ -18,7 +18,8 @@ evidence:
     claims:
       - rdtc_v1_register_expanded_nangate15_800m_dc
       - rdtc_v1_register_expanded_nangate45_pnr400_pt
-    sha256: 48d6de81c81067b60fb7ec8fd6128d60a3dd5e0ff93cdc7c5fa4099a300db09a
+      - rdtc_v1_register_expanded_nangate45_pnr550_pt
+    sha256: 80b936aaa380702c4e425ccaf8589d83db28a3f3560ac4ab3f7f23e1854f7ede
     public: true
   - id: rdtc_v1_sram_macro_333m_public
     path: evidence/rdtc_v1_sram_macro_333m.yaml

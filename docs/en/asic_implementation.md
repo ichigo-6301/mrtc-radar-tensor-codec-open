@@ -4,9 +4,9 @@ Public ASIC content is organized as two independent profiles: `register-expanded
 
 ## Register-expanded
 
-`register-expanded` binds no SRAM leaf; prefix buffers are implemented as standard-cell registers, so the SRAM macro count is zero. NanGate15, Nangate45, and ICsprout55 use 400/600/800 MHz DC matrices with 100 ps setup uncertainty and an internal single-clock constraint. NanGate15 Liberty uses a 1 ps time unit, so the flow applies `SDC_TIME_SCALE=1000.0`. Since 45 nm does not close at 800 MHz, the 600 MHz mapped netlist is selected for physical handoff.
+`register-expanded` binds no SRAM leaf; prefix buffers are implemented as standard-cell registers, so the SRAM macro count is zero. NanGate15, Nangate45, and ICsprout55 use 400/600/800 MHz DC matrices with 100 ps setup uncertainty and an internal single-clock constraint; Nangate45 adds a 700 MHz point. NanGate15 Liberty uses a 1 ps time unit, so the flow applies `SDC_TIME_SCALE=1000.0`. Since 45 nm closes at 700 MHz but not at 800 MHz, the 700 MHz mapped netlist is selected for the latest physical handoff.
 
-The public 45 nm physical profile uses OpenROAD/OpenRCX and PrimeTime. It imports the 600 MHz DC netlist, reapplies a 400 MHz P&R/STA constraint, and completes placement, CTS, route, and SPEF generation. Route DRC and antenna net/pin counts are zero; PrimeTime setup/hold WNS is +0.80/+0.04 ns. This is internal reg-to-reg academic timing, not complete IO, OCV/MMMC, or foundry signoff.
+The public 45 nm physical profile uses OpenROAD/OpenRCX and PrimeTime. It imports the 700 MHz DC netlist, reapplies a 550 MHz P&R/STA constraint, and completes placement, CTS, route, and SPEF generation. Route DRC and antenna net/pin counts are zero; PrimeTime setup/hold WNS is +0.26/+0.04 ns with 100% setup/hold coverage. A total of 1,756 asynchronous-reset pins remain outside max-delay coverage. This is internal reg-to-reg academic timing, not complete IO, reset recovery/removal, OCV/MMMC, or foundry signoff.
 
 Only DC comparison results are published for 15 nm. The 55 nm matrix remains in the private delivery until library-license and publication authorization are confirmed. Removing SRAM does not provide a matching parasitic technology, so no 15/55 nm post-route Fmax is claimed.
 

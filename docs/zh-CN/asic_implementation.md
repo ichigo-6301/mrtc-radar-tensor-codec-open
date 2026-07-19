@@ -4,9 +4,9 @@
 
 ## Register-expanded
 
-`register-expanded` 不绑定 SRAM leaf，prefix buffer 由标准单元寄存器实现，因此 SRAM macro count 为 0。NanGate15、Nangate45 和 ICsprout55 的 DC 矩阵均使用 400/600/800 MHz、100 ps setup uncertainty 的内部单时钟约束。NanGate15 的 Liberty 时间单位为 1 ps，flow 通过 `SDC_TIME_SCALE=1000.0` 转换到 ns；45 nm 800 MHz 未闭合，所以 600 MHz mapped netlist 被选作物理 handoff。
+`register-expanded` 不绑定 SRAM leaf，prefix buffer 由标准单元寄存器实现，因此 SRAM macro count 为 0。NanGate15、Nangate45 和 ICsprout55 的 DC 矩阵使用 400/600/800 MHz、100 ps setup uncertainty 的内部单时钟约束；Nangate45 另增加 700 MHz 点。NanGate15 的 Liberty 时间单位为 1 ps，flow 通过 `SDC_TIME_SCALE=1000.0` 转换到 ns；45 nm 700 MHz 闭合而 800 MHz 未闭合，所以 700 MHz mapped netlist 被选作最新 physical handoff。
 
-公开 45 nm physical profile 使用 OpenROAD/OpenRCX 和 PrimeTime：以 600 MHz DC netlist 为输入，在 400 MHz 重新施加 P&R/STA 约束，完成 placement、CTS、route 和 SPEF。route DRC 与 antenna net/pin 均为 0，PrimeTime setup/hold WNS 为 +0.80/+0.04 ns。该结果是内部 reg-to-reg academic timing，不是完整 IO、OCV/MMMC 或 foundry signoff。
+公开 45 nm physical profile 使用 OpenROAD/OpenRCX 和 PrimeTime：以 700 MHz DC netlist 为输入，在 550 MHz 重新施加 P&R/STA 约束，完成 placement、CTS、route 和 SPEF。route DRC 与 antenna net/pin 均为 0，PrimeTime setup/hold WNS 为 +0.26/+0.04 ns，setup/hold coverage 为 100%。1756 个异步 reset pin 不在 max-delay coverage 内。该结果是内部 reg-to-reg academic timing，不是完整 IO、reset recovery/removal、OCV/MMMC 或 foundry signoff。
 
 15 nm 只发布 DC 对比结果；55 nm 矩阵保留在私有 delivery，直到库许可证和公开授权确认。移除 SRAM 不会自动提供匹配的寄生技术，因此 15/55 nm 不声明 post-route Fmax。
 

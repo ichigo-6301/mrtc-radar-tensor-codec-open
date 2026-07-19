@@ -46,6 +46,21 @@ claims:
     status: verified
     caveat: "Internal reg-to-reg academic timing only; no IO closure, OCV/MMMC, foundry signoff, DRC/LVS, or silicon claim."
     public: true
+  - id: rdtc_v1_register_expanded_nangate45_pnr550_pt
+    profile: rdtc_v1_register_expanded
+    statement: The register-expanded RDTC wrapper completed the documented 45 nm academic OpenROAD/OpenRCX flow and passed the matching 550 MHz PrimeTime internal setup and hold checks.
+    metric: setup_wns
+    value: 0.26
+    unit: ns
+    benchmark: "Nangate45 register-expanded P&R/PT candidate"
+    configuration: "700 MHz DC-mapped netlist, 550 MHz physical target, 60% capacitance and 65% slew repair guardbands"
+    source_ref: 41b33f7
+    tool: "OpenROAD ORFS, OpenRCX, and PrimeTime O-2018.06-SP1"
+    evidence:
+      - rdtc_v1_register_expanded_public
+    status: verified
+    caveat: "Internal reg-to-reg academic timing only; asynchronous reset and top-level IO max-delay coverage, OCV/MMMC, foundry signoff, foundry DRC/LVS, and silicon are not claimed."
+    public: true
   - id: rdtc_v1_sram_macro_nangate45_333m_pt
     profile: rdtc_v1_sram_macro
     statement: The SRAM-macro RDTC wrapper completed the documented 45 nm academic OpenROAD/OpenRCX flow and passed the matching 333 MHz PrimeTime internal setup and hold checks.

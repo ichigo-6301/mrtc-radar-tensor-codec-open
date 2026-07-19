@@ -24,7 +24,7 @@ Both profiles preserve the same external RTL interfaces, AXI behavior, register 
 
 | Profile | Prefix Buffer | Public Technology Scope | Current Status |
 |---|---|---|---|
-| `register-expanded` | Standard-cell registers; zero SRAM macros | 15 nm DC; 45 nm DC + OpenROAD/OpenRCX + PrimeTime | 15 nm 800 MHz DC internal timing passes; 45 nm uses a 600 MHz closed DC netlist and completes route plus internal reg-to-reg STA at 400 MHz |
+| `register-expanded` | Standard-cell registers; zero SRAM macros | 15 nm DC; 45 nm DC + OpenROAD/OpenRCX + PrimeTime | 15 nm 800 MHz DC internal timing passes; 45 nm uses a 700 MHz closed DC netlist and completes route plus internal reg-to-reg STA at 550 MHz |
 | `sram-macro` | One `64x128 1RW1R` OpenRAM macro per engine; two total | 45 nm DC + OpenROAD/OpenRCX + PrimeTime | Route and internal reg-to-reg STA pass at 333 MHz; the overall profile remains `partial` |
 
 The 55 nm register-expanded synthesis matrix remains private. Metrics are not published until license and publication authorization are confirmed, and no 15/55 nm post-route Fmax is claimed.
@@ -40,8 +40,8 @@ RDTC consumes block-organized complex Range-Doppler samples and produces compres
 | C reference model and public vectors | verified | RAW/ZERO/DELTA tests pass |
 | RTL elaboration and Questa regression | verified | Icarus PASS; public full regression PASS |
 | SpyGlass Lint | partial | 0 fatal, 0 error, 225 warnings |
-| Register-expanded 15/45 nm DC | verified | 400/600/800 MHz matrix recorded; the 45 nm 800 MHz point does not close |
-| Register-expanded 45 nm P&R/PT | verified | 400 MHz; zero route DRC/antenna violations; setup/hold WNS +0.80/+0.04 ns |
+| Register-expanded 15/45 nm DC | verified | 400/600/700/800 MHz matrix recorded; the 45 nm 700 MHz point closes and 800 MHz does not |
+| Register-expanded 45 nm P&R/PT | verified | 550 MHz; zero route DRC/antenna violations; setup/hold WNS +0.26/+0.04 ns |
 | SRAM-macro 45 nm P&R/PT | partial | 333 MHz; setup/hold WNS +0.57/+0.04 ns; analytical-SRAM and min-cap-waiver caveats retained |
 
 Verified results, conditions, and nonclaims are listed in [Results](docs/en/results.md) and [Limitations](docs/en/limitations.md). These are academic implementation results, not complete top-level IO timing closure or foundry signoff.
@@ -63,7 +63,7 @@ make sim
 make sim-full
 ```
 
-Select a profile with `make rdtc_v1_register_45nm_dc600_pnr400_cap60_defconfig` or `make rdtc_v1_45nm_dc900mapped_pnr333_spice_guardband_eco1_defconfig`. Commercial-tool, PDK, library, and macro paths belong only in ignored `flows/local/`. See [Verification](docs/en/verification.md) and [Implementation Flow](flows/README.md) for the complete contracts.
+Select a profile with `make rdtc_v1_register_45nm_dc700_pnr550_cap60_defconfig` or `make rdtc_v1_45nm_dc900mapped_pnr333_spice_guardband_eco1_defconfig`. Commercial-tool, PDK, library, and macro paths belong only in ignored `flows/local/`. See [Verification](docs/en/verification.md) and [Implementation Flow](flows/README.md) for the complete contracts.
 
 ## Documentation
 

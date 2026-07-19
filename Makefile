@@ -145,7 +145,7 @@ help:
 	  '  make rdtc_v1_tsmc90_rf64x128_partial_defconfig  Select the exact 64x128 RF profile' \
 	  '  make rdtc_v1_tsmc90_sram128x128_partial_defconfig  Select the overprovisioned SRAM profile' \
 	  '  make rdtc_v1_sky130_macro_100m_defconfig  Create the SKY130 closure profile' \
-	  '  make rdtc_v1_register_<node>_<freq>_defconfig  Select a 15/45/55 nm, 400/600/800 MHz DC profile' \
+	  '  make rdtc_v1_register_<node>_<freq>_defconfig  Select a tracked register-expanded DC or physical profile' \
 	  '  make menuconfig                Edit .config with a Kconfig mconf frontend' \
 	  '  make showconfig                Display selected profile and stages' \
 	  '  make rtl-smoke                 Elaborate the selected top with Icarus' \

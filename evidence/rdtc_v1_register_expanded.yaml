@@ -22,8 +22,9 @@ public_results:
     points:
       - {frequency_mhz: 400, setup_wns_ns: 0.0, setup_tns_ns: 0.0, violating_paths: 0, area_um2: 367783.036376, macro_count: 0}
       - {frequency_mhz: 600, setup_wns_ns: 0.0, setup_tns_ns: 0.0, violating_paths: 0, area_um2: 373012.596203, macro_count: 0}
+      - {frequency_mhz: 700, setup_wns_ns: 0.0, setup_tns_ns: 0.0, violating_paths: 0, area_um2: 377901.942131, macro_count: 0}
       - {frequency_mhz: 800, setup_wns_ns: -0.14, setup_tns_ns: -858.86, violating_paths: 21241, area_um2: 380819.430123, macro_count: 0}
-    caveat: 600 MHz is the highest setup-closed DC point. Physical results use the 600 MHz mapped netlist with a 400 MHz implementation constraint.
+    caveat: 700 MHz is the highest setup-closed DC point. The latest physical result uses its mapped netlist with a 550 MHz implementation constraint.
   - technology: Nangate45/OpenROAD/OpenRCX
     pvt: TT/1.1 V/25 C nominal academic platform
     tool: OpenROAD ORFS and PrimeTime O-2018.06-SP1
@@ -41,3 +42,20 @@ public_results:
       sdc: f5c06e554753afbc672e065c74d63d80526087054606f4b5a435fd7b90360f7c
       spef: 28207202a43b2255a157fa6408b1b3fd2beeb7067e240ec6be58665f148b7e05
     caveat: Internal reg-to-reg academic timing using OpenRCX; no IO closure, OCV/MMMC, foundry signoff, DRC/LVS, or silicon claim.
+  - technology: Nangate45/OpenROAD/OpenRCX
+    pvt: TT/1.1 V/25 C nominal academic platform
+    tool: OpenROAD ORFS, OpenRCX, and PrimeTime O-2018.06-SP1
+    physical_target_mhz: 550
+    dc_source_mhz: 700
+    route_drc_violations: 0
+    antenna_violations: 0
+    area_um2: 421120
+    utilization: 0.314432
+    setup_wns_ns: 0.26
+    hold_wns_ns: 0.04
+    constraint_violations: 0
+    handoff_sha256:
+      netlist: 1049ab99cff93654d7c91d69d73d60e389b39a5ef1cb153705cb88adf95b4745
+      sdc: 48e648e1e4cfbef20c01a1e413bf779af10716e9ab1461f2ecbf94b44bde4519
+      spef: 248790dbb2e077504cebe6344e72b90bf891a038fe48c78856f01ca05fa5215e
+    caveat: Internal reg-to-reg academic timing using OpenRCX; 1756 asynchronous-reset endpoints are outside max-delay coverage. No IO closure, OCV/MMMC, foundry signoff, foundry DRC/LVS, or silicon claim.
