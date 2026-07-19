@@ -1,0 +1,65 @@
+name: Public preflight
+
+on:
+  push:
+    branches: [main]
+    tags: [rdtc-v1-register550-rc2]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  release-integrity:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -r requirements-public.txt
+      - run: python flows/scripts/validate_profile.py --all-defconfigs
+      - run: python provenance/generate_checksums.py --ref HEAD --check
+      - run: python provenance/verify_release.py --ref HEAD --allow-untagged
+      - if: startsWith(github.ref, 'refs/tags/')
+        run: python provenance/verify_release.py --ref HEAD
+      - run: python -m unittest flows/scripts/test_flowctl_primetime.py provenance/test_verify_release.py -v
+      - run: python flows/scripts/scan_public_release.py --ref HEAD
+
+  public-functional-preflight:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          fetch-tags: true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python -m pip install -r requirements-public.txt
+      - run: sudo apt-get update && sudo apt-get install -y gcc make iverilog
+      - run: make rdtc_v1_public_preflight_defconfig
+      - run: make showconfig
+      - run: make -C ref_model/c test
+      - run: make rtl-smoke
+      - run: python -m unittest flows/scripts/test_flowctl_primetime.py provenance/test_verify_release.py -v
+      - run: git diff --exit-code
+
+  documentation-and-scope:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: python flows/scripts/check_public_docs.py
+      - run: python flows/scripts/scan_public_release.py --ref HEAD
+

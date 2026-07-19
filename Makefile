@@ -6,6 +6,8 @@ PYTHON ?= python3
 KCONFIG_MCONF ?= mconf
 FLOWCTL := $(PYTHON) flows/scripts/flowctl.py --root "$(ROOT)" --config "$(CONFIG)"
 PROFILE_VALIDATOR := $(PYTHON) flows/scripts/validate_profile.py --root "$(ROOT)" --config "$(CONFIG)"
+CHECKSUM_GENERATOR := $(PYTHON) provenance/generate_checksums.py --root "$(ROOT)"
+RELEASE_VERIFIER := $(PYTHON) provenance/verify_release.py --root "$(ROOT)"
 unquote = $(subst ",,$(1))
 
 -include $(CONFIG)
@@ -117,7 +119,8 @@ endif
         rdtc_v1_tsmc90_sram128x128_partial_defconfig \
         rdtc_v1_sky130_registers_100m_defconfig rdtc_v1_sky130_macro_100m_defconfig \
         rdtc_v1_sky130_macro_200m_defconfig rdtc_v1_sky130_macro_400m_defconfig \
-        menuconfig showconfig validate-profile list-stages lib-prep lib-prep-dry-run sram-model-smoke \
+        menuconfig showconfig validate-profile verify-checksums verify-release public-preflight \
+        list-stages lib-prep lib-prep-dry-run sram-model-smoke \
         sram-prep sram-prep-dry-run rc-itf rc-prep rc-prep-dry-run \
         icc2-libs icc2-libs-dry-run \
         rtl-smoke sim sim-dry-run sim-full selected selected-dry-run \
@@ -152,6 +155,7 @@ help:
 	  '  make menuconfig                Edit .config with a Kconfig mconf frontend' \
 	  '  make showconfig                Display selected profile and stages' \
 	  '  make validate-profile          Validate profile, claim, evidence, and config consistency' \
+	  '  make public-preflight          Run the complete open-source release preflight' \
 	  '  make rtl-smoke                 Elaborate the selected top with Icarus' \
 	  '  make sim                       Run the bounded Questa/ModelSim smoke suite' \
 	  '  make sim-full                  Run the extended RTL regression matrix' \
@@ -247,6 +251,22 @@ showconfig:
 
 validate-profile:
 	@$(PROFILE_VALIDATOR)
+
+verify-checksums:
+	@$(CHECKSUM_GENERATOR) --ref HEAD --check
+
+verify-release:
+	@$(RELEASE_VERIFIER) --ref HEAD
+
+public-preflight:
+	@$(MAKE) showconfig
+	@$(MAKE) -C ref_model/c test
+	@$(MAKE) rtl-smoke
+	@$(PROFILE_VALIDATOR)
+	@$(CHECKSUM_GENERATOR) --ref HEAD --check
+	@$(PYTHON) -m unittest flows/scripts/test_flowctl_primetime.py provenance/test_verify_release.py -v
+	@$(PYTHON) flows/scripts/check_public_docs.py
+	@$(PYTHON) flows/scripts/scan_public_release.py --ref HEAD
 
 list-stages:
 	@$(FLOWCTL) list-stages
