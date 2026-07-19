@@ -13,6 +13,6 @@ sta_target_mhz: 333
 pnr_backend: openroad
 extraction_backend: openrcx
 sta_backend: primetime
+waiver_policy: flows/profiles/policies/rdtc_v1_sram_nangate45_333_waivers.yaml
 claim_scope: internal_reg_to_reg
 evidence: evidence/rdtc_v1_sram_macro_333m.yaml
-

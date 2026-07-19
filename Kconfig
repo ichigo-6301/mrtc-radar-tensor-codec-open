@@ -138,6 +138,13 @@ config FLOW_STA_UNUSED_RW_DOUT_MIN_CAP_WAIVER
 		dout0[127:0] bus of the two RDTC 1RW1R SRAM instances. Any missing,
 		extra, or differently named violation still fails post-route STA.
 
+config FLOW_STA_WAIVER_POLICY
+	string "Reviewed PrimeTime waiver policy path"
+	default ""
+	help
+		Repository-relative policy loaded by the generic report verifier.
+		Leave empty unless a reviewed profile-specific waiver is enabled.
+
 config FLOW_BUILD_TAG
 	string "Ignored build directory tag"
 	default "rdtc_v1_public_preflight"

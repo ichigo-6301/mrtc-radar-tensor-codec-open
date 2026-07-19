@@ -13,7 +13,7 @@ from pathlib import Path
 from typing import Dict, List
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from validate_profile import validate_selected_config
+from validate_profile import load_yaml, sha256, validate_selected_config
 
 
 PRIMETIME_CONSTRAINT_TYPES = frozenset(
@@ -544,14 +544,36 @@ def parse_constraint_violations(path: Path) -> List[tuple]:
     return violations
 
 
-def unused_rw_dout_min_cap_pins() -> set:
-    return {
-        "u_dual_core/u_lane{}/u_engine/u_prefix_sample_buffer/u_sram/dout0[{}]".format(
-            lane, bit
-        )
-        for lane in range(2)
-        for bit in range(128)
+def load_waiver_policy(path: Path) -> dict:
+    policy = load_yaml(path)
+    required = {
+        "policy_id", "profile_id", "maturity", "constraint_type",
+        "expected_count", "object_scope", "match_mode", "allow_extra",
+        "allow_missing", "objects",
     }
+    missing = sorted(required - set(policy))
+    if missing:
+        raise RuntimeError("waiver policy missing fields: {}".format(", ".join(missing)))
+    if policy["constraint_type"] not in PRIMETIME_CONSTRAINT_TYPES:
+        raise RuntimeError("unsupported waiver constraint type: {}".format(policy["constraint_type"]))
+    if policy["match_mode"] != "exact_set":
+        raise RuntimeError("waiver policy match_mode must be exact_set")
+    if policy["allow_extra"] is not False or policy["allow_missing"] is not False:
+        raise RuntimeError("exact waiver policy cannot allow extra or missing objects")
+    objects = policy["objects"]
+    if not isinstance(objects, list) or not all(isinstance(item, str) for item in objects):
+        raise RuntimeError("waiver policy objects must be a string list")
+    if len(objects) != len(set(objects)):
+        raise RuntimeError("waiver policy contains duplicate objects")
+    if policy["expected_count"] != len(objects):
+        raise RuntimeError(
+            "waiver policy expected_count={} but defines {} objects".format(
+                policy["expected_count"], len(objects)
+            )
+        )
+    policy["object_set"] = set(objects)
+    policy["sha256"] = sha256(path)
+    return policy
 
 
 def write_verification_summary(path: Path, lines: List[str]) -> None:
@@ -560,7 +582,7 @@ def write_verification_summary(path: Path, lines: List[str]) -> None:
 
 
 def verify_primetime_result(
-    environment: Dict[str, str], allow_unused_dout_waiver: bool
+    environment: Dict[str, str], waiver_policy_path=None
 ) -> None:
     report_dir = Path(environment["RDTC_BUILD_ROOT"]) / "primetime"
     summary_path = report_dir / "verification_summary.txt"
@@ -576,31 +598,26 @@ def verify_primetime_result(
             report_dir / "constraint_violations.rpt"
         )
 
-        expected_waiver = unused_rw_dout_min_cap_pins()
-        waived = [
-            obj
-            for category, obj in violations
-            if category == "min_capacitance" and obj in expected_waiver
-        ]
+        policy = load_waiver_policy(Path(waiver_policy_path)) if waiver_policy_path else None
+        expected_waiver = policy["object_set"] if policy else set()
+        expected_category = policy["constraint_type"] if policy else None
+        waived = [obj for category, obj in violations if category == expected_category and obj in expected_waiver]
         unwaived = [
             (category, obj)
             for category, obj in violations
-            if not (category == "min_capacitance" and obj in expected_waiver)
+            if not (category == expected_category and obj in expected_waiver)
         ]
 
-        if allow_unused_dout_waiver:
-            if len(waived) != 256 or set(waived) != expected_waiver:
+        if policy:
+            if len(waived) != policy["expected_count"] or set(waived) != expected_waiver:
                 missing = sorted(expected_waiver - set(waived))
                 duplicates = len(waived) - len(set(waived))
                 raise RuntimeError(
-                    "unused dout0 min-cap waiver mismatch: count={} unique={} "
+                    "waiver mismatch: count={} unique={} "
                     "missing={} duplicates={}".format(
                         len(waived), len(set(waived)), len(missing), duplicates
                     )
                 )
-        else:
-            unwaived.extend(("min_capacitance", obj) for obj in waived)
-            waived = []
 
         if unwaived:
             first = ", ".join(
@@ -621,13 +638,10 @@ def verify_primetime_result(
             "setup_reported_paths: {}".format(len(setup_slacks)),
             "hold_reported_paths: {}".format(len(hold_slacks)),
             "constraint_violation_count: {}".format(len(violations)),
-            "waived_unused_dout0_min_capacitance_count: {}".format(
-                len(waived)
-            ),
+            "waived_constraint_count: {}".format(len(waived)),
             "unwaived_constraint_violation_count: 0",
-            "unused_dout0_min_capacitance_waiver: {}".format(
-                "enabled" if allow_unused_dout_waiver else "disabled"
-            ),
+            "waiver_policy: {}".format(policy["policy_id"] if policy else "disabled"),
+            "waiver_policy_sha256: {}".format(policy["sha256"] if policy else "none"),
         ]
         for category in sorted(category_counts):
             details.append(
@@ -649,7 +663,7 @@ def verify_primetime_result(
 
     print(
         "primetime_summary: setup_worst={}ns hold_worst={}ns "
-        "waived_min_cap={} summary={}".format(
+        "waived_constraints={} summary={}".format(
             min(setup_slacks), min(hold_slacks), len(waived), summary_path
         )
     )
@@ -693,9 +707,14 @@ def run_stage(root: Path, config_path: Path, config: Dict[str, str], stage: str,
     if stage in ("lint", "cdc"):
         verify_spyglass_result(stage, environment)
     if stage == "sta":
+        policy_path = config.get("CONFIG_FLOW_STA_WAIVER_POLICY", "")
+        if config.get("CONFIG_FLOW_STA_UNUSED_RW_DOUT_MIN_CAP_WAIVER") != "y":
+            policy_path = None
+        elif policy_path:
+            policy_path = str(root / policy_path)
         verify_primetime_result(
             environment,
-            config.get("CONFIG_FLOW_STA_UNUSED_RW_DOUT_MIN_CAP_WAIVER") == "y",
+            policy_path,
         )
 
 
@@ -745,6 +764,7 @@ def command_show_config(args: argparse.Namespace) -> None:
         "unused_rw_dout_min_cap_waiver: "
         + config.get("CONFIG_FLOW_STA_UNUSED_RW_DOUT_MIN_CAP_WAIVER", "n")
     )
+    print("sta_waiver_policy: " + config.get("CONFIG_FLOW_STA_WAIVER_POLICY", ""))
     print(
         "grt_hold_slack_margin_ns: "
         + config.get("CONFIG_FLOW_GRT_HOLD_SLACK_MARGIN_NS", "")
