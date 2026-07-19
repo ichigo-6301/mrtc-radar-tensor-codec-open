@@ -1,10 +1,11 @@
 ROOT := $(abspath $(dir $(lastword $(MAKEFILE_LIST))))
 CONFIG ?= .config
-DEFCONFIG ?= configs/rdtc_v1_45nm_defconfig
+DEFCONFIG ?= configs/rdtc_v1_public_preflight_defconfig
 LOCAL_CONFIG ?= flows/local/toolchain.mk
 PYTHON ?= python3
 KCONFIG_MCONF ?= mconf
 FLOWCTL := $(PYTHON) flows/scripts/flowctl.py --root "$(ROOT)" --config "$(CONFIG)"
+PROFILE_VALIDATOR := $(PYTHON) flows/scripts/validate_profile.py --root "$(ROOT)" --config "$(CONFIG)"
 unquote = $(subst ",,$(1))
 
 -include $(CONFIG)
@@ -100,7 +101,7 @@ export SYNOPSYS_LC_ROOT := $(RDTC_SYNOPSYS_LC_ROOT)
 endif
 
 .DEFAULT_GOAL := help
-.PHONY: help defconfig rdtc_v1_45nm_defconfig rdtc_v1_45nm_holdfix_400m_defconfig \
+.PHONY: help defconfig rdtc_v1_public_preflight_defconfig rdtc_v1_45nm_defconfig rdtc_v1_45nm_holdfix_400m_defconfig \
         rdtc_v1_45nm_dc900_pnr800_defconfig rdtc_v1_45nm_dc900_pnr700_defconfig \
         rdtc_v1_45nm_dc900_pnr650_defconfig rdtc_v1_45nm_dc900_pnr650_guardband_defconfig \
         rdtc_v1_45nm_dc900mapped_pnr700_defconfig \
@@ -115,7 +116,7 @@ endif
         rdtc_v1_tsmc90_sram128x128_partial_defconfig \
         rdtc_v1_sky130_registers_100m_defconfig rdtc_v1_sky130_macro_100m_defconfig \
         rdtc_v1_sky130_macro_200m_defconfig rdtc_v1_sky130_macro_400m_defconfig \
-        menuconfig showconfig list-stages lib-prep lib-prep-dry-run sram-model-smoke \
+        menuconfig showconfig validate-profile list-stages lib-prep lib-prep-dry-run sram-model-smoke \
         sram-prep sram-prep-dry-run rc-itf rc-prep rc-prep-dry-run \
         icc2-libs icc2-libs-dry-run \
         rtl-smoke sim sim-dry-run sim-full selected selected-dry-run \
@@ -127,7 +128,8 @@ help:
 	@printf '%s\n' \
 	  'MRTC RDTC v1 public implementation flow' \
 	  '' \
-	  '  make rdtc_v1_45nm_defconfig   Create .config from the public default' \
+	  '  make rdtc_v1_public_preflight_defconfig  Create the public-safe default .config' \
+	  '  make rdtc_v1_45nm_defconfig   Create the historical 45 nm implementation .config' \
 	  '  make rdtc_v1_45nm_holdfix_400m_defconfig  Create the 400 MHz post-GRT hold-closure profile' \
 	  '  make rdtc_v1_45nm_dc900_pnr800_defconfig  Create the 900 MHz DC / 800 MHz P&R profile' \
 	  '  make rdtc_v1_45nm_dc900_pnr700_defconfig  Create the 900 MHz-target DC / 700 MHz P&R profile' \
@@ -148,6 +150,7 @@ help:
 	  '  make rdtc_v1_register_<node>_<freq>_defconfig  Select a tracked register-expanded DC or physical profile' \
 	  '  make menuconfig                Edit .config with a Kconfig mconf frontend' \
 	  '  make showconfig                Display selected profile and stages' \
+	  '  make validate-profile          Validate profile, claim, evidence, and config consistency' \
 	  '  make rtl-smoke                 Elaborate the selected top with Icarus' \
 	  '  make sim                       Run the bounded Questa/ModelSim smoke suite' \
 	  '  make sim-full                  Run the extended RTL regression matrix' \
@@ -161,8 +164,11 @@ help:
 	  'Stages: lib-prep sram-prep rc-prep sim lint cdc dc-baseline dc-gated dft lec icc2-libs pnr sta' \
 	  'Local PDK, library, macro, and tool setup belongs in flows/local/ (ignored).'
 
-defconfig rdtc_v1_45nm_defconfig:
+defconfig rdtc_v1_public_preflight_defconfig:
 	@$(FLOWCTL) defconfig --source "$(DEFCONFIG)"
+
+rdtc_v1_45nm_defconfig:
+	@$(FLOWCTL) defconfig --source configs/rdtc_v1_45nm_defconfig
 
 rdtc_v1_register_%_defconfig:
 	@$(FLOWCTL) defconfig --source "configs/$@"
@@ -237,6 +243,9 @@ menuconfig:
 
 showconfig:
 	@$(FLOWCTL) show-config
+
+validate-profile:
+	@$(PROFILE_VALIDATOR)
 
 list-stages:
 	@$(FLOWCTL) list-stages

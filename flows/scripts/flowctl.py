@@ -12,6 +12,9 @@ import sys
 from pathlib import Path
 from typing import Dict, List
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from validate_profile import validate_selected_config
+
 
 PRIMETIME_CONSTRAINT_TYPES = frozenset(
     [
@@ -656,6 +659,8 @@ def run_stage(root: Path, config_path: Path, config: Dict[str, str], stage: str,
     spec = STAGES[stage]
     if config.get(spec["symbol"]) != "y":
         raise RuntimeError(f"{stage} is disabled by {spec['symbol']} in {config_path}.")
+    if stage in ("dc-baseline", "dc-gated", "pnr", "sta"):
+        validate_selected_config(root, config, stage=stage)
     environment = stage_environment(root, config_path, config, stage)
     command = stage_command(root, stage, dry_run, config)
     print(f"stage: {stage}")
@@ -760,6 +765,7 @@ def command_show_config(args: argparse.Namespace) -> None:
     print("sdc_time_scale: " + config.get("CONFIG_FLOW_SDC_TIME_SCALE", "1.0"))
     print("pnr_backend: " + config.get("CONFIG_FLOW_PNR_BACKEND", "openroad"))
     print("pnr_scope: " + config.get("CONFIG_FLOW_PNR_SCOPE", "full"))
+    print("public_rtl_smoke: " + config.get("CONFIG_FLOW_PUBLIC_RTL_SMOKE", "n"))
     print("enabled_stages: " + ", ".join(stage for stage, spec in STAGES.items() if config.get(spec["symbol"]) == "y"))
 
 

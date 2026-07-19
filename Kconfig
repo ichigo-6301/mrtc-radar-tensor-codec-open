@@ -12,14 +12,14 @@ menu "Implementation profile"
 
 config FLOW_PRODUCT_PROFILE
 	string "Implementation product profile"
-	default "sram-macro"
+	default "register-expanded"
 	help
 		Use register-expanded when the prefix buffer is mapped into standard
 		cells, or sram-macro when the two 64x128 hard memories are bound.
 
 config FLOW_TECHNOLOGY
 	string "Technology and memory-planning label"
-	default "freepdk45_openram"
+	default "public_preflight"
 
 config FLOW_CLOCK_PERIOD_NS
 	string "Legacy/default target clock period in ns"
@@ -140,11 +140,11 @@ config FLOW_STA_UNUSED_RW_DOUT_MIN_CAP_WAIVER
 
 config FLOW_BUILD_TAG
 	string "Ignored build directory tag"
-	default "rdtc_v1_45nm"
+	default "rdtc_v1_public_preflight"
 
 config FLOW_MEMORY_MODE
 	string "Prefix-buffer implementation"
-	default "macro"
+	default "registers"
 	help
 		Use macro for a technology memory leaf or registers for the
 		standard-cell-expanded comparison profile.
@@ -159,7 +159,7 @@ config FLOW_TSMC90_MEMORY_VARIANT
 
 config FLOW_OPENROAD_PLATFORM
 	string "ORFS platform name"
-	default "nangate45"
+	default ""
 
 config FLOW_PNR_BACKEND
 	string "Physical implementation backend"
@@ -182,7 +182,7 @@ config FLOW_LIBRARY_PREP
 
 config FLOW_SRAM_PREP
 	bool "Memory macro preparation, audit, and Library Compiler DB"
-	default y
+	default n
 
 config FLOW_RC_PREP
 	bool "FreePDK45 academic ITF and TLUPlus generation"
@@ -190,31 +190,35 @@ config FLOW_RC_PREP
 
 config FLOW_RTL_SIM
 	bool "Questa/ModelSim RTL regression smoke"
+	default n
+
+config FLOW_PUBLIC_RTL_SMOKE
+	bool "Public Icarus RTL elaboration smoke"
 	default y
 
 config FLOW_LINT
 	bool "SpyGlass RTL lint"
-	default y
+	default n
 
 config FLOW_CDC
 	bool "SpyGlass CDC/RDC"
-	default y
+	default n
 
 config FLOW_DC_BASELINE
 	bool "Design Compiler baseline synthesis"
-	default y
+	default n
 
 config FLOW_DC_GATED
 	bool "Design Compiler clock-gated synthesis"
-	default y
+	default n
 
 config FLOW_DFT
 	bool "Scan DFT insertion"
-	default y
+	default n
 
 config FLOW_LEC
 	bool "Formal equivalence checking"
-	default y
+	default n
 
 config FLOW_PNR
 	bool "OpenROAD/OpenRCX physical implementation"
