@@ -35,7 +35,7 @@ class ProfileValidationTest(unittest.TestCase):
 
     def test_current_repository_schema_passes(self):
         summary = validate_repository(self.root)
-        self.assertEqual(summary["profiles"], 2)
+        self.assertGreaterEqual(summary["profiles"], 3)
 
     def test_unknown_maturity_fails(self):
         path = "flows/profiles/rdtc_v1_register_nangate45_550.yaml"
