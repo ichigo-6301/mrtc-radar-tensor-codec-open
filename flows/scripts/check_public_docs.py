@@ -35,7 +35,7 @@ def check(root):
                 errors.append("broken link: {} -> {}".format(path.relative_to(root), target))
     for name in ("README.md", "README.en.md"):
         text = (root / name).read_text(encoding="utf-8")
-        for marker in ("register550-rc2", "rdtc_v1_register_nangate45_550", "rdtc_v1_sram_nangate45_333"):
+        for marker in ("register550-rc3", "rdtc_v1_register_nangate45_550", "rdtc_v1_sram_nangate45_333"):
             if marker not in text:
                 errors.append("{} missing release marker {}".format(name, marker))
     return errors
@@ -55,4 +55,3 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

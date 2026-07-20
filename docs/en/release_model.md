@@ -7,7 +7,7 @@ An RDTC public release separates functional source, private delivery metadata, a
 - the public packaging commit contains repository structure, CI, documentation, and reproduction scripts;
 - the annotated public release tag is the immutable release identity, resolved with `git rev-list -n 1 <tag>`.
 
-The `register550-rc2` tag is `rdtc-v1-register550-rc2`. The manifest does not embed a self-referential final public commit SHA in that same commit; the tag identifies the final public commit.
+The current release tag is `rdtc-v1-register550-rc3`; the preceding immutable tag is `rdtc-v1-register550-rc2`. The manifest does not embed a self-referential final public commit SHA in that same commit; the tag identifies the final public commit.
 
 ## Maturity
 
@@ -23,5 +23,6 @@ Profile maturity and evidence/result maturity are recorded separately. The SRAM 
 
 `provenance/checksums.sha256` records Git mode and the SHA256 of Git blob content in bytewise path order. It is independent of Windows or Linux checkout line endings. `provenance/verify_release.py` checks the release tag, layered source references, profile/claim/evidence schemas, canonical checksums, and public leakage boundary.
 
-Verified internal reg-to-reg timing covers only the recorded internal single-clock paths. It is not complete top-level IO timing, reset recovery/removal closure, OCV/MMMC, foundry DRC/LVS/PEX, foundry signoff, or silicon readiness.
+RC3 adds the verified ICS55 RVT DC-only evidence and documents a separate, incomplete ECOS full-RDTC routing attempt. The latter is not a physical profile or timing claim because it produced no routed handoff.
 
+Verified internal reg-to-reg timing covers only the recorded internal single-clock paths. It is not complete top-level IO timing, reset recovery/removal closure, OCV/MMMC, foundry DRC/LVS/PEX, foundry signoff, or silicon readiness.

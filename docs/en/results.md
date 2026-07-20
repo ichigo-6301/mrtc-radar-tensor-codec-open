@@ -18,6 +18,7 @@ All frequency results apply only to the internal single-clock reg-to-reg constra
 | `register-expanded` | Nangate45/OpenROAD/OpenRCX | P&R + PT at 400 MHz | Route DRC 0, antenna net/pin 0/0, area 418,007 um2, utilization 31.2108%; PT setup/hold WNS +0.80/+0.04 ns with zero constraint violations | verified |
 | `register-expanded` | Nangate45/OpenROAD/OpenRCX | P&R + PT at 550 MHz | Uses the 700 MHz DC mapped netlist; route DRC 0, antenna net/pin 0/0, area 421,120 um2, utilization 31.4432%; PT setup/hold WNS +0.26/+0.04 ns with zero constraint violations | verified |
 | `register-expanded` | ICS55 H7CR RVT TT/1.2 V/25 C | DC-only | 400/600/800 MHz setup closes; 800 MHz WNS/TNS is 0.00/0.00 ns with 566,341.71 um2 cell area; 600 MHz retains 2/3 transition/capacitance violations | verified (800 MHz) / partial (600 MHz) |
+| `register-expanded` | ICS55/ECOS preview | Full-design 400 MHz P&R attempt | Floorplan through legalization complete; detailed route stopped after 1,058/4,761 boxes because violations grew and resource protection prevented an OOM event; no routed handoff or STA | not completed |
 | `sram-macro` | Nangate45/OpenRAM/OpenROAD/OpenRCX | 2 x `64x128 1RW1R`; P&R + PT at 333 MHz | Route and same-run SPEF complete; PT setup/hold WNS +0.57/+0.04 ns with zero constraint violations | partial |
 
 The NanGate15 Liberty uses a `1ps` time unit, so its DC profile explicitly applies `SDC_TIME_SCALE=1000.0`. The latest 45 nm register-expanded physical run uses the setup-closed 700 MHz DC netlist at a 550 MHz implementation target. Evidence records matching SHA256 values for the handoff netlist, SDC, and SPEF. PrimeTime setup/hold coverage is 100%; 1,756 unconstrained max-delay endpoints are asynchronous reset pins under the internal-only profile.
@@ -25,6 +26,8 @@ The NanGate15 Liberty uses a `1ps` time unit, so its DC profile explicitly appli
 The 333 MHz SRAM-macro result retains OpenRAM analytical-characterization caveats, a minimum-capacitance waiver for 256 unused `dout0` endpoints, and incomplete macro DRC/LVS/PEX. It must not be extended to a 400 MHz claim or compared directly with register-expanded area without accounting for the SRAM area model.
 
 The ICS55 DC profile uses the H7CR RVT Liberty from ICsprout55 public-preview `v1.10.100`. Evidence records Liberty/DB hashes together with filelist, RTL manifest, SDC, mapped-netlist, and output-SDC identities. This proves only an ideal-clock internal reg-to-reg DC estimate; 498 top-level inputs have no clock-relative input delay and 672 top-level output endpoints have no max-delay constraint.
+
+The ICS55/ECOS full-design attempt must not be confused with the DC-only profile. Its default detailed router did not complete and no routed DEF/GDS/netlist, same-run SPEF/SDF, or post-route timing exists. The documented stop is a resource-protection boundary, not a physical implementation or frequency claim.
 
 ## Interpretation
 

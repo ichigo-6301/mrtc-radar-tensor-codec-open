@@ -3,12 +3,12 @@ name: Public preflight
 on:
   push:
     branches: [main]
-    tags: [rdtc-v1-register550-rc2]
+    tags: [rdtc-v1-register550-rc3]
   pull_request:
   workflow_dispatch:
 
 env:
-  RELEASE_REF: rdtc-v1-register550-rc2
+  RELEASE_REF: rdtc-v1-register550-rc3
 
 permissions:
   contents: read

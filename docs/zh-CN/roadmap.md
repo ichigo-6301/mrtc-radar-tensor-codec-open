@@ -9,4 +9,4 @@
 
 15/55 nm 不在本候选中承诺 post-route Fmax；只有获得授权且与节点/层栈匹配的寄生技术后，才恢复这些 profile 的物理实现。SRAM profile 不继续进行新的高频扫描，333 MHz 作为当前公开物理对照边界。
 
-`rdtc_v1_register_ics55_ecos_preview` 当前仅为 `planned`。在公开授权、可复现配置和 evidence 完成前，不发布 ICS55/ECOS P&R、STA 或频率结果。
+`rdtc_v1_register_ics55_ecos_preview` 作为可发布 implementation profile 仍为 `planned`。一次可复现的 400 MHz 完整 RDTC 尝试已进入 detailed routing，但在 route 完成前因已记录的资源保护停止；不发布 P&R、STA 或频率结果。下一次实验必须以新的 run 评审 floorplan、utilization、placement density 和 routing resource 的改动，不能通过缩短默认 detailed router 代替该实验。

@@ -7,7 +7,7 @@ RDTC 的公开发行将功能源码、私有交付元数据和公开包装明确
 - public packaging commit 包含公开仓结构、CI、文档和复现脚本；
 - annotated public release tag 是不可变发行身份，通过 `git rev-list -n 1 <tag>` 获取对应 commit。
 
-`register550-rc2` 的 tag 为 `rdtc-v1-register550-rc2`。manifest 不在同一 commit 内嵌自指的最终 public commit SHA；tag 是最终公开 commit 身份来源。
+当前 release tag 为 `rdtc-v1-register550-rc3`；前一不可变 tag 为 `rdtc-v1-register550-rc2`。manifest 不在同一 commit 内嵌自指的最终 public commit SHA；tag 是最终公开 commit 身份来源。
 
 ## 成熟度
 
@@ -23,5 +23,6 @@ Profile maturity 与 evidence/result maturity 分开记录。SRAM 333 MHz 的内
 
 `provenance/checksums.sha256` 按 Git tree 的 bytewise path 顺序记录 mode 和 Git blob 内容 SHA256，不依赖 Windows 或 Linux checkout 行尾。`provenance/verify_release.py` 校验 tag、三层来源引用、profile/claim/evidence schema、canonical checksum 和公开泄漏边界。
 
-`verified` 的 internal reg-to-reg timing 只覆盖已记录的单时钟内部路径。它不等于完整 top-level IO timing、reset recovery/removal、OCV/MMMC、foundry DRC/LVS/PEX、foundry signoff 或 silicon readiness。
+RC3 增加已验证的 ICS55 RVT DC-only evidence，并记录独立且未完成的 ECOS 完整 RDTC routing 尝试。后者没有生成 routed handoff，因而不是 physical profile 或 timing claim。
 
+`verified` 的 internal reg-to-reg timing 只覆盖已记录的单时钟内部路径。它不等于完整 top-level IO timing、reset recovery/removal、OCV/MMMC、foundry DRC/LVS/PEX、foundry signoff 或 silicon readiness。

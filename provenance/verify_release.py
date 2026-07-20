@@ -19,6 +19,10 @@ from validate_profile import validate_repository
 
 
 LINE_PATTERN = re.compile(r"^([0-7]{6}) ([0-9a-f]{64})  (.+)$")
+KNOWN_PRIVATE_DELIVERY_COMMITS = {
+    "register550-rc2": "273e41e99ad90c04de68ca0c420d4f8260b181ca",
+    "register550-rc3": "01cecf1adae62a3d3fc88d4e2aedcd7e83020662",
+}
 
 
 def git(root, *args):
@@ -84,8 +88,11 @@ def verify_release_identity(root, ref, allow_untagged=False):
         raise RuntimeError("release schema_version must be 1.1.0")
     if release["rtl_source_commit"] != "41b33f7057c341cc4b952f51b00eb886f42c5fe2":
         raise RuntimeError("unexpected RTL source commit")
-    if release["private_delivery_commit"] != "273e41e99ad90c04de68ca0c420d4f8260b181ca":
+    expected_private_delivery = KNOWN_PRIVATE_DELIVERY_COMMITS.get(release["release_version"])
+    if expected_private_delivery and release["private_delivery_commit"] != expected_private_delivery:
         raise RuntimeError("unexpected private delivery commit")
+    if not re.fullmatch(r"[0-9a-f]{40}", release["private_delivery_commit"]):
+        raise RuntimeError("private delivery commit must be a full Git object ID")
     ref_commit = git(root, "rev-parse", "{}^{{commit}}".format(ref))
     base_commit = git(root, "rev-parse", "{}^{{commit}}".format(release["public_release_base_commit"]))
     if subprocess.call(["git", "-C", str(root), "merge-base", "--is-ancestor", base_commit, ref_commit]) != 0:

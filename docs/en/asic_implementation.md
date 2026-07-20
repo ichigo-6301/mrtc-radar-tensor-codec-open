@@ -10,6 +10,8 @@ The public 45 nm physical profile uses OpenROAD/OpenRCX and PrimeTime. It import
 
 DC-only comparisons are published for both 15 nm and 55 nm. The 55 nm profile uses ICsprout55 public-preview `v1.10.100` H7CR RVT at TT/1.2 V/25 C: setup closes at 400/600/800 MHz, and 800 MHz is the highest executed constraint-clean setup-closed point. The 600 MHz point remains `partial` because two max-transition nets and three max-capacitance nets violate their limits. Removing SRAM does not provide matching parasitic technology, and DC closure does not imply P&R closure, so this DC claim makes no 55 nm post-route Fmax claim.
 
+An ECOS/ICS55 full-RDTC 400 MHz attempt demonstrates that platform-canary success is not sufficient for the product top. Floorplan, placement, CTS, and legalization completed, but default detailed routing was stopped for a resource-protection boundary before it completed. No routed handoff or post-route STA exists, and the attempt is not an implementation profile. The precise conditions are recorded in [ICS55 ECOS Implementation Attempt](ics55_ecos_implementation.md).
+
 ## SRAM-macro
 
 `sram-macro` instantiates two `64x128 1RW1R` OpenRAM macros, one per engine, while the wrapper preserves the one-cycle read latency, existing AXI protocol, and address behavior. The fixed public result is approximately 333 MHz: the same OpenROAD/OpenRCX run produces route, SPEF, and the handoff, and PrimeTime reads the matching netlist, SDC, and SPEF. Setup/hold WNS is +0.57/+0.04 ns.

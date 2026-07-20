@@ -6,7 +6,7 @@ MRTC RDTC is a streaming lossless-compression digital IP for Range-Doppler tenso
 
 ## Current Public Release
 
-The current public release is **RDTC v1 lossless codec IP `register550-rc2`**. This release hardens structure and reproducibility without changing RTL, reference behavior, bitstream, interfaces, register map, or published implementation metrics.
+The current public release is **RDTC v1 lossless codec IP `register550-rc3`**. It adds verified ICS55 RVT DC-only evidence and a bounded record of an incomplete ECOS routing attempt without changing RTL, reference behavior, bitstream, interfaces, register map, or published implementation metrics.
 
 ## Features
 
@@ -27,7 +27,7 @@ Both profiles preserve the same external RTL interfaces, AXI behavior, register 
 | `rdtc_v1_register_nangate45_550` | verified | Register-expanded Nangate45 | 700 MHz DC-closed netlist; 550 MHz OpenROAD/OpenRCX/PT internal reg-to-reg closure |
 | `rdtc_v1_sram_nangate45_333` | partial | 2 x `64x128 1RW1R` SRAM macros | 333 MHz internal reg-to-reg result; analytical-SRAM and waiver caveats retained |
 | `rdtc_v1_register_ics55_rvt_dc` | verified | Register-expanded ICS55 RVT | 400/800 MHz DC points are constraint-clean; highest setup-closed point is 800 MHz; DC-only |
-| `rdtc_v1_register_ics55_ecos_preview` | planned | ICS55/ECOS preview | No public result, evidence, or implementation claim yet |
+| `rdtc_v1_register_ics55_ecos_preview` | planned | ICS55/ECOS preview | The 400 MHz full-RDTC attempt reached detailed routing but stopped for non-convergence and resource protection; no P&R or STA claim |
 
 The 55 nm comparison uses the Apache-2.0 ICsprout55 `v1.10.100` public-preview PDK and publishes only register-expanded DC evidence. PDK payloads and raw commercial reports are not distributed, and no 15/55 nm post-route Fmax is claimed.
 
@@ -45,6 +45,7 @@ RDTC consumes block-organized complex Range-Doppler samples and produces compres
 | Register-expanded 15/45/55 nm DC | verified | ICS55 RVT 400/800 MHz points are constraint-clean and 800 MHz is the highest setup-closed point; 600 MHz retains 2/3 transition/capacitance violations |
 | Register-expanded 45 nm P&R/PT | verified | 550 MHz; zero route DRC/antenna violations; setup/hold WNS +0.26/+0.04 ns |
 | SRAM-macro 45 nm P&R/PT | partial | 333 MHz; setup/hold WNS +0.57/+0.04 ns; analytical-SRAM and min-cap-waiver caveats retained |
+| Register-expanded ICS55/ECOS P&R | not completed | The 400 MHz full-design route stopped in detailed routing for non-convergence and resource protection; no routed handoff or STA was run |
 
 Verified results, conditions, and nonclaims are listed in [Results](docs/en/results.md) and [Limitations](docs/en/limitations.md). These are academic implementation results, not complete top-level IO timing closure or foundry signoff.
 
@@ -75,6 +76,7 @@ Select a profile with `make rdtc_v1_register_45nm_dc700_pnr550_cap60_defconfig` 
 - [Verification](docs/en/verification.md)
 - [FPGA Implementation](docs/en/fpga_implementation.md)
 - [ASIC Implementation](docs/en/asic_implementation.md)
+- [ICS55 ECOS Implementation Attempt](docs/en/ics55_ecos_implementation.md)
 - [Implementation Flow](flows/README.md)
 - [Release Model](docs/en/release_model.md)
 - [Roadmap](docs/en/roadmap.md)

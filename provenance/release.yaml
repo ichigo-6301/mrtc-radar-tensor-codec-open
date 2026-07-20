@@ -2,14 +2,18 @@ kind: public_ip_release
 schema_version: 1.1.0
 repository_name: mrtc-radar-tensor-codec-open
 profile: rdtc_v1_public_release
-release_version: register550-rc2
-release_tag: rdtc-v1-register550-rc2
+release_version: register550-rc3
+release_tag: rdtc-v1-register550-rc3
 rtl_source_commit: 41b33f7057c341cc4b952f51b00eb886f42c5fe2
-private_delivery_commit: 273e41e99ad90c04de68ca0c420d4f8260b181ca
-public_release_base_commit: 26ee46c5c065b8c4131317532bfc7efb8e78c100
-supersedes: register550-rc1
+private_delivery_commit: 01cecf1adae62a3d3fc88d4e2aedcd7e83020662
+public_release_base_commit: f00dc794a17c624d66da9645321222ee6636622f
+supersedes: register550-rc2
 functional_change: false
-evidence_change: false
+evidence_change: true
 packaging_change: true
 license: MIT
 bundle_type: public-ip
+new_dc_profile: rdtc_v1_register_ics55_rvt_dc
+new_physical_profile: null
+primary_physical_profile: rdtc_v1_register_nangate45_550
+ics55_status: "DC verified; full ECOS route attempt incomplete; post-route STA not run"
