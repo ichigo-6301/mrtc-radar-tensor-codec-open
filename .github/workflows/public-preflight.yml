@@ -28,12 +28,30 @@ jobs:
         with:
           python-version: "3.11"
       - run: python -m pip install -r requirements-public.txt
-      - run: python provenance/restore_release_tag.py ${{ env.RELEASE_REF }}
-      - run: python flows/scripts/validate_profile.py --all-defconfigs
-      - run: python provenance/generate_checksums.py --ref ${{ env.RELEASE_REF }} --check
-      - run: python provenance/verify_release.py --ref ${{ env.RELEASE_REF }}
-      - run: python -m unittest flows/scripts/test_flowctl_primetime.py flows/scripts/test_validate_profile.py provenance/test_verify_release.py -v
-      - run: python flows/scripts/scan_public_release.py --ref HEAD
+      - name: Validate current main profiles
+        run: python flows/scripts/validate_profile.py --all-defconfigs
+      - name: Check current main checksums
+        run: python provenance/generate_checksums.py --ref HEAD --check
+      - name: Run current main unit tests
+        run: python -m unittest flows/scripts/test_flowctl_primetime.py flows/scripts/test_validate_profile.py provenance/test_verify_release.py -v
+      - name: Scan current main public tree
+        run: python flows/scripts/scan_public_release.py --ref HEAD
+      - name: Checkout immutable release
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.RELEASE_REF }}
+          path: release-check
+          fetch-depth: 0
+          fetch-tags: true
+      - name: Restore immutable annotated tag
+        working-directory: release-check
+        run: python provenance/restore_release_tag.py ${{ env.RELEASE_REF }}
+      - name: Check immutable release checksums
+        working-directory: release-check
+        run: python provenance/generate_checksums.py --ref HEAD --check
+      - name: Verify immutable release
+        working-directory: release-check
+        run: python provenance/verify_release.py --ref ${{ env.RELEASE_REF }}
 
   public-functional-preflight:
     runs-on: ubuntu-latest
