@@ -3,6 +3,12 @@ kind: rdtc_implementation_profile
 profile_id: rdtc_v1_sram_nangate45_333
 product_profile: sram-macro
 maturity: partial
+result_maturity:
+  implementation_chain_status: verified
+  postroute_timing_status: verified
+  macro_model_status: partial
+  macro_signoff_status: not_closed
+  overall_profile_maturity: partial
 technology: Nangate45
 top: mrtc_rdtc_wb_wrapper
 memory_mode: macro

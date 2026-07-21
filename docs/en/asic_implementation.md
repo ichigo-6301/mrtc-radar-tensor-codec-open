@@ -14,9 +14,13 @@ An ECOS/ICS55 full-RDTC 400 MHz attempt demonstrates that platform-canary succes
 
 ## SRAM-macro
 
-`sram-macro` instantiates two `64x128 1RW1R` OpenRAM macros, one per engine, while the wrapper preserves the one-cycle read latency, existing AXI protocol, and address behavior. The fixed public result is approximately 333 MHz: the same OpenROAD/OpenRCX run produces route, SPEF, and the handoff, and PrimeTime reads the matching netlist, SDC, and SPEF. Setup/hold WNS is +0.57/+0.04 ns.
+`sram-macro` instantiates two `64x128 1RW1R` OpenRAM macros, one per engine, while the wrapper preserves the one-cycle read latency, existing AXI protocol, and address behavior. The fixed verified closure point is 333 MHz: chip-level OpenROAD P&R completed, route DRC and antenna net/pin counts are 0/0, the same run produced the routed handoff and OpenRCX SPEF, and PrimeTime read the matching netlist, SDC, and SPEF. Setup/hold WNS/TNS is +0.57/+0.04 ns and 0/0, with zero constraint violations.
 
-The overall profile remains `partial` because the macro uses analytical characterization, retains a minimum-capacitance waiver for 256 unused `dout0` endpoints, and lacks macro DRC/LVS/PEX, complete IO timing, OCV/MMMC, and foundry signoff. The SRAM result must not be extended to 400 MHz or compared directly with register-expanded area without stating the capacity and physical-model differences.
+### Result maturity interpretation
+
+The chip-level implementation chain and measured internal post-route timing are verified results. The overall profile remains `partial` only because the macro timing model is analytically characterized and macro-level DRC/LVS/PEX is not closed. The reviewed minimum-capacitance waiver is an exact, profile-specific set of 256 unused `dout0[127:0]` endpoints across the two macros; it permits no missing or extra objects and is neither a setup/hold waiver nor a waiver for functional read data.
+
+Route-tool DRC 0 validates the routed top-level implementation within the academic platform and the macro abstract views. It does not validate the transistor-level interior of the OpenRAM macro, and its absence does not make the completed chip-level P&R partial. Complete IO timing, OCV/MMMC, foundry signoff, and silicon readiness are not claimed. The frequency is governed by the macro-integrated implementation and available analytical timing model; no causal 400 MHz failure claim or 400 MHz macro-profile claim is made.
 
 ## Flow Contract
 

@@ -14,9 +14,13 @@
 
 ## SRAM-macro
 
-`sram-macro` 在双 engine 顶层实例化两个 `64x128 1RW1R` OpenRAM macro，并通过 wrapper 保持一拍读延迟、现有 AXI 协议和地址行为。公开固定结果为约 333 MHz：同一次 OpenROAD/OpenRCX run 产生 route、SPEF 和 handoff，PrimeTime 读取相同 netlist、SDC 和 SPEF，setup/hold WNS 为 +0.57/+0.04 ns。
+`sram-macro` 在双 engine 顶层实例化两个 `64x128 1RW1R` OpenRAM macro，并通过 wrapper 保持一拍读延迟、现有 AXI 协议和地址行为。333 MHz 是固定 verified closure point：芯片级 OpenROAD P&R 已完成，route DRC 与 antenna net/pin 均为 0/0，同一次 run 产生 routed handoff 与 OpenRCX SPEF，PrimeTime 读取匹配的 netlist、SDC 与 SPEF。setup/hold WNS/TNS 为 +0.57/+0.04 ns 与 0/0，constraint violation 为 0。
 
-该 profile 整体保持 `partial`，因为宏使用 analytical characterization，保留 256 个未使用 `dout0` endpoint 的 minimum-capacitance waiver，且没有 macro DRC/LVS/PEX、完整 IO timing、OCV/MMMC 或 foundry signoff。SRAM profile 的频率不能扩大为 400 MHz；SRAM 宏面积也不能和 register-expanded 结果直接比较而不说明容量与物理模型差异。
+### 结果成熟度解释
+
+芯片级实现链和已测得的内部 post-route timing 是 verified 结果。整体 profile 仅因 macro timing model 采用 analytical characterization 且 macro 级 DRC/LVS/PEX 尚未闭合而保持 `partial`。minimum-capacitance waiver 是针对两个宏上共 256 个未使用 `dout0[127:0]` endpoint 的 profile-specific、exact-set 审核对象；不允许 missing 或 extra object，不是 setup/hold waiver，也不适用于功能性 read data。
+
+route-tool DRC 0 在 academic platform 与 macro abstract view 范围内验证了顶层 routed implementation；它不验证 OpenRAM macro 的晶体管级内部，也不应因此把已完成的芯片级 P&R 描述为 partial。完整 IO timing、OCV/MMMC、foundry signoff 和 silicon readiness 均不声明。该频率由 macro-integrated implementation 与现有 analytical timing model 共同约束；不声明 400 MHz 因果失败，也不提出 400 MHz macro-profile claim。
 
 ## Flow Contract
 

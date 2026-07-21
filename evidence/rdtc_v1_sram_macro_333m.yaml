@@ -14,7 +14,20 @@ tools:
 result_maturity:
   nangate45_pnr333:
     status: verified
-    caveat: The measured internal timing result is verified, while the overall SRAM profile remains partial.
+    chip_level_pnr_status: verified
+    routed_handoff_status: verified
+    openrcx_spef_status: verified
+    internal_reg_to_reg_pt_status: verified
+    route_drc_status: verified_zero
+    antenna_status: verified_zero
+    macro_functional_integration_status: verified
+    macro_timing_model_status: partial_analytical_characterization
+    macro_physical_signoff_status: not_closed
+    full_io_timing_status: not_claimed
+    ocv_mmmc_status: not_claimed
+    foundry_signoff_status: not_claimed
+    overall_profile_maturity: partial
+    caveat: The chip-level implementation chain and measured internal timing result are verified, while the overall SRAM profile remains partial at macro-model and macro-signoff level.
 results:
   route_drc_violations: 0
   antenna_net_violations: 0

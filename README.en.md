@@ -25,7 +25,7 @@ Both profiles preserve the same external RTL interfaces, AXI behavior, register 
 | Profile ID | Maturity | Scope | Current Result |
 |---|---|---|---|
 | `rdtc_v1_register_nangate45_550` | verified | Register-expanded Nangate45 | 700 MHz DC-closed netlist; 550 MHz OpenROAD/OpenRCX/PT internal reg-to-reg closure |
-| `rdtc_v1_sram_nangate45_333` | partial | 2 x `64x128 1RW1R` SRAM macros | 333 MHz internal reg-to-reg result; analytical-SRAM and waiver caveats retained |
+| `rdtc_v1_sram_nangate45_333` | overall profile partial | 2 x `64x128 1RW1R` SRAM macros | Verified 333 MHz chip-level P&R, same-run SPEF, and internal PT timing; partial only at macro-model and macro-signoff level |
 | `rdtc_v1_register_ics55_rvt_dc` | verified | Register-expanded ICS55 RVT | 400/800 MHz DC points are constraint-clean; highest setup-closed point is 800 MHz; DC-only |
 | `rdtc_v1_register_ics55_ecos_preview` | planned | ICS55/ECOS preview | The 400 MHz full-RDTC attempt reached detailed routing but stopped for non-convergence and resource protection; no P&R or STA claim |
 
@@ -44,7 +44,7 @@ RDTC consumes block-organized complex Range-Doppler samples and produces compres
 | SpyGlass Lint | partial | 0 fatal, 0 error, 225 warnings |
 | Register-expanded 15/45/55 nm DC | verified | ICS55 RVT 400/800 MHz points are constraint-clean and 800 MHz is the highest setup-closed point; 600 MHz retains 2/3 transition/capacitance violations |
 | Register-expanded 45 nm P&R/PT | verified | 550 MHz; zero route DRC/antenna violations; setup/hold WNS +0.26/+0.04 ns |
-| SRAM-macro 45 nm P&R/PT | partial | 333 MHz; setup/hold WNS +0.57/+0.04 ns; analytical-SRAM and min-cap-waiver caveats retained |
+| SRAM-macro 45 nm P&R/PT | implementation verified; overall profile partial | 333 MHz; route DRC/antenna 0/0, same-run SPEF, setup/hold WNS +0.57/+0.04 ns; analytical-SRAM, exact 256-endpoint min-cap waiver, and macro-signoff caveats retained |
 | Register-expanded ICS55/ECOS P&R | not completed | The 400 MHz full-design route stopped in detailed routing for non-convergence and resource protection; no routed handoff or STA was run |
 
 Verified results, conditions, and nonclaims are listed in [Results](docs/en/results.md) and [Limitations](docs/en/limitations.md). These are academic implementation results, not complete top-level IO timing closure or foundry signoff.
