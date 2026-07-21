@@ -40,9 +40,13 @@ evidence:
     tool: "OpenROAD ORFS, OpenRCX, and PrimeTime O-2018.06-SP1"
     claims:
       - rdtc_v1_sram_macro_nangate45_333m_pt
-    sha256: 3cac0ca3150516094d693954b19e1afd8f6f5c08164d070c2dc595ea1312b066
+    sha256: 16a817beb633c8e30a3b7bc3c4e6dd6b93e0020d31dec22baab35ada2786ebe2
     public: true
     maturity: partial
+    implementation_chain_status: verified
+    postroute_timing_status: verified
+    macro_model_status: partial
+    macro_signoff_status: not_closed
   - id: rdtc_v1_wb_wrapper_vcs_public
     path: evidence/rdtc_v1_wb_wrapper_vcs.yaml
     type: regression_summary

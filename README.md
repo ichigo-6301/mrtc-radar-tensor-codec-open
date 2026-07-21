@@ -25,7 +25,7 @@ MRTC RDTC 是一个面向 OFDM 感知和毫米波雷达 Range-Doppler 张量的�
 | Profile ID | Maturity | 范围 | 当前结果 |
 |---|---|---|---|
 | `rdtc_v1_register_nangate45_550` | verified | register-expanded Nangate45 | 700 MHz DC closed netlist；550 MHz OpenROAD/OpenRCX/PT internal reg-to-reg closure |
-| `rdtc_v1_sram_nangate45_333` | partial | 2 x `64x128 1RW1R` SRAM macro | 333 MHz internal reg-to-reg result；保留 analytical SRAM 与 waiver caveat |
+| `rdtc_v1_sram_nangate45_333` | 整体 profile partial | 2 x `64x128 1RW1R` SRAM macro | 333 MHz 芯片级 P&R、同次 SPEF 与内部 PT 时序已验证；仅在 macro-model 与 macro-signoff 层面保持 partial |
 | `rdtc_v1_register_ics55_rvt_dc` | verified | register-expanded ICS55 RVT | 400/800 MHz DC 点 constraint-clean；最高 setup-closed 点 800 MHz；DC-only |
 | `rdtc_v1_register_ics55_ecos_preview` | planned | ICS55/ECOS preview | full-RDTC 400 MHz 尝试已完成至 detailed route，但因非收敛和资源保护停止；没有 P&R/STA claim |
 
@@ -44,7 +44,7 @@ RDTC 接收按块组织的 Range-Doppler 复数样本流，输出带 block heade
 | SpyGlass Lint | partial | 0 fatal、0 error、225 warnings |
 | Register-expanded 15/45/55 nm DC | verified | ICS55 RVT 400/800 MHz 点 constraint-clean，最高 setup-closed 点 800 MHz；600 MHz 留有 2/3 个 transition/capacitance 违例 |
 | Register-expanded 45 nm P&R/PT | verified | 550 MHz；route DRC/antenna 为 0；setup/hold WNS +0.26/+0.04 ns |
-| SRAM-macro 45 nm P&R/PT | partial | 333 MHz；setup/hold WNS +0.57/+0.04 ns；保留 analytical SRAM 与 min-cap waiver caveat |
+| SRAM-macro 45 nm P&R/PT | 芯片级实现 verified；整体 profile partial | 333 MHz；route DRC/antenna 为 0/0，同次 SPEF，setup/hold WNS +0.57/+0.04 ns；保留 analytical SRAM、精确 256 endpoint min-cap waiver 与 macro-signoff caveat |
 | Register-expanded ICS55/ECOS P&R | not completed | 400 MHz full-design route 在 detailed router 中因非收敛和资源保护停止；未生成 routed handoff，STA 未运行 |
 
 已核验结果、约束条件和未声明项见 [结果](docs/zh-CN/results.md) 与 [限制](docs/zh-CN/limitations.md)。这些结果是 academic implementation evidence，不构成完整 top-level IO timing closure 或 foundry signoff。

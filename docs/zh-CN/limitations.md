@@ -9,8 +9,9 @@
 - 55 nm 的 600 MHz 点虽 setup 闭合，但留有 2 个 max-transition net 和 3 个 max-capacitance net，不能称为完全 constraint-clean；
 - ICS55/ECOS 完整 RDTC 400 MHz 尝试已完成至 legalization，但默认 detailed routing 未完成。route 到达 1,058/4,761 个 box 时 violation 增长，并在已记录的内存保护阈值下停止；它不提供 routed netlist、GDS、SPEF、route-stage timing 或 P&R/Fmax claim；
 - 45 nm register-expanded 的最新 550 MHz 结果是 internal reg-to-reg academic timing。它使用 700 MHz setup-closed DC mapped netlist、OpenRCX SPEF 和 PrimeTime；setup/hold coverage 为 100%，但 1756 个异步 reset pin 不在 max-delay coverage 内，也不覆盖完整 IO、reset recovery/removal、OCV/MMMC、macro DRC/LVS/PEX 或 foundry signoff；
-- 45 nm `sram-macro` 的 333 MHz 结果使用两个 `64x128 1RW1R` OpenRAM macro。其 analytical characterization、256 个未使用 `dout0` endpoint 的 minimum-cap waiver 和宏视图验证边界必须保留；
+- 45 nm `sram-macro` 的 333 MHz 结果已完成并验证芯片级 P&R、同次 SPEF 与内部 PrimeTime setup/hold timing。整体 profile 因 OpenRAM characterization 为 analytical 且 macro DRC/LVS/PEX 未闭合而保持 partial；
+- 审核 waiver 只适用于两个宏上共 256 个未使用 `dout0[127:0]` minimum-capacitance endpoint，属于 profile-specific、exact-set matched 对象，不允许 missing 或 extra object。它不是 blanket capacitance、setup/hold 或 functional read data waiver；
 - SRAM 333 MHz 结果不能扩大为 400 MHz；SRAM 宏面积和 register-expanded 面积不能在未说明物理容量与模型差异时直接比较；
-- 公共结果中的 route DRC/antenna 计数属于指定 academic platform run，不等同于 foundry DRC/LVS；
+- 公共结果中的 route DRC/antenna 计数属于指定 academic platform run，不等同于 foundry DRC/LVS。route-tool DRC 0 覆盖 routed 顶层实现与 macro abstract view，不覆盖 macro 晶体管级 DRC/LVS/PEX；
 - `DC timing estimate`、内部 post-route reg-to-reg timing 和完整 IO timing closure 是三个不同层次，不能互相替代；
 - PDK、Liberty/DB、LEF/GDS、SPEF、许可证、绝对路径、原始 EDA 工作目录和未授权来源不随公开仓库发布。
