@@ -1,0 +1,73 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+  <title id="title">MRTC-RDTC system context</title>
+  <desc id="desc">OFDM sensing produces Range-Doppler blocks, RDTC encodes them into lossless packets for storage or transport, and the decoder reconstructs I and Q samples.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#334155"/>
+    </marker>
+    <style>
+      .title{font:700 28px Arial,sans-serif;fill:#0f172a}.sub{font:400 15px Arial,sans-serif;fill:#475569}.label{font:700 18px Arial,sans-serif;fill:#0f172a}.small{font:400 14px Arial,sans-serif;fill:#334155}.tiny{font:400 12px Arial,sans-serif;fill:#475569}.box{stroke:#334155;stroke-width:2;rx:6}.arrow{stroke:#334155;stroke-width:3;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="520" fill="#f8fafc"/>
+  <text x="60" y="48" class="title">OFDM sensing to lossless radar-tensor packets</text>
+  <text x="60" y="75" class="sub">Block metadata keeps every packet self-describing across storage, transport, and reconstruction.</text>
+
+  <rect x="55" y="130" width="175" height="220" class="box" fill="#dbeafe"/>
+  <text x="142" y="168" text-anchor="middle" class="label">OFDM sensing</text>
+  <path d="M90 245 Q142 175 194 245" stroke="#2563eb" stroke-width="4" fill="none"/>
+  <path d="M104 245 Q142 195 180 245" stroke="#2563eb" stroke-width="4" fill="none"/>
+  <circle cx="142" cy="245" r="8" fill="#2563eb"/>
+  <text x="142" y="290" text-anchor="middle" class="small">ADC / FFT pipeline</text>
+  <text x="142" y="315" text-anchor="middle" class="small">complex I16Q16 samples</text>
+
+  <path d="M230 240 H285" class="arrow"/>
+
+  <rect x="290" y="130" width="190" height="220" class="box" fill="#dcfce7"/>
+  <text x="385" y="168" text-anchor="middle" class="label">RD tensor block</text>
+  <g stroke="#16a34a" stroke-width="1.5" fill="none">
+    <rect x="330" y="195" width="110" height="95"/>
+    <path d="M352 195 V290 M374 195 V290 M396 195 V290 M418 195 V290"/>
+    <path d="M330 214 H440 M330 233 H440 M330 252 H440 M330 271 H440"/>
+  </g>
+  <rect x="374" y="214" width="22" height="19" fill="#f59e0b"/>
+  <rect x="418" y="252" width="22" height="19" fill="#ef4444"/>
+  <text x="385" y="318" text-anchor="middle" class="small">1024 samples / block</text>
+
+  <path d="M480 240 H535" class="arrow"/>
+
+  <rect x="540" y="105" width="210" height="270" class="box" fill="#fef3c7"/>
+  <text x="645" y="148" text-anchor="middle" class="label">RDTC Encoder</text>
+  <rect x="572" y="177" width="146" height="38" rx="5" fill="#fff" stroke="#d97706"/>
+  <text x="645" y="201" text-anchor="middle" class="small">RAW_BYPASS</text>
+  <rect x="572" y="226" width="146" height="38" rx="5" fill="#fff" stroke="#d97706"/>
+  <text x="645" y="250" text-anchor="middle" class="small">ZERO_RICE</text>
+  <rect x="572" y="275" width="146" height="38" rx="5" fill="#fff" stroke="#d97706"/>
+  <text x="645" y="299" text-anchor="middle" class="small">DELTA_RICE</text>
+  <text x="645" y="344" text-anchor="middle" class="tiny">64-byte header + payload</text>
+
+  <path d="M750 240 H805" class="arrow"/>
+
+  <rect x="810" y="130" width="160" height="220" class="box" fill="#ede9fe"/>
+  <text x="890" y="168" text-anchor="middle" class="label">AXI packets</text>
+  <rect x="842" y="198" width="96" height="54" rx="5" fill="#fff" stroke="#7c3aed"/>
+  <text x="890" y="221" text-anchor="middle" class="small">Header</text>
+  <text x="890" y="241" text-anchor="middle" class="tiny">Frame / Block ID</text>
+  <rect x="842" y="262" width="96" height="54" rx="5" fill="#fff" stroke="#7c3aed"/>
+  <text x="890" y="285" text-anchor="middle" class="small">Payload</text>
+  <text x="890" y="305" text-anchor="middle" class="tiny">DDR or link</text>
+
+  <path d="M970 240 H1025" class="arrow"/>
+
+  <rect x="1030" y="130" width="120" height="220" class="box" fill="#fee2e2"/>
+  <text x="1090" y="168" text-anchor="middle" class="label">Decoder</text>
+  <path d="M1055 205 H1125 V250 H1055 Z" fill="#fff" stroke="#dc2626" stroke-width="2"/>
+  <path d="M1055 270 H1125 V315 H1055 Z" fill="#fff" stroke="#dc2626" stroke-width="2"/>
+  <text x="1090" y="233" text-anchor="middle" class="small">Parse</text>
+  <text x="1090" y="298" text-anchor="middle" class="small">Restore</text>
+
+  <rect x="55" y="410" width="1095" height="72" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
+  <text x="85" y="440" class="label">End-to-end contract</text>
+  <text x="85" y="466" class="small">Bit-exact I/Q reconstruction | packet framing under backpressure | metadata-preserved block identity</text>
+  <text x="1118" y="453" text-anchor="end" class="tiny">Compression reduces payload traffic; it does not change sensing values.</text>
+</svg>

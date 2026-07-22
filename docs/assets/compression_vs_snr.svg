@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
+  <title id="title">Synthetic compression ratio versus SNR</title>
+  <desc id="desc">ZERO Rice and DELTA Rice compression ratios from negative 20 through 30 decibels on a controlled synthetic dataset.</desc>
+  <style>.title{font:700 27px Arial,sans-serif;fill:#0f172a}.sub{font:400 14px Arial,sans-serif;fill:#475569}.axis{font:400 13px Arial,sans-serif;fill:#334155}.label{font:700 14px Arial,sans-serif;fill:#0f172a}.grid{stroke:#cbd5e1;stroke-width:1}.zero{stroke:#2563eb;stroke-width:4;fill:none}.delta{stroke:#dc2626;stroke-width:4;fill:none}</style>
+  <rect width="1000" height="620" fill="#f8fafc"/>
+  <text x="55" y="48" class="title">Compression ratio vs. synthetic SNR</text>
+  <text x="55" y="75" class="sub">Controlled MATLAB study. Higher is smaller payload; this is not measured radar data.</text>
+
+  <g class="grid">
+    <line x1="100" y1="500" x2="920" y2="500"/><line x1="100" y1="443" x2="920" y2="443"/>
+    <line x1="100" y1="386" x2="920" y2="386"/><line x1="100" y1="329" x2="920" y2="329"/>
+    <line x1="100" y1="271" x2="920" y2="271"/><line x1="100" y1="214" x2="920" y2="214"/>
+    <line x1="100" y1="157" x2="920" y2="157"/><line x1="100" y1="100" x2="920" y2="100"/>
+    <line x1="120" y1="100" x2="120" y2="500"/><line x1="280" y1="100" x2="280" y2="500"/>
+    <line x1="440" y1="100" x2="440" y2="500"/><line x1="600" y1="100" x2="600" y2="500"/>
+    <line x1="760" y1="100" x2="760" y2="500"/><line x1="920" y1="100" x2="920" y2="500"/>
+  </g>
+  <line x1="100" y1="100" x2="100" y2="500" stroke="#334155" stroke-width="2"/>
+  <line x1="100" y1="500" x2="920" y2="500" stroke="#334155" stroke-width="2"/>
+  <g class="axis" text-anchor="end">
+    <text x="88" y="505">1</text><text x="88" y="448">2</text><text x="88" y="391">3</text><text x="88" y="334">4</text>
+    <text x="88" y="276">5</text><text x="88" y="219">6</text><text x="88" y="162">7</text><text x="88" y="105">8</text>
+  </g>
+  <g class="axis" text-anchor="middle">
+    <text x="120" y="525">-20</text><text x="280" y="525">-10</text><text x="440" y="525">0</text><text x="600" y="525">10</text><text x="760" y="525">20</text><text x="920" y="525">30</text>
+  </g>
+  <text x="510" y="558" text-anchor="middle" class="label">Synthetic SNR (dB)</text>
+  <text x="30" y="300" text-anchor="middle" class="label" transform="rotate(-90 30 300)">Compression ratio</text>
+
+  <polyline class="zero" points="120,467 280,450 440,423 600,380 760,306 920,125"/>
+  <polyline class="delta" points="120,471 280,455 440,432 600,397 760,330 920,204"/>
+  <g fill="#2563eb" stroke="#fff" stroke-width="2">
+    <circle cx="120" cy="467" r="6"/>    <circle cx="280" cy="450" r="6"/>    <circle cx="440" cy="423" r="6"/>    <circle cx="600" cy="380" r="6"/>    <circle cx="760" cy="306" r="6"/>    <circle cx="920" cy="125" r="6"/>
+  </g>
+  <g fill="#dc2626" stroke="#fff" stroke-width="2">
+    <circle cx="120" cy="471" r="6"/>    <circle cx="280" cy="455" r="6"/>    <circle cx="440" cy="432" r="6"/>    <circle cx="600" cy="397" r="6"/>    <circle cx="760" cy="330" r="6"/>    <circle cx="920" cy="204" r="6"/>
+  </g>
+
+  <rect x="620" y="105" width="235" height="72" rx="6" fill="#fff" stroke="#94a3b8"/>
+  <line x1="642" y1="130" x2="686" y2="130" class="zero"/><circle cx="664" cy="130" r="5" fill="#2563eb"/>
+  <text x="700" y="135" class="axis">ZERO_RICE</text>
+  <line x1="642" y1="156" x2="686" y2="156" class="delta"/><circle cx="664" cy="156" r="5" fill="#dc2626"/>
+  <text x="700" y="161" class="axis">DELTA_RICE</text>
+  <text x="55" y="595" class="sub">Recorded points: -20, -10, 0, 10, 20, and 30 dB. Lossless reconstruction is checked separately.</text>
+</svg>

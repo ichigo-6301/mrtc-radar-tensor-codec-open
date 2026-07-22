@@ -121,9 +121,20 @@ writetable(summary, fullfile(res_dir, 'summary_matlab_vector_gen.csv'));
 end
 
 function root = mrtc_repo_root()
-here = fileparts(mfilename('fullpath'));
-root = fullfile(here, '..', '..', '..');
-root = char(java.io.File(root).getCanonicalPath());
+root = fileparts(mfilename('fullpath'));
+for depth = 1:8
+    has_release = exist(fullfile(root, 'provenance', 'release.yaml'), 'file') == 2;
+    has_rtl = exist(fullfile(root, 'rtl', 'common', 'mrtc_pkg.sv'), 'file') == 2;
+    if has_release && has_rtl
+        return;
+    end
+    parent = fileparts(root);
+    if strcmp(parent, root)
+        break;
+    end
+    root = parent;
+end
+error('Unable to locate the MRTC-RDTC repository root from %s', mfilename('fullpath'));
 end
 
 function cases = build_cases(mode)
