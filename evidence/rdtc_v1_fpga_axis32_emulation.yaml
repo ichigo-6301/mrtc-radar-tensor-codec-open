@@ -1,0 +1,80 @@
+title: RDTC v1 AXIS32 FPGA-emulation simulation summary
+status: verified
+source_commit: 43deb9fd99ce5d1b96578dd70fe5f1ddbf3a3bfb
+source_visibility: private_fixed_commit
+public_evidence_scope: curated summary, public case CSV, source hashes, and an adapted public smoke
+source_paths:
+  - rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv
+  - tb/sv/tb_stage22f_r9c2p_pre_mrtc_axis32_wrapper.sv
+  - docs/reports/data/stage22f_r9c2p_pre_mrtc_axis32_wrapper_sim/r9c2p_pre_case_results.csv
+  - docs/reports/data/stage22f_r9c2p_pre_mrtc_axis32_wrapper_sim/r9c2p_pre_xelab.txt
+curated_data: evidence/data/rdtc_v1_fpga_axis32_xsim_cases.csv
+curated_data_sha256: aa57096ce2f65879d84c5eedf372fbc9ed19965a37eaef88b6dd076cf8da1425
+tool: Vivado Simulator 2018.3
+top: tb_stage22f_r9c2p_pre_mrtc_axis32_wrapper
+input_scope: single_active_input
+fpga_source_ready: partial
+fpga_rtl_simulation: verified
+fpga_synthesis: not_claimed
+fpga_implementation: not_claimed
+fpga_timing: not_claimed
+fpga_bitstream: not_claimed
+fpga_board_smoke: not_claimed
+fpga_workload_validation: verified
+workload_validation_scope: rtl_simulation
+overall_fpga_maturity: partial
+partial_reason: The fixed Vivado source object is private and downstream FPGA implementation stages are not claimed; only the recorded AXIS32 simulation workload and the separate public adaptation smoke are verified.
+published_adaptation:
+  status: adapted_from_fixed_commit
+  historical_xsim_recomputed_from_published_adaptation: false
+  current_smoke_tool: Icarus Verilog 14.0-devel local validation
+  current_ci_tool_policy: OSS CAD Suite 2026-07-19 Icarus Verilog 14.0-devel
+  current_smoke_result: pass
+  current_smoke_marker: R9C2P_PRE_AXIS32_WRAPPER_SIM_PASS cases=3
+  current_capture_smoke_markers:
+    - PASS tb_mrtc_axis_raw_block_capture_replay slots=2
+    - PASS tb_mrtc_axis_raw_block_capture_replay slots=1
+  changes:
+    - Icarus-compatible testbench control flow and parsing
+    - Conditional RAM-style parameter forwarding for the dedicated Icarus filelist
+    - Capture-slot replay order is FIFO by allocation age
+    - Two-slot simultaneous ready-queue push/pop and one-slot turnover are verified
+    - Live status clearing at capture and replay completion is verified not to interrupt datapath handshakes
+  dependency_binding:
+    filelist: flows/manifests/rdtc_v1_fpga_wrapper_smoke.f
+    filelist_sha256: 82d3f006b6c1f674a20878809f3cd29765801cf23986f2643be5dd99037f8cce
+    canonical_hash_manifest: provenance/checksums.sha256
+    coverage_rule: Every tracked source and test path named by the filelist is hashed by the canonical manifest.
+  file_identity:
+    rtl/rdtc/mrtc_axis_raw_block_capture_replay.sv:
+      source_sha256: dc92672c0a10d8991b3cb9ac521d3ff4be870de553bf7ea2a8f84e14a9f4b920
+      published_sha256: 8d7e1b75f2cd7db47ca5e8725d2c4fb27eea1a6faa5b65d88cbbf4be06f37977
+    rtl/rdtc/mrtc_rdtc_axis2eng_wrapper.sv:
+      source_sha256: 27eda6eefc3235e0894de891688143657f9b78e16f0120403f49a941884ea8f0
+      published_sha256: 2ec90c4b5ccf8598c0fd9b59bd9e012781c84dd6f23a7d83a5002f570d39d561
+    rtl/rdtc/mrtc_rdtc_axis2eng_wrapper_nlane.sv:
+      source_sha256: 5811151fcde15052a5f6c76b31b3a8eb2500154d663c8c95295e1122ac42850b
+      published_sha256: 2759a8c229b24b90fda3a66f4040af83fd4bab0fbdf68f1ec9f91e2390c4e3db
+    rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv:
+      source_sha256: 31737b68f33423b168dbd447d16fb89e8824c99c908a3a125bc8ca760e72b29d
+      published_sha256: fc07d615abf257f888a826008253e0326990d1bd85a15bcb7f04336f69328522
+    tb/sv/tb_stage22f_r9c2p_pre_mrtc_axis32_wrapper.sv:
+      source_sha256: 2c416e3679013c818b87d93de4e21bb8d4f49ac7b8d03df932e157345ca2bcf1
+      published_sha256: cd112715dac01fdd149675e8d09abcf1b09b75f3a3501e1b7d47ff1ef3ec427e
+  public_only_test_identity:
+    tb/sv/tb_mrtc_axis_raw_block_capture_replay.sv: 4dfbc5b09bd34457547283313a2d091b31e113addcab00731b334e7663208d4d
+    tb/sv/tb_mrtc_axis_raw_block_capture_replay_one_slot.sv: 507851befa9ce47c07a6211b4d8a8b8c44b87546c0963fe47cdced0efa20edf7
+cases: 3
+case_passes: 3
+checks:
+  width_pack: pass
+  variable_length_packet: pass
+  tkeep_tlast: pass
+  input_gap: pass
+  output_backpressure: pass
+  decoder_golden_compare: pass
+xsim_testbench_elaboration: verified
+concurrent_dual_input_fpga: not_claimed
+board_hardware_execution_status: not_claimed
+result: pass
+caveat: The XSim result belongs to private fixed source commit 43deb9f; public readers receive the curated summary, hashes, case CSV, and adapted smoke rather than that Git object. The published adaptation is not a new Vivado result. The AXIS32 adapter drives only input 0 of the internal two-input wrapper; this is not dual-engine FPGA, bitstream, timing/resource, MCDMA/DDR runtime, or board-console evidence.

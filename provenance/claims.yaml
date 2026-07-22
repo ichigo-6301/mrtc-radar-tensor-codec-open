@@ -106,3 +106,78 @@ claims:
     status: verified
     caveat: "This is a finite wrapper regression result, not formal verification or coverage closure."
     public: true
+  - id: rdtc_v1_matlab_lossless_synthetic_snr
+    profile: rdtc_v1_public_release
+    statement: "In the published synthetic MATLAB SNR sweep, ZERO_RICE and DELTA_RICE each reconstructed all six selected cases exactly, with zero NMSE/max-absolute error and point-cloud match ratio 1."
+    metric: synthetic_lossless_case_count
+    value: 12
+    unit: cases
+    benchmark: synthetic Range-Doppler-beam scenes from -20 dB through 30 dB SNR
+    configuration: six SNR points for each of ZERO_RICE and DELTA_RICE
+    source_ref: bf27b88d77c422ed385e35bb2f19335e054af244
+    tool: MATLAB R2024b
+    evidence:
+      - rdtc_v1_matlab_algorithm_study_public
+    status: verified
+    caveat: "Synthetic MATLAB study only; it is not measured-radar evidence and does not claim PointCloud RTL."
+    public: true
+  - id: rdtc_v1_multiengine_rtl_scaling
+    profile: rdtc_v1_public_release
+    statement: "For the fixed 256-block prefix RTL workload, the 1/2/4-engine configurations measured 785.00/397.52/197.41 effective cycles per block, with 2/4-engine scaling efficiencies of 0.987368/0.994115."
+    metric: four_engine_effective_cycles_per_block
+    value: 197.41
+    unit: cycles_per_block
+    benchmark: fixed 256-block prefix multi-engine RTL workload
+    configuration: per-engine DDR feeder, encoder, and two-entry output packet buffer
+    source_ref: 8628ee4d561bf4ee4a97a02c800e1c52c9e9a28a
+    tool: fixed-commit Questa/ModelSim RTL regression
+    evidence:
+      - rdtc_v1_multiengine_rtl_public
+    status: verified
+    caveat: "One beam is the recorded 256-block workload. The 995.2229/1965.3022/3957.4642 beam/s figures use unrounded estimated_cycles_per_beam values and are arithmetic projections at an assumed 200 MHz, not FPGA timing or measured board throughput."
+    public: true
+  - id: rdtc_v1_multiengine_packet_atomicity
+    profile: rdtc_v1_public_release
+    statement: "The fixed 2/4-engine 256-block regressions completed every packet with byte-exact payload, matching selected-k and compression ratio, and no beat interleaving."
+    metric: packet_integrity
+    value: pass
+    unit: result
+    benchmark: fixed 256-block prefix multi-engine RTL workload
+    configuration: packet-level locked arbitration with OUT_OF_ORDER completion mode
+    source_ref: 8628ee4d561bf4ee4a97a02c800e1c52c9e9a28a
+    tool: fixed-commit Questa/ModelSim RTL regression
+    evidence:
+      - rdtc_v1_multiengine_rtl_public
+    status: verified
+    caveat: "Packet metadata supports indexed software reassembly, but a software reorder implementation and an observed reordering event are not claimed."
+    public: true
+  - id: rdtc_v1_fpga_axis32_emulation
+    profile: rdtc_v1_public_release
+    statement: "FPGA emulation verified: Vivado Simulator 2018.3 passed three AXIS32 wrapper cases covering width conversion, variable-length packets, tkeep/tlast, input gaps, output backpressure, and decoder golden comparison."
+    metric: fpga_emulation_case_count
+    value: 3
+    unit: cases
+    benchmark: historical AXIS32 wrapper Vivado simulation suite
+    configuration: single active external AXIS32 input feeding input 0 of the internal two-input wrapper
+    source_ref: 43deb9fd99ce5d1b96578dd70fe5f1ddbf3a3bfb
+    tool: Vivado Simulator 2018.3
+    evidence:
+      - rdtc_v1_fpga_axis32_emulation_public
+    status: verified
+    caveat: "This does not claim concurrent dual-input FPGA verification, synthesis, implementation, timing/resources, a bitstream, MCDMA/DDR runtime, board execution, or an actual FPGA 200 MHz result."
+    public: true
+  - id: rdtc_v1_zynq_trial_build
+    profile: rdtc_v1_public_release
+    statement: "The historical Zynq-7000 trial copy completed Vivado 2018.3 RTL elaboration with a compatibility-modified copied RTL set and completed its SDK/ELF application build."
+    metric: zynq_trial_copy_build_layers
+    value: pass
+    unit: result
+    benchmark: historical Zynq-7000 AXIS32 MRTC trial-copy build
+    configuration: Vivado-2018.3-compatible copied RTL plus SDK application; no bitstream generation or board execution
+    source_ref: 43deb9fd99ce5d1b96578dd70fe5f1ddbf3a3bfb
+    tool: Vivado 2018.3 and Vivado SDK 2018.3
+    evidence:
+      - rdtc_v1_zynq_trial_build_public
+    status: verified
+    caveat: "The current public RTL retains parameter string declarations and is not claimed to elaborate directly in Vivado 2018.3; the trial build also does not prove a matching bitstream, MCDMA/DDR runtime, board-console PASS, FPGA timing, or resource closure."
+    public: true

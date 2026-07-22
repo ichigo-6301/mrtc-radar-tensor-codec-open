@@ -40,8 +40,8 @@ Sources: [XSim evidence](evidence/rdtc_v1_fpga_axis32_emulation.yaml) · [Zynq t
 
 | Profile | Fixed verified closure point | Result maturity |
 |---|---|---|
-| `rdtc_v1_register_nangate45_550` (`register-expanded`) | 550 MHz OpenROAD P&R + same-run OpenRCX SPEF + PrimeTime; core area `421,120 um2`; route DRC/antenna `0/0`; setup/hold WNS `+0.26/+0.04 ns` | Internal reg-to-reg implementation and timing verified |
-| `rdtc_v1_sram_nangate45_333` (OpenRAM `sram-macro`) | 333 MHz chip-level P&R + same-run SPEF + internal PT; route DRC/antenna `0/0`; setup/hold WNS `+0.57/+0.04 ns` | Implementation chain verified; overall profile remains partial because the analytical macro model and macro DRC/LVS/PEX are not closed; the exact reviewed 256-endpoint waiver remains separately disclosed |
+| `rdtc_v1_register_nangate45_550` (`register-expanded`) | 550 MHz OpenROAD P&R + same-run OpenRCX SPEF + PrimeTime; core area `421,120 um2`; route DRC `0`, antenna net/pin `0/0`; setup/hold WNS `+0.26/+0.04 ns` | Internal reg-to-reg implementation and timing verified |
+| `rdtc_v1_sram_nangate45_333` (OpenRAM `sram-macro`) | 333 MHz chip-level P&R + same-run SPEF + internal PT; route DRC `0`, antenna net/pin `0/0`; setup/hold WNS `+0.57/+0.04 ns` | Implementation chain verified; overall profile remains partial because the analytical macro model and macro DRC/LVS/PEX are not closed; the exact reviewed 256-endpoint waiver remains separately disclosed |
 
 Each frequency is a fixed verified closure point for that profile, not a maximum-frequency claim. These are academic implementation results, not complete top-level IO timing, OCV/MMMC, foundry signoff, or silicon readiness.
 

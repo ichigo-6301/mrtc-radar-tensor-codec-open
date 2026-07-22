@@ -1,0 +1,4 @@
+engine_count,workload_blocks,effective_cycles_per_block,scaling_efficiency_vs_single_engine,estimated_cycles_per_beam,beam_s_at_assumed_200mhz,metric_source,measurement_scope
+1,256,785.00,1.000000,200960.00,995.2229,scaling_comparison.csv single-engine baseline fields,fixed-commit RTL simulation baseline
+2,256,397.52,0.987368,101765.52,1965.3022,ddr_multiengine_throughput_summary.csv prefix_256_block_beam_f1r_x2 row,fixed-commit RTL simulation and arithmetic frequency projection
+4,256,197.41,0.994115,50537.41,3957.4642,ddr_multiengine_throughput_summary.csv prefix_256_block_beam_f1r_x4 row,fixed-commit RTL simulation and arithmetic frequency projection

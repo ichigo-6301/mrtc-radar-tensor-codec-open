@@ -1,0 +1,13 @@
+case_name,snr_db,algorithm_name,lossless_flag,compression_ratio,nmse,max_abs_error,pointcloud_match_ratio
+snr_-20dB,-20,rdtc_delta_rice,1,1.49966750215345,0,0,1
+snr_-20dB,-20,rdtc_zero_rice,1,1.58168966770544,0,0,1
+snr_-10dB,-10,rdtc_delta_rice,1,1.78713486646766,0,0,1
+snr_-10dB,-10,rdtc_zero_rice,1,1.8774232521365,0,0,1
+snr_+0dB,0,rdtc_delta_rice,1,2.18519785541554,0,0,1
+snr_+0dB,0,rdtc_zero_rice,1,2.34695901740105,0,0,1
+snr_+10dB,10,rdtc_delta_rice,1,2.80827344501309,0,0,1
+snr_+10dB,10,rdtc_zero_rice,1,3.09793094317599,0,0,1
+snr_+20dB,20,rdtc_delta_rice,1,3.9668572949914,0,0,1
+snr_+20dB,20,rdtc_zero_rice,1,4.39145249602777,0,0,1
+snr_+30dB,30,rdtc_delta_rice,1,6.17792030430754,0,0,1
+snr_+30dB,30,rdtc_zero_rice,1,7.55879072619459,0,0,1

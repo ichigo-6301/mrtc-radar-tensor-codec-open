@@ -1,0 +1,86 @@
+title: RDTC v1 multi-engine RTL scaling and packet-integrity summary
+status: verified
+source_commit: 8628ee4d561bf4ee4a97a02c800e1c52c9e9a28a
+source_visibility: private_fixed_commit
+public_evidence_scope: curated summary, public scaling CSV, source hashes, and an adapted public correctness smoke
+source_paths:
+  - docs/reports/data/stage16f1r_output_packet_buffer/ddr_multiengine_throughput_summary.csv
+  - docs/reports/data/stage16f1r_output_packet_buffer/packet_compare_summary.csv
+  - docs/reports/data/stage16f1r_output_packet_buffer/scaling_comparison.csv
+curated_data: evidence/data/rdtc_v1_multiengine_scaling.csv
+curated_data_sha256: 0267fb88a5bacd19748b6f649d8555e364a3adff3bc000571f0c6ad58e57c9be
+configuration: 256-block prefix workload with per-engine DDR feeder and two-entry packet buffer
+tool: Fixed-commit Questa/ModelSim RTL regression
+published_adaptation:
+  status: adapted_from_fixed_commit
+  historical_metrics_recomputed_from_published_adaptation: false
+  current_smoke_scope: Two complete 4096-byte blocks distributed across two Engines with packet byte-exact and decoder-loopback checks, packet-buffer overlength fail-stop/reset recovery, and OUTPUT_IN_ORDER fail-fast tests
+  current_smoke_result: pass
+  changes:
+    - Icarus-compatible testbench parsing and bounded capture storage
+    - Packet-buffer forward-progress, overflow-stickiness, and metadata-count correctness fixes
+    - Outstanding DDR-response beats are reserved before admitting another feeder burst
+    - Capture slots replay in allocation order and status clearing does not pause datapath handshakes
+    - Status clearing has priority over same-cycle feeder, packet-buffer, and wrapper counter updates while datapath state still advances
+    - An overlength packet is tested as a reset-only fail-stop instead of a recoverable counter clear
+    - Explicit assertion that every configured Engine participates in the public smoke
+    - Explicit negative smoke that OUTPUT_IN_ORDER=1 fails fast
+  dependency_binding:
+    filelist: flows/manifests/rdtc_v1_multiengine_smoke.f
+    filelist_sha256: 31056c4ef9d93fc07ccb0d0ab958a819d9c647badfa1acda45972626cc15bdb8
+    canonical_hash_manifest: provenance/checksums.sha256
+    coverage_rule: Every tracked source and test path named by the filelist is hashed by the canonical manifest.
+  file_identity:
+    rtl/rdtc/mrtc_axis_packet_buffer.sv:
+      source_sha256: 949e4ecec61f08673815293b7caab3fa3c2f537629f6c01ebdcceecd2368bfa8
+      published_sha256: 7e3b28492be0c6efd1f3fdb388839579e4e322114893a7e574cdf7a8d723dbb4
+    rtl/rdtc/mrtc_rdtc_ddr_feeder_engine.sv:
+      source_sha256: 74116a7bc8ad63f6c5d546a6423c425694e92ca52a32f4c3f80d4e2768143b6c
+      published_sha256: 88bde2308bbcfe4e063a858375dffcfa565b6b5ea03abc59a519ae40721a9b21
+    rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv:
+      source_sha256: 75b4af942c6c5643b22a617422ac68367cc0c2e10fd34a82276dc6b664e507cf
+      published_sha256: d7693ddc855a08b173f6e980a484ff6c871ac9870fde93df6d713d018815b63d
+    tb/sv/tb_rdtc_ddr_multiengine_wrapper.sv:
+      source_sha256: 2dc07babddd90f8fa34d20cdac6d3287edb1fe77be39cdf5c822e142386164c3
+      published_sha256: cce37e1fa921d617d3bf6d8a38526415f39b193cd5551ad8adbf95ca38b53657
+  public_only_test_identity:
+    tb/sv/tb_mrtc_axis_packet_buffer.sv: 491d9cbf8b351da3f19fc6b90482b69d58a7a2a44fccc7ad85cee725293334e7
+metric_derivation:
+  beam_definition: one beam is the recorded 256-block workload
+  single_engine_baseline: scaling_comparison.csv single_engine_cycles_per_block and single_engine_beam_s_200m
+  multi_engine_authority: ddr_multiengine_throughput_summary.csv prefix_256_block_beam_f1r_x2/x4 rows
+  multi_engine_fields: effective_cycles_per_block, scaling_efficiency_vs_single_engine, estimated_cycles_per_beam, beam_s_200m
+  note: The similarly named after_scaling_efficiency fields in scaling_comparison.csv are not used for the published 2/4 Engine efficiency values.
+single_engine:
+  effective_cycles_per_block: 785.00
+  estimated_cycles_per_beam: 200960.00
+  beam_s_at_assumed_200mhz: 995.2229
+two_engine:
+  effective_cycles_per_block: 397.52
+  scaling_efficiency_vs_single_engine: 0.987368
+  estimated_cycles_per_beam: 101765.52
+  beam_s_at_assumed_200mhz: 1965.3022
+four_engine:
+  effective_cycles_per_block: 197.41
+  scaling_efficiency_vs_single_engine: 0.994115
+  estimated_cycles_per_beam: 50537.41
+  beam_s_at_assumed_200mhz: 3957.4642
+packet_checks:
+  two_engine_rows: 256
+  four_engine_rows: 256
+  packet_complete_failures: 0
+  payload_byte_exact_failures: 0
+  selected_k_failures: 0
+  compression_ratio_failures: 0
+  beat_interleaving_failures: 0
+ordering:
+  mode: OUT_OF_ORDER
+  packet_atomic: true
+  observed_reordering_in_recorded_256_block_rows: false
+  software_indexed_reassembly_status: not_claimed
+result: pass
+caveats:
+  - Published performance values remain historical fixed-commit measurements; the adapted public RTL smoke does not recompute the 256-block 1/2/4-Engine matrix.
+  - Beam/s values use unrounded estimated_cycles_per_beam values for a 256-block beam and an assumed 200 MHz arithmetic projection; they are not FPGA timing measurements.
+  - The architecture permits finite packet-level out-of-order completion, but the recorded rows happened to retain ascending block IDs.
+  - Header metadata enables indexed software reassembly; a completed software reorder program is not claimed.

@@ -19,3 +19,15 @@ nonclaims:
     reason: No public hardware console log with a defined PASS marker is registered for this release.
     status: not_claimed
     public: true
+  - id: rdtc_v1_no_dual_input_fpga_or_bitstream
+    profile: rdtc_v1_public_release
+    statement: "RDTC v1 does not claim direct Vivado 2018.3 elaboration of the current public RTL, concurrent dual-input FPGA verification, FPGA timing/resource closure, a generated bitstream, MCDMA/DDR runtime behavior, or measured 200 MHz FPGA performance."
+    reason: The published FPGA-emulation evidence is a single-active-input AXIS32 Vivado simulation; the historical Zynq trial elaboration used a compatibility-modified copied RTL set, and multi-engine scaling is separate RTL-simulation evidence.
+    status: not_claimed
+    public: true
+  - id: rdtc_v1_no_software_reorder_pass
+    profile: rdtc_v1_public_release
+    statement: RDTC v1 does not claim a completed or validated software packet-reorder implementation.
+    reason: Frame/block metadata and packet identity support indexed reassembly, while the published RTL evidence validates packet atomicity and integrity only.
+    status: not_claimed
+    public: true

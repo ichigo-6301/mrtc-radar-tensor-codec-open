@@ -1,0 +1,34 @@
+title: RDTC v1 historical Zynq-7000 trial-copy build summary
+status: verified
+source_commit: 43deb9fd99ce5d1b96578dd70fe5f1ddbf3a3bfb
+source_visibility: private_fixed_commit
+public_evidence_scope: curated build summary and source-report identities; Vivado project, Block Design, IP payloads, and SDK workspace are not published
+source_paths:
+  - docs/reports/stage22f_r9c2p_u5_axis32_mrtc_trial_copy.md
+  - docs/reports/data/stage22f_r9c2p_u5_axis32_mrtc_trial_copy/r9c2p_trial_sdk_build.csv
+configuration: Historical U5 Zynq-7000 trial copy with an AXIS32 MRTC path and a Vivado-2018.3-compatible copied RTL set
+tools:
+  - Vivado 2018.3 synth_design -rtl
+  - Vivado SDK 2018.3
+fpga_source_ready: partial
+fpga_rtl_simulation: not_claimed
+fpga_synthesis: not_claimed
+fpga_implementation: not_claimed
+fpga_timing: not_claimed
+fpga_bitstream: not_claimed
+fpga_board_smoke: not_claimed
+fpga_workload_validation: not_claimed
+overall_fpga_maturity: partial
+partial_reason: Compatibility-copy RTL elaboration and SDK/ELF build are verified integration layers, while the canonical FPGA implementation, timing, bitstream, board, and workload dimensions are not claimed.
+checks:
+  trial_copy_rtl_elaboration: pass
+  sdk_application_build: pass
+  elf_output: produced
+trial_copy_rtl_elaboration: verified_with_compatibility_copy
+sdk_application_elf_build: verified
+direct_current_public_rtl_elaboration: not_claimed
+result: pass
+caveats:
+  - Vivado 2018.3 rejected parameter string declarations in the repository source, so the successful trial-copy elaboration used a compatibility-modified copied RTL set.
+  - The current public RTL retains those parameter string declarations and is not claimed to elaborate directly in Vivado 2018.3.
+  - The SDK/ELF build is not evidence of a matching bitstream, MCDMA/DDR runtime, board-console PASS, FPGA timing, or resource closure.

@@ -40,8 +40,8 @@ MATLAB synthetic study 用受控合成数据比较模式并检查无损恢复。
 
 | Profile | 固定 verified closure point | 结果成熟度 |
 |---|---|---|
-| `rdtc_v1_register_nangate45_550` (`register-expanded`) | 550 MHz OpenROAD P&R + same-run OpenRCX SPEF + PrimeTime；core area `421,120 um2`；route DRC/antenna `0/0`；setup/hold WNS `+0.26/+0.04 ns` | 内部 reg-to-reg 实现与时序 verified |
-| `rdtc_v1_sram_nangate45_333` (OpenRAM `sram-macro`) | 333 MHz 芯片级 P&R + same-run SPEF + internal PT；route DRC/antenna `0/0`；setup/hold WNS `+0.57/+0.04 ns` | 实现链 verified；整体 profile 因 analytical macro model 与 macro DRC/LVS/PEX 未闭合而保持 partial；精确审核的 256-endpoint waiver 继续单独披露 |
+| `rdtc_v1_register_nangate45_550` (`register-expanded`) | 550 MHz OpenROAD P&R + same-run OpenRCX SPEF + PrimeTime；core area `421,120 um2`；route DRC `0`，antenna net/pin `0/0`；setup/hold WNS `+0.26/+0.04 ns` | 内部 reg-to-reg 实现与时序 verified |
+| `rdtc_v1_sram_nangate45_333` (OpenRAM `sram-macro`) | 333 MHz 芯片级 P&R + same-run SPEF + internal PT；route DRC `0`，antenna net/pin `0/0`；setup/hold WNS `+0.57/+0.04 ns` | 实现链 verified；整体 profile 因 analytical macro model 与 macro DRC/LVS/PEX 未闭合而保持 partial；精确审核的 256-endpoint waiver 继续单独披露 |
 
 频率是对应 profile 的固定已验证 closure point，不是 maximum frequency。结果属于 academic implementation evidence，不声明完整 top-level IO timing、OCV/MMMC、foundry signoff 或 silicon readiness。
 

@@ -56,7 +56,7 @@ FPGA XSim 覆盖真实 encoder path、decoder golden comparison、width conversi
 | `register-expanded` | Nangate45/OpenROAD/OpenRCX | fixed verified P&R + PT closure point at 550 MHz | 使用 700 MHz DC mapped netlist；route DRC 0，antenna net/pin 0/0，area 421,120 um2，utilization 31.4432%；PT setup/hold WNS +0.26/+0.04 ns，constraint violation 0 | verified |
 | `register-expanded` | ICS55 H7CR RVT TT/1.2 V/25 C | DC-only | 400/600/800 MHz setup 均闭合；800 MHz WNS/TNS 0.00/0.00 ns，cell area 566,341.71 um2；600 MHz 留有 2/3 个 transition/capacitance 违例 | verified（800 MHz）/ partial（600 MHz） |
 | `register-expanded` | ICS55/ECOS preview | 完整设计 400 MHz P&R 尝试 | floorplan 至 legalization 已完成；detailed route 在 1,058/4,761 个 box 后因 violation 增长和 OOM 保护停止；没有 routed handoff 或 STA | 未完成 |
-| `sram-macro` | Nangate45/OpenRAM/OpenROAD/OpenRCX | 双 `64x128 1RW1R` 宏；fixed verified 333 MHz P&R、同次 SPEF 与 PT 内部时序 closure point | route DRC/antenna 为 0/0；PT setup/hold WNS +0.57/+0.04 ns，constraint violation 0 | 芯片级实现结果 verified；整体 profile 因 analytical SRAM 模型及 macro DRC/LVS/PEX 未闭合而保持 partial |
+| `sram-macro` | Nangate45/OpenRAM/OpenROAD/OpenRCX | 双 `64x128 1RW1R` 宏；fixed verified 333 MHz P&R、同次 SPEF 与 PT 内部时序 closure point | route DRC 为 0，antenna net/pin 为 0/0；PT setup/hold WNS +0.57/+0.04 ns，constraint violation 0 | 芯片级实现结果 verified；整体 profile 因 analytical SRAM 模型及 macro DRC/LVS/PEX 未闭合而保持 partial |
 
 NanGate15 Liberty 使用 `1ps` 时间单位，DC profile 显式应用 `SDC_TIME_SCALE=1000.0`。最新 45 nm register-expanded 后端使用已闭合的 700 MHz DC netlist，在 550 MHz 进行物理实现；handoff netlist、SDC 与 SPEF 的 SHA256 在 evidence 中一致记录。PrimeTime setup/hold coverage 为 100%；1756 个未约束 max-delay endpoint 属于 internal-only profile 下的异步 reset pin。
 
