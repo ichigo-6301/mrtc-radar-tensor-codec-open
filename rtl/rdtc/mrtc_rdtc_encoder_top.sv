@@ -744,7 +744,7 @@ module mrtc_rdtc_encoder_top #(
     .i_block_spatial_len   (8'(MRTC_BLOCK_SPATIAL_LEN)),
     .i_block_doppler_len   (8'(MRTC_BLOCK_DOPPLER_LEN)),
     .i_block_range_len     (16'(MRTC_BLOCK_RANGE_LEN)),
-    .i_sample_format       (MRTC_SAMPLE_I16Q16),
+    .i_sample_format       (8'(MRTC_SAMPLE_I16Q16)),
     .i_codec_mode          (use_raw_pre_reg ? MRTC_CODEC_RAW : proc_codec_mode),
     .i_predictor_mode      (proc_codec_mode),
     .i_rice_k              (selected_k_reg),

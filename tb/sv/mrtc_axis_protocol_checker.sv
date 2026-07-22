@@ -1,7 +1,11 @@
 module mrtc_axis_protocol_checker #(
   parameter int AXIS_DATA_W = 128,
   parameter int TUSER_W = 8,
+`ifdef RDTC_ICARUS
+  parameter NAME = "axis"
+`else
   parameter string NAME = "axis"
+`endif
 ) (
   input  logic                   clk,
   input  logic                   rst_n,

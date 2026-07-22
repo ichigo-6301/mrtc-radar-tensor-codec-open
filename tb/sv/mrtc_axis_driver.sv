@@ -1,7 +1,13 @@
 module mrtc_axis_driver #(
+`ifdef RDTC_ICARUS
+  parameter CASE_DIR = "",
+  parameter HEX_FILE = "axis_raw_in.hex",
+  parameter CTRL_FILE = "axis_raw_in_ctrl.csv",
+`else
   parameter string CASE_DIR = "",
   parameter string HEX_FILE = "axis_raw_in.hex",
   parameter string CTRL_FILE = "axis_raw_in_ctrl.csv",
+`endif
   parameter bit LOAD_BLOCK_CODECS = 1'b1,
   parameter bit EMIT_LAST_BYTE_COUNT = 1'b0,
   parameter int AXIS_DATA_W = 128,
@@ -70,7 +76,8 @@ module mrtc_axis_driver #(
   task automatic load_ctrl_file(input string path, output int count);
     int fd;
     int code;
-    string line;
+    reg [8*1024-1:0] line;
+    int read_code;
     int blk;
     int word_idx;
     int num_bytes;
@@ -81,19 +88,18 @@ module mrtc_axis_driver #(
       if (fd == 0) begin
         $fatal(1, "driver failed to open %s", path);
       end
-      void'($fgets(line, fd));
+      read_code = $fgets(line, fd);
       while (!$feof(fd) && count < MAX_BEATS) begin
-        line = "";
-        void'($fgets(line, fd));
-        if (line.len() == 0) begin
-          continue;
-        end
-        code = $sscanf(line, "%d,%d,%d,%d", blk, word_idx, num_bytes, tlast);
-        if (code == 4) begin
-          beat_block_idx[count] = blk;
-          beat_num_bytes[count] = num_bytes;
-          beat_tlast[count] = tlast;
-          count = count + 1;
+        line = '0;
+        read_code = $fgets(line, fd);
+        if (read_code != 0) begin
+          code = $sscanf(line, "%d,%d,%d,%d", blk, word_idx, num_bytes, tlast);
+          if (code == 4) begin
+            beat_block_idx[count] = blk;
+            beat_num_bytes[count] = num_bytes;
+            beat_tlast[count] = tlast;
+            count = count + 1;
+          end
         end
       end
       if (!$feof(fd)) begin
@@ -105,7 +111,8 @@ module mrtc_axis_driver #(
 
   task automatic parse_header_predictor(input string path, output int predictor_mode);
     int fd;
-    string line;
+    reg [8*1024-1:0] line;
+    int read_code;
     int code;
     int magic;
     int version;
@@ -133,28 +140,27 @@ module mrtc_axis_driver #(
     begin
       predictor_mode = 0;
       fd = $fopen(path, "r");
-      if (fd == 0) begin
-        return;
-      end
-      void'($fgets(line, fd));
-      line = "";
-      void'($fgets(line, fd));
-      if (line.len() != 0) begin
-        code = $sscanf(
-          line,
-          "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
-          magic, version, header_len, frame_id, block_id,
-          tensor_spatial_size, tensor_doppler_size, tensor_range_size,
-          block_spatial_start, block_doppler_start, block_range_start,
-          block_spatial_len, block_doppler_len, block_range_len,
-          sample_format, codec_mode, predictor_mode, rice_k, flags, reserved0,
-          raw_bytes, payload_bytes, payload_bits, crc32
-        );
-        if (code != 24) begin
-          predictor_mode = 0;
+      if (fd != 0) begin
+        read_code = $fgets(line, fd);
+        line = '0;
+        read_code = $fgets(line, fd);
+        if (read_code != 0) begin
+          code = $sscanf(
+            line,
+            "%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d",
+            magic, version, header_len, frame_id, block_id,
+            tensor_spatial_size, tensor_doppler_size, tensor_range_size,
+            block_spatial_start, block_doppler_start, block_range_start,
+            block_spatial_len, block_doppler_len, block_range_len,
+            sample_format, codec_mode, predictor_mode, rice_k, flags, reserved0,
+            raw_bytes, payload_bytes, payload_bits, crc32
+          );
+          if (code != 24) begin
+            predictor_mode = 0;
+          end
         end
+        $fclose(fd);
       end
-      $fclose(fd);
     end
   endtask
 
@@ -184,12 +190,12 @@ module mrtc_axis_driver #(
     end
   endtask
 
-  task automatic resolve_case_dir(output string case_dir);
+  task automatic resolve_case_dir;
     string vec_root;
     string case_name;
     begin
       if (CASE_DIR.len() != 0) begin
-        case_dir = CASE_DIR;
+        resolved_case_dir = CASE_DIR;
       end else begin
         vec_root = "vectors/rdtc_v1";
         case_name = "";
@@ -198,7 +204,7 @@ module mrtc_axis_driver #(
         if (case_name.len() == 0) begin
           $fatal(1, "driver requires CASE_DIR parameter or +CASE plusarg");
         end
-        case_dir = {vec_root, "/", case_name};
+        resolved_case_dir = {vec_root, "/", case_name};
       end
     end
   endtask
@@ -252,7 +258,7 @@ module mrtc_axis_driver #(
         string ctrl_path;
         int max_block_idx;
         int beat_idx;
-        resolve_case_dir(resolved_case_dir);
+        resolve_case_dir();
         hex_path = {resolved_case_dir, "/", HEX_FILE};
         ctrl_path = {resolved_case_dir, "/", CTRL_FILE};
         load_hex_file(hex_path, raw_byte_count);
