@@ -34,7 +34,8 @@
 - `register-expanded` 只把 prefix buffer 映射为标准单元寄存器，不代表 SRAM macro PPA；
 - 15 nm DC-only profile 只提供 ideal-clock internal reg-to-reg 综合边界。DC closure 不等于 P&R closure，因此不从该结果推导 post-route Fmax；
 - 45 nm register-expanded 的最新 550 MHz 结果是 fixed verified internal reg-to-reg academic closure point，而不是 maximum frequency。它使用 700 MHz setup-closed DC mapped netlist、OpenRCX SPEF 和 PrimeTime；setup/hold coverage 为 100%，但 1756 个异步 reset pin 不在 max-delay coverage 内，也不覆盖完整 IO、reset recovery/removal、OCV/MMMC、macro DRC/LVS/PEX 或 foundry signoff；
-- 45 nm `sram-macro` 的 333 MHz 结果已完成并验证芯片级 P&R、同次 SPEF 与内部 PrimeTime setup/hold timing。整体 profile 因 OpenRAM characterization 为 analytical 且 macro DRC/LVS/PEX 未闭合而保持 partial；
+- 两个 Nangate45 physical profile 的 configured die/core 为 `1200 x 1200 um` / `1159.72 x 1155.20 um`；这是公开 OpenROAD floorplan configuration，`421,120 um2` 仅指 550 MHz register-expanded 的 final standard-cell design area；
+- 45 nm `sram-macro` 的 333 MHz 结果已完成并验证芯片级 P&R、同次 SPEF 与内部 PrimeTime setup/hold timing。它使用 academic Nangate45/OpenRAM 数据，因此不声明 production PDK、macro DRC/LVS/PEX、完整 IO、OCV/MMMC 或 silicon signoff；
 - 审核 waiver 只适用于两个宏上共 256 个未使用 `dout0[127:0]` minimum-capacitance endpoint，属于 profile-specific、exact-set matched 对象，不允许 missing 或 extra object。它不是 blanket capacitance、setup/hold 或 functional read data waiver；
 - SRAM 333 MHz 是固定 verified closure point，不能扩大为 400 MHz 或 exact SRAM Fmax claim；没有受控 400 MHz failure run 与 critical-path evidence，不能声称 SRAM 是唯一限制因素；
 - SRAM 宏面积和 register-expanded 面积不能在未说明物理容量、读延迟和模型差异时直接比较；

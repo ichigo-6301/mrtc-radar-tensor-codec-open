@@ -33,7 +33,7 @@ Maturity must be interpreted by dimension:
 - `planned` is roadmap-only;
 - `not_claimed` means evidence or execution is absent and cannot be inferred from an adjacent stage.
 
-The SRAM 333 MHz profile is the canonical example: chip-level P&R, routed handoff, same-run OpenRCX SPEF, and internal PT setup/hold results are verified. The macro timing model uses analytical characterization and macro DRC/LVS/PEX is not closed, so overall profile maturity remains `partial`. The exact reviewed 256-endpoint minimum-capacitance waiver must stay disclosed, but it is not a setup/hold waiver and does not automatically make the verified timing result partial.
+The SRAM 333 MHz profile is the canonical example: chip-level P&R, routed handoff, same-run OpenRCX SPEF, and internal PT setup/hold results are verified. Its structured metadata separately records the analytical macro model and macro-verification boundary. This learning project uses an academic Nangate45/OpenRAM platform and makes no production-PDK or silicon-readiness claim; those boundaries do not downgrade the chip-level P&R or timing result. The exact reviewed 256-endpoint minimum-capacitance waiver must stay disclosed, but it is not a setup/hold waiver and does not affect the verified timing result.
 
 FPGA maturity is likewise separated into simulation, elaboration, software build, implementation, timing, bitstream, board smoke, and workload validation. Current public claims cover AXIS32 XSim `3/3`, plus historical Zynq trial-copy elaboration with compatibility-copied RTL and its SDK/ELF build. Direct Vivado 2018.3 elaboration of the current public RTL, bitstream, board execution, MCDMA runtime, timing, and resources are `not_claimed`.
 

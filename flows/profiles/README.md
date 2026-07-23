@@ -7,9 +7,9 @@ required profile fields.
 - `rdtc_v1_register_nangate45_550.yaml` is the primary verified physical
   profile. It uses register-expanded prefix buffers and claims internal
   reg-to-reg timing only.
-- `rdtc_v1_sram_nangate45_333.yaml` is the secondary partial profile. Its
-  measured setup/hold result is retained, while analytical SRAM and physical
-  signoff limitations keep the overall profile partial.
+- `rdtc_v1_sram_nangate45_333.yaml` is the secondary academic macro profile.
+  Its chip-level P&R and measured setup/hold result are verified; the public
+  record does not claim a production PDK, macro signoff, or silicon readiness.
 - `rdtc_v1_register_ics55_rvt_dc.yaml` is a verified DC-only profile using the
   reviewed ICsprout55 v1.10.100 H7CR RVT public-preview library. It does not
   imply ECOS P&R or post-route timing success.

@@ -17,7 +17,7 @@ RDTC compresses I16Q16 samples block by block while preserving bit-exact reconst
 | Multi-Engine | Round-robin block dispatch, independent feeder/codec/packet buffer, packet-locked arbitration |
 | RTL throughput | 1/2/4 Engines: `785 / 397.52 / 197.41 cycles/block` on the fixed 256-block simulation workload |
 | FPGA | Fixed-commit, single-`s0` Vivado 2018.3 AXIS32 XSim `3/3` passes; Zynq trial covers only compatibility-copied RTL elaboration + SDK/ELF build |
-| ASIC | Nangate45 register-expanded at 550 MHz and dual-OpenRAM SRAM-macro at 333 MHz both complete OpenROAD P&R and pass PrimeTime post-route setup/hold STA using matching routed netlist/SDC and same-run OpenRCX SPEF; the overall SRAM profile remains partial |
+| ASIC | Nangate45 register-expanded at 550 MHz and dual-OpenRAM SRAM-macro at 333 MHz both complete OpenROAD P&R and pass PrimeTime post-route setup/hold STA using matching routed netlist/SDC and same-run OpenRCX SPEF; they share a configured `1200 x 1200 um` die in an academic PDK/OpenRAM implementation scope |
 
 ## 1. Algorithm: Why RDTC
 
@@ -67,8 +67,8 @@ Public smoke tests cover the C reference model, RTL loopback, packet boundaries,
 
 | Profile | Verified implementation result | Maturity boundary |
 |---|---|---|
-| `rdtc_v1_register_nangate45_550` | 550 MHz OpenROAD P&R + same-run OpenRCX SPEF + PrimeTime; core area `421,120 um2`; route DRC `0`; antenna net/pin `0/0`; setup/hold WNS `+0.26/+0.04 ns` | internal register-to-register implementation/timing verified |
-| `rdtc_v1_sram_nangate45_333` | Two `64x128 1RW1R` OpenRAM macros; 333 MHz chip-level P&R + same-run SPEF + internal PT; route DRC `0`; antenna net/pin `0/0`; setup/hold WNS `+0.57/+0.04 ns` | implementation chain verified; overall profile remains partial because the analytical macro model and macro DRC/LVS/PEX are not closed; the 256-endpoint exact-set waiver remains separately disclosed |
+| `rdtc_v1_register_nangate45_550` | 550 MHz OpenROAD P&R + same-run OpenRCX SPEF + PrimeTime; configured die/core `1200 x 1200 um` / `1159.72 x 1155.20 um`; core area `421,120 um2`; route DRC `0`; antenna net/pin `0/0`; setup/hold WNS `+0.26/+0.04 ns` | internal register-to-register implementation/timing verified |
+| `rdtc_v1_sram_nangate45_333` | Two `64x128 1RW1R` OpenRAM macros; 333 MHz chip-level P&R + same-run SPEF + internal PT; configured die/core `1200 x 1200 um` / `1159.72 x 1155.20 um`; route DRC `0`; antenna net/pin `0/0`; setup/hold WNS `+0.57/+0.04 ns` | chip-level P&R and internal timing verified; the academic Nangate45/OpenRAM platform makes no production-PDK, macro-signoff, or silicon-readiness claim; the 256-endpoint exact-set waiver remains separately disclosed |
 
 These frequencies are fixed verified closure points for the stated profiles, not maximum frequencies. The results are academic implementation evidence and do not claim complete top-level IO timing, OCV/MMMC, foundry signoff, or silicon readiness.
 

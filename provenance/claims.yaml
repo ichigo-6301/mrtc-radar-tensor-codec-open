@@ -78,7 +78,7 @@ claims:
     public: true
   - id: rdtc_v1_sram_macro_nangate45_333m_pt
     profile: rdtc_v1_sram_macro
-    statement: The SRAM-macro RDTC wrapper completed verified chip-level 45 nm academic OpenROAD P&R, same-run OpenRCX SPEF, and matching 333 MHz PrimeTime internal setup and hold checks; the overall macro profile remains partial.
+    statement: The SRAM-macro RDTC wrapper completed verified chip-level 45 nm academic OpenROAD P&R, same-run OpenRCX SPEF, and matching 333 MHz PrimeTime internal setup and hold checks.
     metric: setup_wns
     value: 0.57
     unit: ns
@@ -89,7 +89,7 @@ claims:
     evidence:
       - rdtc_v1_sram_macro_333m_public
     status: verified
-    caveat: "Internal reg-to-reg academic timing only. The overall profile is partial because OpenRAM characterization is analytical and macro DRC/LVS/PEX is not closed; the reviewed exact-set minimum-capacitance waiver covers 256 unused dout0 endpoints only. No IO closure, OCV/MMMC, foundry signoff, or silicon claim."
+    caveat: "Internal reg-to-reg academic timing only. OpenRAM characterization is analytical, and this learning/engineering project makes no production-PDK, macro DRC/LVS/PEX, complete IO, OCV/MMMC, foundry-signoff, or silicon claim; the reviewed exact-set minimum-capacitance waiver covers 256 unused dout0 endpoints only."
     public: true
   - id: rdtc_v1_wb_wrapper_vcs_regression
     profile: rdtc_v1_public_release

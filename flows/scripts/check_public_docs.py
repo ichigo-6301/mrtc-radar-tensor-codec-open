@@ -33,7 +33,7 @@ README_MARKERS = {
         "公开 Icarus-compatible",
         "软件 reorder 程序 PASS",
         "synthetic",
-        "SRAM overall profile 仍为 partial",
+        "academic PDK/OpenRAM 实现范围",
         "fixed verified closure point",
     ),
     "README.en.md": (
@@ -43,7 +43,7 @@ README_MARKERS = {
         "public Icarus-compatible",
         "software reorder program PASS",
         "synthetic",
-        "overall SRAM profile remains partial",
+        "academic PDK/OpenRAM implementation scope",
         "fixed verified closure point",
     ),
 }

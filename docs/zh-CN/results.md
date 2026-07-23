@@ -48,17 +48,19 @@ FPGA XSim 覆盖真实 encoder path、decoder golden comparison、width conversi
 
 所有频率结果仅针对 `mrtc_rdtc_wb_wrapper` 的内部单时钟 reg-to-reg 约束，setup uncertainty 为 100 ps，未设置完整 top-level IO timing。表中的 `DC-only`/`DC matrix` 是综合估计；550 MHz register-expanded 与 333 MHz SRAM-macro 则是完成布局布线后，PrimeTime 使用 matching routed netlist、SDC 与 same-run OpenRCX SPEF 得到的 setup/hold STA 闭合结果，不能与 DC 结果混称。
 
+两个 Nangate45 physical profile 的 floorplan configuration 相同：die 为 `1200 x 1200 um`（`1.4400 mm2`），core 为 `1159.72 x 1155.20 um`（`1.3397 mm2`）。这些是公开 `flows/physical/openroad/config.mk` 中的 configured geometry，不是未发布 GDS 的事后测量；550 MHz 的 `421,120 um2` 是 final standard-cell design area，而不是 core 或 die area。
+
 | Memory profile | Technology | Scope | Result | Status |
 |---|---|---|---|---|
 | `register-expanded` | NanGate15 TT/0.8 V/25 C | DC-only | 400/600/800 MHz 均闭合；800 MHz WNS +0.22945 ns，cell area 99,064.13 um2 | verified |
 | `register-expanded` | Nangate45 TT/1.1 V/25 C | DC matrix | 400/600/700 MHz 闭合；700 MHz WNS/TNS 0.00/0.00 ns；800 MHz WNS/TNS -0.14/-858.86 ns | verified |
 | `register-expanded` | Nangate45/OpenROAD/OpenRCX | P&R + PT at 400 MHz | route DRC 0，antenna net/pin 0/0，area 418,007 um2，utilization 31.2108%；PT setup/hold WNS +0.80/+0.04 ns，constraint violation 0 | verified |
-| `register-expanded` | Nangate45/OpenROAD/OpenRCX | fixed verified P&R + PT closure point at 550 MHz | 使用 700 MHz DC mapped netlist；route DRC 0，antenna net/pin 0/0，area 421,120 um2，utilization 31.4432%；PT setup/hold WNS +0.26/+0.04 ns，constraint violation 0 | verified |
-| `sram-macro` | Nangate45/OpenRAM/OpenROAD/OpenRCX | 双 `64x128 1RW1R` 宏；fixed verified 333 MHz P&R、同次 SPEF 与 PT 内部时序 closure point | route DRC 为 0，antenna net/pin 为 0/0；PT setup/hold WNS +0.57/+0.04 ns，constraint violation 0 | 芯片级实现结果 verified；整体 profile 因 analytical SRAM 模型及 macro DRC/LVS/PEX 未闭合而保持 partial |
+| `register-expanded` | Nangate45/OpenROAD/OpenRCX | fixed verified P&R + PT closure point at 550 MHz | 使用 700 MHz DC mapped netlist；configured die/core `1200 x 1200 um` / `1159.72 x 1155.20 um`；route DRC 0，antenna net/pin 0/0，area 421,120 um2，utilization 31.4432%；PT setup/hold WNS +0.26/+0.04 ns，constraint violation 0 | verified |
+| `sram-macro` | Nangate45/OpenRAM/OpenROAD/OpenRCX | 双 `64x128 1RW1R` 宏；fixed verified 333 MHz P&R、同次 SPEF 与 PT 内部时序 closure point | configured die/core `1200 x 1200 um` / `1159.72 x 1155.20 um`；route DRC 为 0，antenna net/pin 为 0/0；PT setup/hold WNS +0.57/+0.04 ns，constraint violation 0 | 芯片级实现与内部时序 verified；属于 academic Nangate45/OpenRAM 平台，不声明 production PDK、macro signoff 或 silicon readiness |
 
 NanGate15 Liberty 使用 `1ps` 时间单位，DC profile 显式应用 `SDC_TIME_SCALE=1000.0`。最新 45 nm register-expanded 后端使用已闭合的 700 MHz DC netlist，在 550 MHz 进行物理实现；handoff netlist、SDC 与 SPEF 的 SHA256 在 evidence 中一致记录。PrimeTime setup/hold coverage 为 100%；1756 个未约束 max-delay endpoint 属于 internal-only profile 下的异步 reset pin。
 
-SRAM-macro 的 333 MHz 结果已完成并验证芯片级 OpenROAD P&R、OpenRCX 同次 SPEF 及 PrimeTime 内部 setup/hold 时序；route DRC 和 antenna net/pin 均为 0，setup/hold WNS 为 +0.57/+0.04 ns。整体 SRAM profile 仍保持 `partial`，因为 OpenRAM 时序模型采用 analytical characterization，且 macro 级 DRC/LVS/PEX 尚未闭合。两个宏上共 256 个未使用 `dout0[127:0]` minimum-capacitance endpoint 采用精确审核 waiver；该 waiver 必须披露，但不是 profile partial 的原因。它是 profile-specific、exact-set matched，不允许 missing 或 extra object，不是 blanket capacitance、setup/hold waiver，也不适用于功能性 read data。333 MHz 是当前 macro profile 的固定 verified closure point，不得扩大为 400 MHz claim。
+SRAM-macro 的 333 MHz 结果已完成并验证芯片级 OpenROAD P&R、OpenRCX 同次 SPEF 及 PrimeTime 内部 setup/hold 时序；route DRC 和 antenna net/pin 均为 0，setup/hold WNS 为 +0.57/+0.04 ns。该结果作为 academic Nangate45/OpenRAM 平台上的 chip-level implementation evidence 展示：OpenRAM 时序模型为 analytical characterization，且本项目不提供 production PDK、macro DRC/LVS/PEX 或 silicon signoff。两个宏上共 256 个未使用 `dout0[127:0]` minimum-capacitance endpoint 采用精确审核 waiver；该 waiver 必须披露，但不影响已验证的 setup/hold 结果。它是 profile-specific、exact-set matched，不允许 missing 或 extra object，不是 blanket capacitance、setup/hold waiver，也不适用于功能性 read data。333 MHz 是当前 macro profile 的固定 verified closure point，不得扩大为 400 MHz claim。
 
 ## 结果解释
 

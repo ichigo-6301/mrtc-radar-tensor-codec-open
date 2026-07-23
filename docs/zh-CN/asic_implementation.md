@@ -1,6 +1,6 @@
 # ASIC 实现
 
-公开 ASIC 内容按两个独立 profile 组织：`register-expanded` 与 `sram-macro`。两者共享 RDTC v1 RTL、接口、AXI 行为、寄存器映射和码流；区别仅在 prefix buffer 的物理绑定。
+公开 ASIC 内容按两个独立 profile 组织：`register-expanded` 与 `sram-macro`。两者共享 RDTC v1 RTL、接口、AXI 行为、寄存器映射和码流；区别仅在 prefix buffer 的物理绑定。两个 Nangate45 physical profile 使用相同的 configured floorplan：die 为 `1200 x 1200 um`（`1.4400 mm2`），core 为 `1159.72 x 1155.20 um`（`1.3397 mm2`）。这些是公开 OpenROAD configuration 的几何约束，不是未发布 GDS 的事后测量。
 
 ## Register-expanded
 
@@ -12,11 +12,11 @@
 
 `sram-macro` 在双 engine 顶层实例化两个 `64x128 1RW1R` OpenRAM macro，并通过 wrapper 保持一拍读延迟、现有 AXI 协议和地址行为。333 MHz 是固定 verified closure point：芯片级 OpenROAD P&R 已完成，route DRC 与 antenna net/pin 均为 0/0，同一次 run 产生 routed handoff 与 OpenRCX SPEF，PrimeTime 读取匹配的 netlist、SDC 与 SPEF。setup/hold WNS/TNS 为 +0.57/+0.04 ns 与 0/0，constraint violation 为 0。
 
-### 结果成熟度解释
+### Academic 范围与结果解释
 
-芯片级实现链和已测得的内部 post-route timing 是 verified 结果。整体 profile 仅因 macro timing model 采用 analytical characterization 且 macro 级 DRC/LVS/PEX 尚未闭合而保持 `partial`。minimum-capacitance waiver 是针对两个宏上共 256 个未使用 `dout0[127:0]` endpoint 的 profile-specific、exact-set 审核对象；不允许 missing 或 extra object，不是 setup/hold waiver，也不适用于功能性 read data。
+芯片级实现链和已测得的内部 post-route timing 是 verified 结果。本项目为学习和工程展示而使用 academic Nangate45/OpenRAM 平台；没有适用于生产的 foundry PDK 或 macro signoff 包，因此不声明 production PDK、macro DRC/LVS/PEX 或 silicon readiness。OpenRAM timing model 为 analytical characterization，但这不改变匹配 routed netlist、SDC 与 same-run SPEF 的 PrimeTime setup/hold 结果。minimum-capacitance waiver 是针对两个宏上共 256 个未使用 `dout0[127:0]` endpoint 的 profile-specific、exact-set 审核对象；不允许 missing 或 extra object，不是 setup/hold waiver，也不适用于功能性 read data。
 
-route-tool DRC 0 在 academic platform 与 macro abstract view 范围内验证了顶层 routed implementation；它不验证 OpenRAM macro 的晶体管级内部，也不应因此把已完成的芯片级 P&R 描述为 partial。完整 IO timing、OCV/MMMC、foundry signoff 和 silicon readiness 均不声明。该频率由 macro-integrated implementation 与现有 analytical timing model 共同约束；不声明 400 MHz 因果失败，也不提出 400 MHz macro-profile claim。
+route-tool DRC 0 在 academic platform 与 macro abstract view 范围内验证了顶层 routed implementation；它不验证 OpenRAM macro 的晶体管级内部。完整 IO timing、OCV/MMMC、foundry signoff 和 silicon readiness 均不声明，因为它们不属于本项目可获得的 academic PDK 环境。该频率由 macro-integrated implementation 与现有 analytical timing model 共同约束；不声明 400 MHz 因果失败，也不提出 400 MHz macro-profile claim。
 
 ## Flow Contract
 
