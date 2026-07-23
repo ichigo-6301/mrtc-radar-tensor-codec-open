@@ -18,6 +18,13 @@ RDTC 位于感知数据生成与片外存储或传输之间。Encoder 将连续 
 
 接口与 packet 格式分别见[接口](interfaces.md)和[码流格式](bitstream_format.md)。
 
+| 架构层 | 对应公开 RTL |
+|---|---|
+| 完整控制面 | [`mrtc_top`](../../rtl/top/mrtc_top.sv) + [`mrtc_axi_lite_reg_block`](../../rtl/top/mrtc_axi_lite_reg_block.sv) |
+| 单 Engine codec | [`mrtc_rdtc_codec_top`](../../rtl/rdtc/mrtc_rdtc_codec_top.sv) |
+| DDR Multi-Engine | [`mrtc_rdtc_ddr_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) |
+| AXIS32 FPGA adaptation | [`mrtc_rdtc_axis32_wrapper`](../../rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) |
+
 ## 单 Engine Pipeline
 
 ![Single-Engine encoder and decoder pipeline](../assets/single_engine_pipeline.svg)

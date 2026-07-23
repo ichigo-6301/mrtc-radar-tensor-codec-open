@@ -3,6 +3,7 @@
 
 from __future__ import print_function
 
+import json
 import re
 import subprocess
 import sys
@@ -28,6 +29,8 @@ PRIMARY_SHOWCASE_DOCS = (
 README_MARKERS = {
     "README.md": (
         "rdtc_overview.svg",
+        "选择集成入口",
+        "RDTC_CODEC_DEMO_PASS",
         "FPGA emulation verified",
         "single-`s0`",
         "公开 Icarus-compatible",
@@ -38,6 +41,8 @@ README_MARKERS = {
     ),
     "README.en.md": (
         "rdtc_overview.svg",
+        "Choose an integration entrypoint",
+        "RDTC_CODEC_DEMO_PASS",
         "FPGA emulation verified",
         "single-`s0`",
         "public Icarus-compatible",
@@ -86,6 +91,31 @@ def check(root):
         marker = "../assets/matlab/rdb_before_after_rdtc_zero_rice.png"
         if marker not in text:
             errors.append("{} missing original MATLAB figure".format(name))
+    interface_markers = {
+        "docs/zh-CN/interfaces.md": ("应该实例化哪个模块", "OUTPUT_IN_ORDER=1", "make codec-demo"),
+        "docs/en/interfaces.md": ("Which module should I instantiate?", "OUTPUT_IN_ORDER=1", "make codec-demo"),
+    }
+    for name, markers in interface_markers.items():
+        text = (root / name).read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                errors.append("{} missing integration marker {}".format(name, marker))
+    integration_path = root / "provenance/integration.json"
+    try:
+        integration = json.loads(integration_path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as exc:
+        errors.append("cannot load integration manifest: {}".format(exc))
+        integration = {"entries": []}
+    readmes = (root / "README.md").read_text(encoding="utf-8") + (root / "README.en.md").read_text(encoding="utf-8")
+    for entry in integration.get("entries", []):
+        for field in ("id", "top_module", "top_path", "filelist", "smoke_command", "pass_marker"):
+            if not entry.get(field):
+                errors.append("integration entry missing {}: {}".format(field, entry.get("id", "<unknown>")))
+        for field in ("top_path", "filelist"):
+            if entry.get(field) and not (root / entry[field]).is_file():
+                errors.append("integration entry references missing {}".format(entry[field]))
+        if entry.get("top_module") and entry["top_module"] not in readmes:
+            errors.append("integration top is absent from bilingual README: {}".format(entry["top_module"]))
     return errors
 
 

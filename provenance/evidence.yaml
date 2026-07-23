@@ -11,6 +11,15 @@ evidence:
     sha256: fe82bd881efbdd090b07470c5e35080db3992fd26fe21eec4295067a70eb0d31
     public: true
     maturity: verified
+  - id: rdtc_v1_codec_demo_public
+    path: evidence/rdtc_v1_codec_demo.yaml
+    type: deterministic_codec_quickstart
+    source_ref: same_public_commit
+    tool: gcc/make C reference model plus Python SHA256 summarizer
+    claims: []
+    sha256: 4f150733ccfa87fef7d4a7ea86cfbe37e1fb704bdcb17b2d734ad7bff4a8a64e
+    public: true
+    maturity: verified
   - id: rdtc_v1_register_expanded_public
     path: evidence/rdtc_v1_register_expanded.yaml
     type: multi_node_dc_and_physical_summary

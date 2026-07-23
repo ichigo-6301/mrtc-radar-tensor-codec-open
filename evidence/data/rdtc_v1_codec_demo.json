@@ -1,0 +1,17 @@
+{
+  "artifact_format": "interleaved little-endian I16Q16",
+  "bit_exact": "PASS",
+  "case_name": "delta_smooth",
+  "codec_mode": "DELTA_RICE",
+  "decoded_iq_sha256": "0220df80aca8eb7e27c4ec8b10e648066b036c0d42887e10d5656a5d3ffc0fe8",
+  "input_definition": "I[n]=floor(n/8), Q[n]=-floor(n/16), n=0..1023",
+  "input_iq_sha256": "0220df80aca8eb7e27c4ec8b10e648066b036c0d42887e10d5656a5d3ffc0fe8",
+  "num_samples": 1024,
+  "packet_bytes": 360,
+  "packet_sha256": "e6515b0748403734c66a6109466f5f7f78822941041c772b6cb5ee7a5ba572dd",
+  "payload_bits": 2365,
+  "payload_bytes": 296,
+  "raw_bypass": false,
+  "raw_bytes": 4096,
+  "selected_k": 0
+}

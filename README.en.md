@@ -1,5 +1,7 @@
 # MRTC-RDTC Scalable Lossless Radar-Tensor Codec IP
 
+[![Public preflight](https://github.com/ichigo-6301/mrtc-radar-tensor-codec-open/actions/workflows/public-preflight.yml/badge.svg)](https://github.com/ichigo-6301/mrtc-radar-tensor-codec-open/actions/workflows/public-preflight.yml) ![RTL](https://img.shields.io/badge/RTL-SystemVerilog-2f6f9f) [![License](https://img.shields.io/github/license/ichigo-6301/mrtc-radar-tensor-codec-open)](LICENSE)
+
 [中文](README.md) · [Algorithm](docs/en/algorithm.md) · [Architecture](docs/en/architecture.md) · [Verification](docs/en/verification.md) · [Results](docs/en/results.md) · [Immutable RC3](docs/en/release_model.md)
 
 **A streaming lossless codec for OFDM sensing and millimeter-wave radar Range-Doppler tensors, engineered from MATLAB algorithms and synthesizable RTL through Multi-Engine scheduling, FPGA emulation, and ASIC post-route STA.**
@@ -18,6 +20,17 @@ RDTC compresses I16Q16 samples block by block while preserving bit-exact reconst
 | RTL throughput | 1/2/4 Engines: `785 / 397.52 / 197.41 cycles/block` on the fixed 256-block simulation workload |
 | FPGA | Fixed-commit, single-`s0` Vivado 2018.3 AXIS32 XSim `3/3` passes; Zynq trial covers only compatibility-copied RTL elaboration + SDK/ELF build |
 | ASIC | Nangate45 register-expanded at 550 MHz and dual-OpenRAM SRAM-macro at 333 MHz both complete OpenROAD P&R and pass PrimeTime post-route setup/hold STA using matching routed netlist/SDC and same-run OpenRCX SPEF; they share a configured `1200 x 1200 um` die in an academic PDK/OpenRAM implementation scope |
+
+### Choose an integration entrypoint
+
+| Goal | Canonical top | Filelist / check |
+|---|---|---|
+| Complete AXI4-Lite + AXIS128 IP | [`mrtc_top`](rtl/top/mrtc_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
+| Single-Engine codec datapath | [`mrtc_rdtc_codec_top`](rtl/rdtc/mrtc_rdtc_codec_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
+| Descriptor/DDR Multi-Engine | [`mrtc_rdtc_ddr_multiengine_wrapper`](rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) | [`rdtc_v1_multiengine_smoke.f`](flows/manifests/rdtc_v1_multiengine_smoke.f) · `make multiengine-smoke` |
+| Historical Zynq AXIS32 adaptation | [`mrtc_rdtc_axis32_wrapper`](rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) | [`rdtc_v1_fpga_wrapper_smoke.f`](flows/manifests/rdtc_v1_fpga_wrapper_smoke.f) · `make fpga-wrapper-smoke` |
+
+[See parameters, ports, transactions, and the ordering contract](docs/en/interfaces.md)
 
 ## 1. Algorithm: Why RDTC
 
@@ -53,6 +66,8 @@ MATLAB synthetic study
 
 Public smoke tests cover the C reference model, RTL loopback, packet boundaries, `tkeep/tlast`, randomized backpressure, Multi-Engine arbitration, and the AXIS32 wrapper. Passing finite vectors and regressions is not formal exhaustiveness or coverage closure.
 
+A fixed visible demo invokes the published C encoder and decoder: a 1024-sample `delta_smooth` input selects `DELTA_RICE` with `k=0`, produces a 360-byte self-describing packet from 4096 raw bytes, and reconstructs the original I/Q bytes exactly with `RDTC_CODEC_DEMO_PASS`. Input, packet, and decoded-output hashes are recorded in the [codec demo evidence](evidence/rdtc_v1_codec_demo.yaml).
+
 [See the verification matrix and reproducible entrypoints](docs/en/verification.md)
 
 ## 4. FPGA: Layered Maturity
@@ -78,8 +93,10 @@ These frequencies are fixed verified closure points for the stated profiles, not
 
 ```bash
 make rdtc_v1_public_preflight_defconfig
+make codec-demo
 make -C ref_model/c test
 make rtl-smoke
+make integration-smoke
 make multiengine-smoke
 make fpga-wrapper-smoke
 make showcase-assets-check

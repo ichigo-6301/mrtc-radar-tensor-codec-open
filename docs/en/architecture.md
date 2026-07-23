@@ -18,6 +18,13 @@ RDTC sits between sensing-data generation and off-chip storage or transport. The
 
 See [Interfaces](interfaces.md) and [Bitstream Format](bitstream_format.md) for the external contract.
 
+| Architecture layer | Published RTL |
+|---|---|
+| Complete control surface | [`mrtc_top`](../../rtl/top/mrtc_top.sv) plus [`mrtc_axi_lite_reg_block`](../../rtl/top/mrtc_axi_lite_reg_block.sv) |
+| Single-Engine codec | [`mrtc_rdtc_codec_top`](../../rtl/rdtc/mrtc_rdtc_codec_top.sv) |
+| DDR Multi-Engine | [`mrtc_rdtc_ddr_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) |
+| AXIS32 FPGA adaptation | [`mrtc_rdtc_axis32_wrapper`](../../rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) |
+
 ## Single-Engine Pipeline
 
 ![Single-Engine encoder and decoder pipeline](../assets/single_engine_pipeline.svg)

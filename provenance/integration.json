@@ -1,0 +1,43 @@
+{
+  "entries": [
+    {
+      "filelist": "flows/manifests/rdtc_v1.f",
+      "id": "complete_controlled_ip",
+      "interface": "AXI4-Lite control plus AXIS128 raw/codec streams",
+      "pass_marker": "rtl-smoke: PASS",
+      "smoke_command": "make integration-smoke",
+      "top_module": "mrtc_top",
+      "top_path": "rtl/top/mrtc_top.sv"
+    },
+    {
+      "filelist": "flows/manifests/rdtc_v1.f",
+      "id": "single_engine_codec",
+      "interface": "Direct configuration plus AXIS128 encoder and decoder streams",
+      "pass_marker": "rtl-smoke: PASS",
+      "smoke_command": "make integration-smoke",
+      "top_module": "mrtc_rdtc_codec_top",
+      "top_path": "rtl/rdtc/mrtc_rdtc_codec_top.sv"
+    },
+    {
+      "filelist": "flows/manifests/rdtc_v1_multiengine_smoke.f",
+      "id": "ddr_multiengine",
+      "interface": "Block descriptors, per-Engine DDR read channels, packet-atomic AXIS128 output",
+      "pass_marker": "PASS tb_rdtc_ddr_multiengine_wrapper",
+      "smoke_command": "make multiengine-smoke",
+      "top_module": "mrtc_rdtc_ddr_multiengine_wrapper",
+      "top_path": "rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv"
+    },
+    {
+      "filelist": "flows/manifests/rdtc_v1_fpga_wrapper_smoke.f",
+      "id": "axis32_adaptation",
+      "interface": "Single active AXIS32 input/output adaptation from the historical Zynq trial",
+      "pass_marker": "R9C2P_PRE_AXIS32_WRAPPER_SIM_PASS cases=3",
+      "smoke_command": "make fpga-wrapper-smoke",
+      "top_module": "mrtc_rdtc_axis32_wrapper",
+      "top_path": "rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv"
+    }
+  ],
+  "interface_document": "docs/en/interfaces.md",
+  "product": "MRTC-RDTC",
+  "schema_version": "1.0.0"
+}

@@ -73,7 +73,9 @@ jobs:
       - run: make rdtc_v1_public_preflight_defconfig
       - run: make showconfig
       - run: make -C ref_model/c test
+      - run: make codec-demo
       - run: make rtl-smoke
+      - run: make integration-smoke
       - run: make multiengine-smoke
       - run: make fpga-wrapper-smoke
       - run: make showcase-assets-check

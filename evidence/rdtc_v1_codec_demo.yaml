@@ -1,0 +1,35 @@
+title: RDTC v1 deterministic codec demonstration
+status: verified
+source_ref: same_public_commit
+configuration: 1024-sample I16Q16 delta_smooth block encoded with DELTA_RICE and block-adaptive k
+tool: gcc/make C reference model plus Python SHA256 summarizer
+entrypoint: make codec-demo
+pass_marker: RDTC_CODEC_DEMO_PASS
+result:
+  codec_mode: DELTA_RICE
+  selected_k: 0
+  num_samples: 1024
+  raw_bytes: 4096
+  packet_bytes: 360
+  payload_bytes: 296
+  payload_bits: 2365
+  raw_bypass: false
+  bit_exact: PASS
+artifacts:
+  tracked_summary:
+    path: evidence/data/rdtc_v1_codec_demo.json
+    sha256: ee15573d2b86f786dff51c39aee7526cc5c4ed1c62ce8485e9bfaf5b6b48ee80
+  input_iq:
+    format: interleaved little-endian I16Q16
+    definition: I[n]=floor(n/8), Q[n]=-floor(n/16), n=0..1023
+    sha256: 0220df80aca8eb7e27c4ec8b10e648066b036c0d42887e10d5656a5d3ffc0fe8
+  encoded_packet:
+    format: 64-byte header plus DELTA_RICE payload
+    sha256: e6515b0748403734c66a6109466f5f7f78822941041c772b6cb5ee7a5ba572dd
+  decoded_iq:
+    format: interleaved little-endian I16Q16
+    sha256: 0220df80aca8eb7e27c4ec8b10e648066b036c0d42887e10d5656a5d3ffc0fe8
+implementation_identity:
+  ref_model/c/test/showcase_codec_demo.c: 9cca14101b9e59e0d6f190ef7ccb699c6b081c9dbd27b500b9de78ad27378c7e
+  flows/scripts/summarize_codec_demo.py: 0f1533a440209d11a8d48afeb57bd425ef90d694b2b0f31ee7e983e2c01893bc
+caveat: This bounded deterministic demonstration is an integration quickstart, not exhaustive verification, FPGA execution, or a compression-ratio benchmark.

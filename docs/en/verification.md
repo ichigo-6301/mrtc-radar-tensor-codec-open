@@ -34,6 +34,14 @@ MATLAB supports vector generation and algorithm study. The authoritative public 
 make -C ref_model/c test
 ```
 
+The shortest visible path for a first integration is:
+
+```bash
+make codec-demo
+```
+
+It compiles and invokes the same published C encoder and decoder, emits the fixed input, 360-byte packet, and decoded output under ignored `build/showcase_codec_demo/`, then checks all three SHA256 identities and `RDTC_CODEC_DEMO_PASS` against tracked JSON. This quickstart is a C-reference integration demonstration, not a replacement for RTL regression.
+
 The point-cloud comparison on the MATLAB page is not PointCloud RTL and does not replace the executable C cross-check.
 
 ## Multi-Engine Regression
@@ -65,7 +73,9 @@ Public evidence summary and data: [XSim evidence](../../evidence/rdtc_v1_fpga_ax
 ```bash
 make rdtc_v1_public_preflight_defconfig
 make showconfig
+make codec-demo
 make -C ref_model/c test
+make integration-smoke
 make rtl-smoke
 make multiengine-smoke
 make fpga-wrapper-smoke

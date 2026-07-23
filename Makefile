@@ -130,7 +130,7 @@ endif
         list-stages lib-prep lib-prep-dry-run sram-model-smoke \
         sram-prep sram-prep-dry-run rc-itf rc-prep rc-prep-dry-run \
         icc2-libs icc2-libs-dry-run \
-        rtl-smoke multiengine-smoke fpga-wrapper-smoke showcase-assets-check verify-current-checksums sim sim-dry-run sim-full selected selected-dry-run \
+        rtl-smoke integration-smoke codec-demo multiengine-smoke fpga-wrapper-smoke showcase-assets-check verify-current-checksums sim sim-dry-run sim-full selected selected-dry-run \
         lint lint-dry-run cdc cdc-dry-run \
         dc-baseline dc-baseline-dry-run dc-gated dc-gated-dry-run \
         dft dft-dry-run lec lec-dry-run pnr pnr-full pnr-floorplan pnr-dry-run sta sta-dry-run timing-audit
@@ -164,6 +164,8 @@ help:
 	  '  make validate-profile          Validate profile, claim, evidence, and config consistency' \
 	  '  make public-preflight          Run the complete open-source release preflight' \
 	  '  make rtl-smoke                 Elaborate the selected top with Icarus' \
+	  '  make integration-smoke         Elaborate the canonical system and codec tops' \
+	  '  make codec-demo                Run a deterministic C encode/decode demonstration' \
 	  '  make multiengine-smoke         Run bounded packet-buffer and DDR multi-engine Icarus tests' \
 	  '  make fpga-wrapper-smoke        Run the historical single-active-input AXIS32 Icarus test' \
 	  '  make showcase-assets-check     Verify charts against their public CSV sources' \
@@ -275,7 +277,9 @@ verify-release:
 public-preflight:
 	@$(MAKE) showconfig
 	@$(MAKE) -C ref_model/c test
+	@$(MAKE) codec-demo
 	@$(MAKE) rtl-smoke
+	@$(MAKE) integration-smoke
 	@$(MAKE) multiengine-smoke
 	@$(MAKE) fpga-wrapper-smoke
 	@$(MAKE) showcase-assets-check
@@ -320,6 +324,16 @@ icc2-libs-dry-run:
 
 rtl-smoke:
 	@$(PYTHON) flows/scripts/rtl_smoke.py --root "$(ROOT)" --filelist "$(RDTC_FILELIST)" --top "$(if $(RDTC_TOP),$(RDTC_TOP),mrtc_rdtc_wb_wrapper)"
+
+integration-smoke:
+	@$(PYTHON) flows/scripts/rtl_smoke.py --root "$(ROOT)" --filelist "$(RDTC_FILELIST)" --top mrtc_top
+	@$(PYTHON) flows/scripts/rtl_smoke.py --root "$(ROOT)" --filelist "$(RDTC_FILELIST)" --top mrtc_rdtc_codec_top
+
+codec-demo:
+	@$(MAKE) -C ref_model/c demo
+	@$(PYTHON) flows/scripts/summarize_codec_demo.py \
+		--output-dir build/showcase_codec_demo \
+		--reference evidence/data/rdtc_v1_codec_demo.json
 
 multiengine-smoke:
 	@$(SHOWCASE_SMOKE) --filelist flows/manifests/rdtc_v1_multiengine_smoke.f \
