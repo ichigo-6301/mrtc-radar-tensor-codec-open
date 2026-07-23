@@ -62,11 +62,11 @@ evidence:
     type: synthetic_algorithm_study_summary
     source_ref: bf27b88d77c422ed385e35bb2f19335e054af244
     source_visibility: private_fixed_commit
-    public_evidence_scope: curated synthetic-study summary and public SNR/result CSV
+    public_evidence_scope: curated synthetic-study summary, public SNR/result CSV, and byte-identical fixed-commit MATLAB figure
     tool: MATLAB R2024b
     claims:
       - rdtc_v1_matlab_lossless_synthetic_snr
-    sha256: 4c99d87aaab41fa0dd467efa16a766cfb863fd730dd84936fa95200379a3c269
+    sha256: 754799114e5cc7243df4408317e795a101925064b43a504229db97e028643fa6
     public: true
     maturity: verified
   - id: rdtc_v1_multiengine_rtl_public
