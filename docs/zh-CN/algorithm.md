@@ -24,9 +24,9 @@ RDTC v1 面向按 block 组织的 Range-Doppler 复数样本。公开基准 bloc
 $$
 p_c[n] =
 \begin{cases}
-0, & \text{ZERO\_RICE} \\
-0, & \text{DELTA\_RICE and } n=0 \\
-x_c[n-1], & \text{DELTA\_RICE and } n>0
+0, & \mathrm{ZERO} \\
+0, & \mathrm{DELTA},\ n=0 \\
+x_c[n-1], & \mathrm{DELTA},\ n>0
 \end{cases}
 $$
 
@@ -50,7 +50,13 @@ $$
 
 给定 Rice 参数 $k$，mapped value 被拆成 quotient 与 remainder：
 
-$$q = m \gg k, \qquad s = m \mathbin{\&} (2^k-1)$$
+$$
+q = \left\lfloor \frac{m}{2^k} \right\rfloor,
+\qquad
+s = m \bmod 2^k
+$$
+
+RTL 中分别以右移 `m >> k` 和掩码 `m & (2^k - 1)` 实现这两个运算。
 
 码字由 $q$ 个 `1`、一个终止 `0` 和 $k$ bit MSB-first remainder 组成，所以单个 mapped value 的码长为：
 
@@ -58,7 +64,11 @@ $$L_k(m) = q + 1 + k$$
 
 block-adaptive 模式对公开实现支持的 $k \in [0,15]$ 统计 I/Q 全部 mapped value 的总代价，并选择：
 
-$$k^* = \operatorname*{arg\,min}_{0 \le k \le 15} \sum_{n,c} L_k(m(r_c[n]))$$
+$$
+k^\star =
+\underset{0 \le k \le 15}{\arg\,\min}
+\sum_n \sum_{c \in \{I,Q\}} L_k\!\left(m\!\left(r_c[n]\right)\right)
+$$
 
 相同总代价时保留先扫描到的较小 $k$。Decoder 从 header 取得 `rice_k` 和精确 payload bit count，AXI 最后一个 beat 的 padding 不参与解码。
 

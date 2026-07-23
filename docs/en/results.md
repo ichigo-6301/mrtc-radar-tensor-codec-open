@@ -46,7 +46,7 @@ Sources: [XSim evidence](../../evidence/rdtc_v1_fpga_axis32_emulation.yaml) · [
 
 ## Implementation Profile Matrix
 
-All frequency results apply only to the internal single-clock reg-to-reg constraint of `mrtc_rdtc_wb_wrapper`, with 100 ps setup uncertainty and without complete top-level IO timing.
+All frequency results apply only to the internal single-clock reg-to-reg constraint of `mrtc_rdtc_wb_wrapper`, with 100 ps setup uncertainty and without complete top-level IO timing. The `DC-only` and `DC matrix` rows are synthesis estimates. In contrast, the 550 MHz register-expanded and 333 MHz SRAM-macro rows are setup/hold STA closure results measured by PrimeTime after placement and routing with the matching routed netlist, SDC, and same-run OpenRCX SPEF; they must not be summarized as DC results.
 
 | Memory Profile | Technology | Scope | Result | Status |
 |---|---|---|---|---|

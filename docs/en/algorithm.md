@@ -24,9 +24,9 @@ I and Q are processed independently. For component $c \in \{I,Q\}$, current samp
 $$
 p_c[n] =
 \begin{cases}
-0, & \text{ZERO\_RICE} \\
-0, & \text{DELTA\_RICE and } n=0 \\
-x_c[n-1], & \text{DELTA\_RICE and } n>0
+0, & \mathrm{ZERO} \\
+0, & \mathrm{DELTA},\ n=0 \\
+x_c[n-1], & \mathrm{DELTA},\ n>0
 \end{cases}
 $$
 
@@ -50,7 +50,13 @@ $$
 
 For Rice parameter $k$, the mapped value is split into quotient and remainder:
 
-$$q = m \gg k, \qquad s = m \mathbin{\&} (2^k-1)$$
+$$
+q = \left\lfloor \frac{m}{2^k} \right\rfloor,
+\qquad
+s = m \bmod 2^k
+$$
+
+The RTL implements these operations as the right shift `m >> k` and the mask `m & (2^k - 1)`.
 
 The codeword contains $q$ one bits, one terminating zero, and a $k$-bit MSB-first remainder. Its length is:
 
@@ -58,7 +64,11 @@ $$L_k(m) = q + 1 + k$$
 
 Block-adaptive mode evaluates the supported $k \in [0,15]$ values over all mapped I/Q values and selects:
 
-$$k^* = \operatorname*{arg\,min}_{0 \le k \le 15} \sum_{n,c} L_k(m(r_c[n]))$$
+$$
+k^\star =
+\underset{0 \le k \le 15}{\arg\,\min}
+\sum_n \sum_{c \in \{I,Q\}} L_k\!\left(m\!\left(r_c[n]\right)\right)
+$$
 
 Equal costs retain the smaller, first-scanned $k$. The Decoder obtains `rice_k` and the exact payload-bit count from the header, so padding in the final AXI beat is never decoded.
 

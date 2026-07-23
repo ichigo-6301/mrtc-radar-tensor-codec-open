@@ -46,7 +46,7 @@ FPGA XSim 覆盖真实 encoder path、decoder golden comparison、width conversi
 
 ## 实现 Profile 矩阵
 
-所有频率结果仅针对 `mrtc_rdtc_wb_wrapper` 的内部单时钟 reg-to-reg 约束，setup uncertainty 为 100 ps，未设置完整 top-level IO timing。
+所有频率结果仅针对 `mrtc_rdtc_wb_wrapper` 的内部单时钟 reg-to-reg 约束，setup uncertainty 为 100 ps，未设置完整 top-level IO timing。表中的 `DC-only`/`DC matrix` 是综合估计；550 MHz register-expanded 与 333 MHz SRAM-macro 则是完成布局布线后，PrimeTime 使用 matching routed netlist、SDC 与 same-run OpenRCX SPEF 得到的 setup/hold STA 闭合结果，不能与 DC 结果混称。
 
 | Memory profile | Technology | Scope | Result | Status |
 |---|---|---|---|---|

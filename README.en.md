@@ -17,7 +17,7 @@ RDTC compresses I16Q16 samples block by block while preserving bit-exact reconst
 | Multi-Engine | Round-robin block dispatch, independent feeder/codec/packet buffer, packet-locked arbitration |
 | RTL throughput | 1/2/4 Engines: `785 / 397.52 / 197.41 cycles/block` on the fixed 256-block simulation workload |
 | FPGA | Fixed-commit, single-`s0` Vivado 2018.3 AXIS32 XSim `3/3` passes; Zynq trial covers only compatibility-copied RTL elaboration + SDK/ELF build |
-| ASIC | Nangate45 register-expanded at 550 MHz and dual-OpenRAM SRAM-macro at 333 MHz; both implementation/internal-timing points are fixed and verified, while the overall SRAM profile remains partial |
+| ASIC | Nangate45 register-expanded at 550 MHz and dual-OpenRAM SRAM-macro at 333 MHz both complete OpenROAD P&R and pass PrimeTime post-route setup/hold STA using matching routed netlist/SDC and same-run OpenRCX SPEF; the overall SRAM profile remains partial |
 
 ## 1. Algorithm: Why RDTC
 
@@ -61,7 +61,9 @@ Public smoke tests cover the C reference model, RTL loopback, packet boundaries,
 
 [See FPGA emulation and Zynq integration boundaries](docs/en/fpga_implementation.md)
 
-## 5. ASIC: Fixed Closure Points, Not Fmax
+## 5. ASIC: Post-Route STA Closure, Not a DC Result or Fmax
+
+**Both the 550 MHz and 333 MHz results below come from PrimeTime setup/hold STA after routing, not from a DC synthesis timing estimate.** STA uses the matching routed netlist, SDC, and same-run OpenRCX SPEF; DC supplies only the mapped netlist handed to physical implementation.
 
 | Profile | Verified implementation result | Maturity boundary |
 |---|---|---|
