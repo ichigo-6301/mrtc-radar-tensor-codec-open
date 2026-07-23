@@ -3,6 +3,7 @@
 
 import argparse
 import csv
+import hashlib
 import sys
 import xml.etree.ElementTree as ET
 from decimal import Decimal, ROUND_HALF_UP
@@ -15,13 +16,31 @@ GENERATED_ASSETS = (
 )
 
 AUTHORED_ASSETS = (
+    "rdtc_overview.svg",
     "system_context.svg",
     "single_engine_pipeline.svg",
     "multi_engine_wrapper.svg",
     "zynq_emulation_path.svg",
 )
 
+BINARY_ASSETS = {
+    "matlab/rdb_before_after_rdtc_zero_rice.png": {
+        "sha256": "005d1e9e03784faa9655633b203f6c4917bb84e9aaf02a7a47ae866a2f857d8b",
+        "size_bytes": 56847,
+        "dimensions_px": (875, 656),
+    },
+}
+
 AUTHORED_ASSET_RULES = {
+    "rdtc_overview.svg": {
+        "required": (
+            "MRTC-RDTC: sensing tensor to bit-exact reconstruction",
+            "N x independent Engine",
+            "Packet-locked AXI",
+            "no software reorder PASS claimed",
+        ),
+        "forbidden": (),
+    },
     "single_engine_pipeline.svg": {
         "required": (
             "configured ZERO / DELTA",
@@ -29,6 +48,25 @@ AUTHORED_ASSET_RULES = {
             "RAW fallback only on supporting encoder paths",
         ),
         "forbidden": ("RAW / ZERO / DELTA",),
+    },
+    "system_context.svg": {
+        "required": (
+            "OFDM sensing to lossless radar-tensor packets",
+            "1024 samples / block",
+            "64-byte header + payload",
+        ),
+        "forbidden": (),
+    },
+    "multi_engine_wrapper.svg": {
+        "required": (
+            "Round-Robin",
+            "dispatcher",
+            "Packet-locked",
+            "arbiter",
+            "completion order may vary",
+            "no software reorder PASS claimed",
+        ),
+        "forbidden": (),
     },
     "zynq_emulation_path.svg": {
         "required": (
@@ -121,7 +159,7 @@ def compression_svg(snr_values, grouped):
     return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
   <title id="title">Synthetic compression ratio versus SNR</title>
   <desc id="desc">ZERO Rice and DELTA Rice compression ratios from negative 20 through 30 decibels on a controlled synthetic dataset.</desc>
-  <style>.title{{font:700 27px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 14px Arial,sans-serif;fill:#475569}}.axis{{font:400 13px Arial,sans-serif;fill:#334155}}.label{{font:700 14px Arial,sans-serif;fill:#0f172a}}.grid{{stroke:#cbd5e1;stroke-width:1}}.zero{{stroke:#2563eb;stroke-width:4;fill:none}}.delta{{stroke:#dc2626;stroke-width:4;fill:none}}</style>
+  <style>.title{{font:700 31px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 17px Arial,sans-serif;fill:#475569}}.axis{{font:400 16px Arial,sans-serif;fill:#334155}}.label{{font:700 17px Arial,sans-serif;fill:#0f172a}}.grid{{stroke:#cbd5e1;stroke-width:1}}.zero{{stroke:#2563eb;stroke-width:5;fill:none}}.delta{{stroke:#dc2626;stroke-width:5;fill:none}}</style>
   <rect width="1000" height="620" fill="#f8fafc"/>
   <text x="55" y="48" class="title">Compression ratio vs. synthetic SNR</text>
   <text x="55" y="75" class="sub">Controlled MATLAB study. Higher is smaller payload; this is not measured radar data.</text>
@@ -190,7 +228,7 @@ def scaling_svg(by_engine):
     return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
   <title id="title">Multi-Engine RTL simulation scaling</title>
   <desc id="desc">Cycles per block decrease from {label1} for one engine to {label2} for two engines and {label4} for four engines, with near-linear efficiency on the fixed 256-block RTL workload.</desc>
-  <style>.title{{font:700 27px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 14px Arial,sans-serif;fill:#475569}}.axis{{font:400 13px Arial,sans-serif;fill:#334155}}.label{{font:700 15px Arial,sans-serif;fill:#0f172a}}.value{{font:700 17px Arial,sans-serif;fill:#0f172a}}.grid{{stroke:#cbd5e1;stroke-width:1}}</style>
+  <style>.title{{font:700 31px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 17px Arial,sans-serif;fill:#475569}}.axis{{font:400 16px Arial,sans-serif;fill:#334155}}.label{{font:700 18px Arial,sans-serif;fill:#0f172a}}.value{{font:700 21px Arial,sans-serif;fill:#0f172a}}.light{{fill:#fff}}.grid{{stroke:#cbd5e1;stroke-width:1}}</style>
   <rect width="1000" height="620" fill="#f8fafc"/>
   <text x="55" y="48" class="title">Multi-Engine RTL simulation scaling</text>
   <text x="55" y="75" class="sub">Fixed 256-block workload with a simulated DDR feeder. Lower cycles/block is better.</text>
@@ -208,7 +246,7 @@ def scaling_svg(by_engine):
   <rect x="185" y="{y1}" width="170" height="{h1}" rx="6" fill="#2563eb"/>
   <rect x="430" y="{y2}" width="170" height="{h2}" rx="6" fill="#16a34a"/>
   <rect x="675" y="{y4}" width="170" height="{h4}" rx="6" fill="#f59e0b"/>
-  <text x="270" y="{t1}" text-anchor="middle" class="value">{label1}</text>
+  <text x="270" y="{t1}" text-anchor="middle" class="value light">{label1}</text>
   <text x="515" y="{t2}" text-anchor="middle" class="value">{label2}</text>
   <text x="760" y="{t4}" text-anchor="middle" class="value">{label4}</text>
   <g class="label" text-anchor="middle"><text x="270" y="528">1 Engine</text><text x="515" y="528">2 Engines</text><text x="760" y="528">4 Engines</text></g>
@@ -224,7 +262,7 @@ def scaling_svg(by_engine):
   <text x="807" y="155" text-anchor="middle" class="axis">not FPGA timing or board throughput</text>
 </svg>
 """.format(
-        y1=y_positions[1], h1=heights[1], t1=y_positions[1] - 10, label1=labels[1],
+        y1=y_positions[1], h1=heights[1], t1=y_positions[1] + 28, label1=labels[1],
         y2=y_positions[2], h2=heights[2], t2=y_positions[2] - 10, label2=labels[2],
         y4=y_positions[4], h4=heights[4], t4=y_positions[4] - 10, label4=labels[4],
         eff2=eff2, eff4=eff4, beam2=beam2, beam4=beam4,
@@ -233,9 +271,15 @@ def scaling_svg(by_engine):
 
 def validate_xml(name, content):
     try:
-        ET.fromstring(content)
+        root = ET.fromstring(content)
     except ET.ParseError as error:
         raise ValueError("invalid SVG {}: {}".format(name, error))
+    if "viewBox" not in root.attrib:
+        raise ValueError("{} is missing viewBox".format(name))
+    child_names = {child.tag.rsplit("}", 1)[-1] for child in root}
+    for required_child in ("title", "desc"):
+        if required_child not in child_names:
+            raise ValueError("{} is missing {}".format(name, required_child))
 
 
 def validate_authored_asset_semantics(name, content):
@@ -309,7 +353,36 @@ def main():
         validate_xml(name, content)
         validate_authored_asset_semantics(name, content)
 
-    print("showcase-assets: PASS generated=2 authored=4")
+    for name, expected in BINARY_ASSETS.items():
+        path = assets_dir / name
+        if not path.is_file():
+            print("showcase-assets: missing {}".format(path), file=sys.stderr)
+            return 1
+        payload = path.read_bytes()
+        actual_sha256 = hashlib.sha256(payload).hexdigest()
+        if actual_sha256 != expected["sha256"]:
+            print(
+                "showcase-assets: hash mismatch {} expected={} actual={}".format(
+                    path, expected["sha256"], actual_sha256
+                ),
+                file=sys.stderr,
+            )
+            return 1
+        if len(payload) != expected["size_bytes"]:
+            print("showcase-assets: size mismatch {}".format(path), file=sys.stderr)
+            return 1
+        if payload[:8] != b"\x89PNG\r\n\x1a\n" or payload[12:16] != b"IHDR":
+            print("showcase-assets: invalid PNG {}".format(path), file=sys.stderr)
+            return 1
+        dimensions = (
+            int.from_bytes(payload[16:20], byteorder="big"),
+            int.from_bytes(payload[20:24], byteorder="big"),
+        )
+        if dimensions != expected["dimensions_px"]:
+            print("showcase-assets: dimensions mismatch {}".format(path), file=sys.stderr)
+            return 1
+
+    print("showcase-assets: PASS generated=2 authored=5 binary=1")
     return 0
 
 

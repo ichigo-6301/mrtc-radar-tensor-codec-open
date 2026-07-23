@@ -32,10 +32,7 @@
 - 不声明完整 top-level IO timing closure 或 silicon readiness；
 - 不声明 CDC/RDC、clock-gating、DFT/ATPG、LEC、GLS/SDF 或 foundry-signoff closure；
 - `register-expanded` 只把 prefix buffer 映射为标准单元寄存器，不代表 SRAM macro PPA；
-- 15 nm 和 55 nm 的 DC-only profile 只提供 ideal-clock internal reg-to-reg 综合边界。移除 SRAM 不等于存在匹配寄生技术，DC closure 也不等于 P&R closure，因此不从这些结果推导 post-route Fmax；
-- 55 nm 使用 Apache-2.0 ICsprout55 public-preview PDK；公开仓只记录来源、版本、哈希和允许发布的数值摘要，不分发 PDK/Liberty/DB 或商业工具原始报告；
-- 55 nm 的 600 MHz 点虽 setup 闭合，但留有 2 个 max-transition net 和 3 个 max-capacitance net，不能称为完全 constraint-clean；
-- ICS55/ECOS 完整 RDTC 400 MHz 尝试已完成至 legalization，但默认 detailed routing 未完成。route 到达 1,058/4,761 个 box 时 violation 增长，并在已记录的内存保护阈值下停止；它不提供 routed netlist、GDS、SPEF、route-stage timing 或 P&R/Fmax claim；
+- 15 nm DC-only profile 只提供 ideal-clock internal reg-to-reg 综合边界。DC closure 不等于 P&R closure，因此不从该结果推导 post-route Fmax；
 - 45 nm register-expanded 的最新 550 MHz 结果是 fixed verified internal reg-to-reg academic closure point，而不是 maximum frequency。它使用 700 MHz setup-closed DC mapped netlist、OpenRCX SPEF 和 PrimeTime；setup/hold coverage 为 100%，但 1756 个异步 reset pin 不在 max-delay coverage 内，也不覆盖完整 IO、reset recovery/removal、OCV/MMMC、macro DRC/LVS/PEX 或 foundry signoff；
 - 45 nm `sram-macro` 的 333 MHz 结果已完成并验证芯片级 P&R、同次 SPEF 与内部 PrimeTime setup/hold timing。整体 profile 因 OpenRAM characterization 为 analytical 且 macro DRC/LVS/PEX 未闭合而保持 partial；
 - 审核 waiver 只适用于两个宏上共 256 个未使用 `dout0[127:0]` minimum-capacitance endpoint，属于 profile-specific、exact-set matched 对象，不允许 missing 或 extra object。它不是 blanket capacitance、setup/hold 或 functional read data waiver；

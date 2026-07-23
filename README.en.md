@@ -1,57 +1,81 @@
 # MRTC-RDTC Scalable Lossless Radar-Tensor Codec IP
 
-[中文](README.md)
+[中文](README.md) · [Algorithm](docs/en/algorithm.md) · [Architecture](docs/en/architecture.md) · [Verification](docs/en/verification.md) · [Results](docs/en/results.md) · [Immutable RC3](docs/en/release_model.md)
 
-MRTC-RDTC targets continuous Range-Doppler tensors in OFDM sensing and mmWave radar. It compresses I16Q16 samples block by block, preserves bit-exact reconstruction, and connects algorithm selection, synthesizable RTL, Multi-Engine scheduling, verification, and ASIC implementation in one auditable engineering story.
+**A streaming lossless codec for OFDM sensing and millimeter-wave radar Range-Doppler tensors, engineered from MATLAB algorithms and synthesizable RTL through Multi-Engine scheduling, FPGA emulation, and ASIC post-route STA.**
 
-![MRTC-RDTC Multi-Engine architecture](docs/assets/multi_engine_wrapper.svg)
+RDTC compresses I16Q16 samples block by block while preserving bit-exact reconstruction. A 64-byte self-describing header carries mode, length, and Frame/Block identity so each packet can be stored, transported, and reconstructed independently.
 
-## Motivation And Algorithm
+![MRTC-RDTC end-to-end overview](docs/assets/rdtc_overview.svg)
 
-Continuous sensing spectra require real-time throughput while quickly increasing off-chip DDR and interconnect traffic. Each block is configured for `RAW_BYPASS`, `ZERO_RICE`, or `DELTA_RICE`; prediction residuals on the ZERO/DELTA paths pass through signed mapping, block-level `k` selection, and Rice bit packing. Encoder paths that implement payload-cost fallback may select RAW when compression is not beneficial, avoiding a larger coded payload.
+## 60-Second Overview
 
-The MATLAB synthetic study compares these modes on controlled synthetic data and checks lossless reconstruction. The chart shows compression trends for that dataset only. It is not measured radar data and does not imply PointCloud RTL.
+| Dimension | Implemented and verified content |
+|---|---|
+| Lossless algorithm | `RAW_BYPASS`, `ZERO_RICE`, and `DELTA_RICE`; bit-exact I/Q reconstruction |
+| Single Engine | `1024` I16Q16 samples/block, `4096` raw bytes, 64-byte header, 128-bit AXI-Stream |
+| Multi-Engine | Round-robin block dispatch, independent feeder/codec/packet buffer, packet-locked arbitration |
+| RTL throughput | 1/2/4 Engines: `785 / 397.52 / 197.41 cycles/block` on the fixed 256-block simulation workload |
+| FPGA | Fixed-commit, single-`s0` Vivado 2018.3 AXIS32 XSim `3/3` passes; Zynq trial covers only compatibility-copied RTL elaboration + SDK/ELF build |
+| ASIC | Nangate45 register-expanded at 550 MHz and dual-OpenRAM SRAM-macro at 333 MHz; both implementation/internal-timing points are fixed and verified, while the overall SRAM profile remains partial |
 
-![Synthetic compression ratio versus SNR](docs/assets/compression_vs_snr.svg)
+## 1. Algorithm: Why RDTC
 
-Sources: [MATLAB evidence](evidence/rdtc_v1_matlab_algorithm_study.yaml) · [public CSV](evidence/data/rdtc_v1_matlab_lossless_snr.csv)
+The ZERO/DELTA paths map prediction residuals to non-negative integers, evaluate candidate Rice `k` values over each block, and emit a variable-length payload through a lane-parallel bitpacker. Encoder paths that implement fallback retain RAW payload when coding provides no benefit. Mode and fallback behavior remain explicit properties of each integration path rather than an unsupported universal auto-selection claim.
 
-## From One Engine To Many
+The MATLAB synthetic study compares ZERO_RICE and DELTA_RICE on controlled Range-Doppler-like scenes and checks `NMSE=0`, `max_abs_error=0`, and point-cloud match ratio `1` for the recorded cases. These are not measured radar captures, and PointCloud is not an RTL feature.
 
-A single Engine processes a block of `1024` I16Q16 samples, or `4096` raw bytes. The encoder emits a `64`-byte self-describing header over a 128-bit AXI-Stream. Its pipeline includes a ping-pong block buffer, prediction and residual mapping, prefix and `k` computation, a lane-parallel bitpacker, and a decoupled packet buffer.
+<p align="center">
+  <img src="docs/assets/compression_vs_snr.svg" width="49%" alt="Synthetic compression ratio versus SNR">
+  <img src="docs/assets/engine_scaling.svg" width="49%" alt="Multi-Engine RTL simulation scaling">
+</p>
 
-The parameterized Multi-Engine wrapper distributes blocks by Round-Robin, gives every Engine an independent feeder, codec, and packet buffer, then uses a packet-locked arbiter so beats from different packets never interleave. Completion order is not guaranteed. Frame/Block metadata enables indexed software reconstruction, but no software reorder-program PASS is claimed.
+Data and boundaries: [algorithm theory and original MATLAB output](docs/en/algorithm.md) · [MATLAB evidence](evidence/rdtc_v1_matlab_algorithm_study.yaml) · [Multi-Engine evidence](evidence/rdtc_v1_multiengine_rtl.yaml)
 
-![Multi-Engine RTL simulation scaling](docs/assets/engine_scaling.svg)
+## 2. Architecture: Single Engine to Multi-Engine
 
-In the historical fixed-commit 256-block RTL workload, `1/2/4` Engines reach `785 / 397.52 / 197.41 cycles/block`. Two- and four-Engine scaling efficiency is `0.987368 / 0.994115`. This record defines one beam as 256 blocks; at an assumed 200 MHz, `1965.3022 / 3957.4642 beam/s` is derived from the unrounded `estimated_cycles_per_beam` values in the CSV and cannot be reproduced exactly from the displayed two-decimal cycles/block values alone. These are RTL simulation projections, not FPGA timing closure or measured board throughput. The current published adaptation uses only a two-Engine, two-block smoke to check dependency closure and packet/loopback correctness; it does not recompute that performance matrix.
+A Single Engine combines a ping-pong block buffer, predictor/residual mapper, prefix-cost and `k` selection, lane-parallel bitpacker, header generator, packet buffer, and decoder. Input capture overlaps current-block computation, while the packet buffer isolates variable-length encoding from AXI backpressure.
 
-Sources: [Multi-Engine evidence](evidence/rdtc_v1_multiengine_rtl.yaml) · [public CSV](evidence/data/rdtc_v1_multiengine_scaling.csv)
+The parameterized Multi-Engine wrapper dispatches whole blocks round-robin and locks an output packet through `tlast`, preventing beat interleaving within a packet. Completion order remains data-dependent and is not guaranteed. Frame/Block metadata provides an indexed software-reconstruction interface; this repository does not claim a software reorder program PASS or turn an unobserved reorder event into a verification result.
 
-## Verification And FPGA
+[See the Single-Engine pipeline, Multi-Engine wrapper, and ordering contract](docs/en/architecture.md)
 
-The verification chain covers MATLAB, C/DPI-C, SystemVerilog RTL, loopback, randomized backpressure, packet boundaries, and malformed-stream conditions.
+## 3. Verification: One Bitstream Contract Across Layers
 
-**FPGA emulation verified.** At fixed source commit `43deb9f`, the Vivado 2018.3 AXIS32 wrapper passes `3/3` block-level XSim cases through the real encoder path and decoder golden comparison, including width conversion, variable-length packets, `tkeep/tlast`, input gaps, and output backpressure. The published wrapper and testbench are an Icarus-compatible adaptation of that historical source, not a new Vivado 2018.3 result. The XSim testbench drives only `s0`; dual-Engine scaling and arbitration are supported by separate fixed-commit RTL regression evidence. A historical Zynq-7000 trial copy completed RTL elaboration with a Vivado-2018.3-compatible copied RTL set and completed its SDK/ELF build. Direct Vivado 2018.3 elaboration of the current public RTL, a bitstream, board-console PASS, MCDMA/DDR runtime, FPGA timing, and resource results are not claimed.
+```text
+MATLAB synthetic study
+        -> C reference model
+        -> DPI-C / SystemVerilog bit-exact comparison
+        -> Multi-Engine packet and backpressure regression
+        -> FPGA emulation boundary
+        -> ASIC P&R / same-run SPEF / PrimeTime
+```
 
-Sources: [XSim evidence](evidence/rdtc_v1_fpga_axis32_emulation.yaml) · [Zynq trial-build evidence](evidence/rdtc_v1_zynq_trial_build.yaml) · [XSim case CSV](evidence/data/rdtc_v1_fpga_axis32_xsim_cases.csv)
+Public smoke tests cover the C reference model, RTL loopback, packet boundaries, `tkeep/tlast`, randomized backpressure, Multi-Engine arbitration, and the AXIS32 wrapper. Passing finite vectors and regressions is not formal exhaustiveness or coverage closure.
 
-## ASIC Results
+[See the verification matrix and reproducible entrypoints](docs/en/verification.md)
 
-| Profile | Fixed verified closure point | Result maturity |
+## 4. FPGA: Layered Maturity
+
+**FPGA emulation verified.** At fixed source commit `43deb9f`, Vivado 2018.3 AXIS32 wrapper XSim passes `3/3` cases covering the real encoder/decoder path, width conversion, variable-length packets, `tkeep/tlast`, input gaps, and output backpressure. That testbench drives only `s0`; a separate RTL regression supports dual-Engine scaling. The public Icarus-compatible wrapper/testbench is an adaptation of the historical source, not a new Vivado result, and the current public RTL is not claimed to elaborate directly in Vivado 2018.3. The Zynq-7000 trial claims only compatibility-copied RTL elaboration and SDK/ELF build, not a matching bitstream, board-console PASS, MCDMA/DDR runtime, FPGA timing, or resource results.
+
+[See FPGA emulation and Zynq integration boundaries](docs/en/fpga_implementation.md)
+
+## 5. ASIC: Fixed Closure Points, Not Fmax
+
+| Profile | Verified implementation result | Maturity boundary |
 |---|---|---|
-| `rdtc_v1_register_nangate45_550` (`register-expanded`) | 550 MHz OpenROAD P&R + same-run OpenRCX SPEF + PrimeTime; core area `421,120 um2`; route DRC `0`, antenna net/pin `0/0`; setup/hold WNS `+0.26/+0.04 ns` | Internal reg-to-reg implementation and timing verified |
-| `rdtc_v1_sram_nangate45_333` (OpenRAM `sram-macro`) | 333 MHz chip-level P&R + same-run SPEF + internal PT; route DRC `0`, antenna net/pin `0/0`; setup/hold WNS `+0.57/+0.04 ns` | Implementation chain verified; overall profile remains partial because the analytical macro model and macro DRC/LVS/PEX are not closed; the exact reviewed 256-endpoint waiver remains separately disclosed |
+| `rdtc_v1_register_nangate45_550` | 550 MHz OpenROAD P&R + same-run OpenRCX SPEF + PrimeTime; core area `421,120 um2`; route DRC `0`; antenna net/pin `0/0`; setup/hold WNS `+0.26/+0.04 ns` | internal register-to-register implementation/timing verified |
+| `rdtc_v1_sram_nangate45_333` | Two `64x128 1RW1R` OpenRAM macros; 333 MHz chip-level P&R + same-run SPEF + internal PT; route DRC `0`; antenna net/pin `0/0`; setup/hold WNS `+0.57/+0.04 ns` | implementation chain verified; overall profile remains partial because the analytical macro model and macro DRC/LVS/PEX are not closed; the 256-endpoint exact-set waiver remains separately disclosed |
 
-Each frequency is a fixed verified closure point for that profile, not a maximum-frequency claim. These are academic implementation results, not complete top-level IO timing, OCV/MMMC, foundry signoff, or silicon readiness.
+These frequencies are fixed verified closure points for the stated profiles, not maximum frequencies. The results are academic implementation evidence and do not claim complete top-level IO timing, OCV/MMMC, foundry signoff, or silicon readiness.
 
-ASIC evidence: [register-expanded](evidence/rdtc_v1_register_expanded.yaml) · [SRAM macro](evidence/rdtc_v1_sram_macro_333m.yaml)
+[See the ASIC flow contract](docs/en/asic_implementation.md) · [complete result matrix](docs/en/results.md) · [limitations and nonclaims](docs/en/limitations.md)
 
-## Quick Check
+## Quick Reproduction
 
 ```bash
 make rdtc_v1_public_preflight_defconfig
-make showconfig
 make -C ref_model/c test
 make rtl-smoke
 make multiengine-smoke
@@ -59,17 +83,10 @@ make fpga-wrapper-smoke
 make showcase-assets-check
 ```
 
-Questa/ModelSim environments may continue with `make sim` and `make sim-full`. Commercial-tool, PDK, library, and macro paths belong only in ignored `flows/local/`.
+Questa/ModelSim environments can additionally run `make sim` and `make sim-full`. Commercial-tool, PDK, library, and macro paths are allowed only in ignored `flows/local/` files.
 
-## Deep Dives
+## Documentation and Release Boundary
 
-- [Algorithm and synthetic study](docs/en/algorithm.md)
-- [Single-Engine and Multi-Engine architecture](docs/en/architecture.md)
-- [Verification chain and evidence boundaries](docs/en/verification.md)
-- [FPGA emulation and Zynq integration](docs/en/fpga_implementation.md)
-- [Complete result matrix](docs/en/results.md)
-- [ASIC implementation details](docs/en/asic_implementation.md)
-- [Limitations and explicit nonclaims](docs/en/limitations.md)
-- [Public release and integrity model](docs/en/release_model.md)
+[Interfaces](docs/en/interfaces.md) · [Bitstream format](docs/en/bitstream_format.md) · [Register map](docs/en/register_map.md) · [Public release model](docs/en/release_model.md) · [Evidence index](provenance/evidence.yaml) · [Claims](provenance/claims.yaml)
 
-Current `main` contains post-RC3 presentation and clarification updates. The immutable annotated tag `rdtc-v1-register550-rc3` remains fixed to the original RC3 release and is not moved or recreated by these post-RC3 documentation changes.
+This showcase is a post-RC3 presentation update. The immutable annotated tag `rdtc-v1-register550-rc3` still identifies the original `register550-rc3` release and is not moved or recreated by documentation or public-adaptation changes.

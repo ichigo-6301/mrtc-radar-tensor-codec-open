@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
   <title id="title">Multi-Engine RTL simulation scaling</title>
   <desc id="desc">Cycles per block decrease from 785 for one engine to 397.52 for two engines and 197.41 for four engines, with near-linear efficiency on the fixed 256-block RTL workload.</desc>
-  <style>.title{font:700 27px Arial,sans-serif;fill:#0f172a}.sub{font:400 14px Arial,sans-serif;fill:#475569}.axis{font:400 13px Arial,sans-serif;fill:#334155}.label{font:700 15px Arial,sans-serif;fill:#0f172a}.value{font:700 17px Arial,sans-serif;fill:#0f172a}.grid{stroke:#cbd5e1;stroke-width:1}</style>
+  <style>.title{font:700 31px Arial,sans-serif;fill:#0f172a}.sub{font:400 17px Arial,sans-serif;fill:#475569}.axis{font:400 16px Arial,sans-serif;fill:#334155}.label{font:700 18px Arial,sans-serif;fill:#0f172a}.value{font:700 21px Arial,sans-serif;fill:#0f172a}.light{fill:#fff}.grid{stroke:#cbd5e1;stroke-width:1}</style>
   <rect width="1000" height="620" fill="#f8fafc"/>
   <text x="55" y="48" class="title">Multi-Engine RTL simulation scaling</text>
   <text x="55" y="75" class="sub">Fixed 256-block workload with a simulated DDR feeder. Lower cycles/block is better.</text>
@@ -19,7 +19,7 @@
   <rect x="185" y="96" width="170" height="404" rx="6" fill="#2563eb"/>
   <rect x="430" y="295" width="170" height="205" rx="6" fill="#16a34a"/>
   <rect x="675" y="398" width="170" height="102" rx="6" fill="#f59e0b"/>
-  <text x="270" y="86" text-anchor="middle" class="value">785</text>
+  <text x="270" y="124" text-anchor="middle" class="value light">785</text>
   <text x="515" y="285" text-anchor="middle" class="value">397.52</text>
   <text x="760" y="388" text-anchor="middle" class="value">197.41</text>
   <g class="label" text-anchor="middle"><text x="270" y="528">1 Engine</text><text x="515" y="528">2 Engines</text><text x="760" y="528">4 Engines</text></g>

@@ -54,17 +54,11 @@ All frequency results apply only to the internal single-clock reg-to-reg constra
 | `register-expanded` | Nangate45 TT/1.1 V/25 C | DC matrix | 400/600/700 MHz close; 700 MHz WNS/TNS is 0.00/0.00 ns; 800 MHz WNS/TNS is -0.14/-858.86 ns | verified |
 | `register-expanded` | Nangate45/OpenROAD/OpenRCX | P&R + PT at 400 MHz | Route DRC 0, antenna net/pin 0/0, area 418,007 um2, utilization 31.2108%; PT setup/hold WNS +0.80/+0.04 ns with zero constraint violations | verified |
 | `register-expanded` | Nangate45/OpenROAD/OpenRCX | Fixed verified P&R + PT closure point at 550 MHz | Uses the 700 MHz DC mapped netlist; route DRC 0, antenna net/pin 0/0, area 421,120 um2, utilization 31.4432%; PT setup/hold WNS +0.26/+0.04 ns with zero constraint violations | verified |
-| `register-expanded` | ICS55 H7CR RVT TT/1.2 V/25 C | DC-only | 400/600/800 MHz setup closes; 800 MHz WNS/TNS is 0.00/0.00 ns with 566,341.71 um2 cell area; 600 MHz retains 2/3 transition/capacitance violations | verified (800 MHz) / partial (600 MHz) |
-| `register-expanded` | ICS55/ECOS preview | Full-design 400 MHz P&R attempt | Floorplan through legalization complete; detailed route stopped after 1,058/4,761 boxes because violations grew and resource protection prevented an OOM event; no routed handoff or STA | not completed |
 | `sram-macro` | Nangate45/OpenRAM/OpenROAD/OpenRCX | Two `64x128 1RW1R` macros; fixed verified 333 MHz P&R, same-run SPEF, and internal PT timing closure point | Route DRC is 0 and antenna net/pin is 0/0; PT setup/hold WNS +0.57/+0.04 ns with zero constraint violations | Chip-level implementation verified; overall profile partial because the analytical SRAM model and macro DRC/LVS/PEX are not closed |
 
 The NanGate15 Liberty uses a `1ps` time unit, so its DC profile explicitly applies `SDC_TIME_SCALE=1000.0`. The latest 45 nm register-expanded physical run uses the setup-closed 700 MHz DC netlist at a 550 MHz implementation target. Evidence records matching SHA256 values for the handoff netlist, SDC, and SPEF. PrimeTime setup/hold coverage is 100%; 1,756 unconstrained max-delay endpoints are asynchronous reset pins under the internal-only profile.
 
 The 333 MHz SRAM-macro result completed verified chip-level OpenROAD P&R, same-run OpenRCX SPEF, and PrimeTime internal setup/hold timing. Its route DRC and antenna net/pin counts are zero, and setup/hold WNS is +0.57/+0.04 ns. The overall SRAM profile remains `partial` because OpenRAM characterization is analytical and macro DRC/LVS/PEX is not closed. An exact reviewed waiver covers 256 unused `dout0[127:0]` minimum-capacitance endpoints on the two macros; it must remain disclosed, but it is not the reason the profile is partial. The waiver is profile-specific and exact-set matched, permits neither missing nor extra objects, and is not a blanket capacitance waiver, setup/hold waiver, or applicable to functional read data. This is the fixed verified closure point for the current macro profile, not a 400 MHz claim.
-
-The ICS55 DC profile uses the H7CR RVT Liberty from ICsprout55 public-preview `v1.10.100`. Evidence records Liberty/DB hashes together with filelist, RTL manifest, SDC, mapped-netlist, and output-SDC identities. This proves only an ideal-clock internal reg-to-reg DC estimate; 498 top-level inputs have no clock-relative input delay and 672 top-level output endpoints have no max-delay constraint.
-
-The ICS55/ECOS full-design attempt must not be confused with the DC-only profile. Its default detailed router did not complete and no routed DEF/GDS/netlist, same-run SPEF/SDF, or post-route timing exists. The documented stop is a resource-protection boundary, not a physical implementation or frequency claim.
 
 ## Interpretation
 
@@ -74,6 +68,6 @@ The ICS55/ECOS full-design attempt must not be confused with the DC-only profile
 - route-tool DRC 0 and foundry DRC/LVS/PEX are different scopes;
 - `top-level IO timing closure`, `OCV/MMMC`, and `foundry signoff` are not claimed.
 
-ASIC evidence: [register-expanded](../../evidence/rdtc_v1_register_expanded.yaml) · [SRAM macro](../../evidence/rdtc_v1_sram_macro_333m.yaml) · [ICS55 DC](../../evidence/rdtc_v1_register_ics55_rvt_dc.yaml)
+ASIC evidence: [register-expanded](../../evidence/rdtc_v1_register_expanded.yaml) · [SRAM macro](../../evidence/rdtc_v1_sram_macro_333m.yaml)
 
 Public evidence is under `evidence/`, with run conditions and boundaries under `provenance/`. PDKs, Liberty/DB, LEF/GDS, SPEF, and raw EDA work directories are not distributed.

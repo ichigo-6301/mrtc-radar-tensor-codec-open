@@ -1,56 +1,74 @@
 # Architecture
 
-[中文](../zh-CN/architecture.md)
+[中文](../zh-CN/architecture.md) · [Back to README](../../README.en.md)
 
-## System Position
+## System Contract
 
-RDTC sits between sensing-data production and off-chip storage or transport. The encoder converts continuous Range-Doppler blocks into lossless packets with metadata; the decoder restores the same I/Q samples at the consumer. See [Interfaces](interfaces.md) and [Bitstream Format](bitstream_format.md) for the external contracts.
+RDTC sits between sensing-data generation and off-chip storage or transport. The Encoder converts consecutive Range-Doppler blocks into lossless packets with metadata, and the Decoder reconstructs the same I/Q samples at the consumer.
 
 ![OFDM sensing and RDTC system context](../assets/system_context.svg)
 
-## Single-Engine Data Path
+| Contract | Public reference configuration |
+|---|---|
+| Block | `1024` I16Q16 samples and `4096` raw bytes |
+| Packet | 64-byte self-describing header + RAW/Rice payload |
+| Stream | 128-bit AXI-Stream with exact `tkeep/tlast` and backpressure support |
+| Identity | Frame, Block, and Range metadata preserve packet identity |
+| Reconstruction | Decoder restores I/Q bit-exactly and fails closed on malformed streams |
+
+See [Interfaces](interfaces.md) and [Bitstream Format](bitstream_format.md) for the external contract.
+
+## Single-Engine Pipeline
 
 ![Single-Engine encoder and decoder pipeline](../assets/single_engine_pipeline.svg)
 
-A single Engine contains these stages:
+A Single Engine progresses through these stages:
 
-1. AXI input capture fills a complete block, while ping-pong buffering overlaps reception of the next block with computation on the current block;
-2. the configured per-block predictor mode produces ZERO or DELTA residuals, and the signed mapper converts them to non-negative values;
-3. the prefix accumulator evaluates candidate `k` costs, and the internal block policy selects `k`; encoder paths with payload-cost fallback may select RAW when a Rice payload is not beneficial;
-4. the lane-parallel bitpacker emits a variable-length payload, while the header generator records mode, length, and Frame/Block metadata;
-5. the packet buffer decouples computation from AXI output backpressure; where RAW fallback is enabled, it uses the same packet contract;
-6. the decoder parses the header, checks format rules, reconstructs residuals and I/Q samples, and verifies packet boundaries.
+1. **Capture**: AXI input captures a complete block; ping-pong banks overlap reception of the next block with computation on the current block.
+2. **Predict and map**: the block configuration selects ZERO or DELTA prediction, and I/Q residuals are independently mapped to non-negative values.
+3. **Cost and select**: the prefix accumulator evaluates candidate `k` values, and the block policy selects `k`; only supporting encoder paths may fall back to RAW.
+4. **Pack and frame**: the lane-parallel bitpacker emits the variable-length payload, while the header generator writes mode, length, and Frame/Block metadata.
+5. **Decouple output**: the packet buffer isolates computation from AXI backpressure while preserving packet content and boundaries.
+6. **Decode**: the header parser validates the format, and the Decoder reconstructs residuals and I/Q using the exact payload-bit count.
 
-The public benchmark block contains `1024` I16Q16 samples, or `4096` raw bytes. Packets use a `64`-byte header and a 128-bit AXI-Stream data path.
-
-`ZERO_RICE` versus `DELTA_RICE` is supplied by the block descriptor or configuration; the internal `k` policy does not choose between those predictor modes. The DDR-backed `mrtc_rdtc_encoder_top` supports payload-cost RAW fallback, while the AXIS2Eng small-buffer lane used by the AXIS32 wrapper does not enable internal RAW fallback. Any integration claim must therefore name the encoder path whose fallback behavior was exercised.
+The DDR-backed `mrtc_rdtc_encoder_top` supports coding-cost-based RAW fallback. The small-buffer lane used by the AXIS32 wrapper has internal RAW fallback disabled. The architecture therefore presents RAW fallback as a path-dependent capability, not a universal wrapper guarantee.
 
 ## Multi-Engine Wrapper
 
 ![MRTC-RDTC Multi-Engine architecture](../assets/multi_engine_wrapper.svg)
 
-The parameterized wrapper addresses the system-throughput gap between data-dependent Engine latency and input bandwidth:
+The Multi-Engine wrapper addresses system throughput when Single-Engine latency depends on block data:
 
-- a Round-Robin dispatcher assigns whole blocks to available Engines;
-- every Engine has an independent feeder, codec, and packet buffer, avoiding shared intermediate state;
-- once the arbiter selects a packet, it remains locked until that packet's `tlast`, so beats from different packets never interleave;
-- completion depends on block data and compressed length, so output order is not guaranteed;
-- Frame/Block metadata in the header preserves identity and enables indexed reconstruction in software.
+- the round-robin dispatcher assigns complete blocks and never splits block-local state;
+- every Engine has an independent feeder, codec state, and packet buffer;
+- once the arbiter selects a packet, it holds the grant through that packet's `tlast`;
+- beats from different packets do not interleave, while packet completion order may vary;
+- header metadata preserves Frame/Block identity for indexed reconstruction at the consumer.
 
-Each descriptor carries the configured codec mode into its assigned Engine. The Engine performs internal `k` selection, and RAW fallback is present only when that encoder variant implements the payload-cost fallback path.
+### Ordering Contract
 
-The architecture chooses packet-atomic output with bounded reordering instead of a hardware Reorder Buffer, avoiding strict-order buffering, control complexity, and head-of-line blocking. `OUTPUT_IN_ORDER` is not an implemented mode; integrations must not interpret that parameter as a hardware ordering guarantee.
+| Property | Guarantee |
+|---|---|
+| Packet atomicity | verified: no beat interleaving within a packet |
+| Input-order preservation | not guaranteed; data-dependent encoded length may change completion order |
+| `OUTPUT_IN_ORDER=1` | not implemented; the public smoke requires this configuration to fail fast |
+| Observed reorder event | the recorded workload did not directly observe one, so no triggered-reorder claim is made |
+| Software reorder | metadata supports indexed reconstruction, but no software implementation PASS is claimed |
 
-Existing regression checks packet contents, boundaries, and identity, but the recorded scenarios do not directly prove an observed out-of-order event and do not include a verified software reorder program. The accurate claim is therefore that metadata enables indexed software reconstruction, not that software reordering has passed.
+This choice avoids the buffering, control complexity, and head-of-line blocking of a hardware reorder buffer while leaving ordering policy explicit at the system-integration layer.
 
 ## Throughput Scaling
 
-On the historical fixed-commit 256-block workload, `1/2/4` Engines reach `785 / 397.52 / 197.41 cycles/block`. That workload defines one beam as 256 blocks. Two- and four-Engine efficiency is `0.987368 / 0.994115`; at an assumed 200 MHz, the unrounded total-cycle values project to `1965.3022 / 3957.4642 beam/s`.
+The historical fixed-commit 256-block workload uses a simulated DDR feeder. The 1/2/4-Engine configurations achieve `785 / 397.52 / 197.41 cycles/block`, with 2/4-Engine efficiencies of `0.987368 / 0.994115`. One beam is defined as 256 blocks in this record.
 
 ![Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
 
-These results come from RTL simulation with a simulated DDR feeder. They are not implemented FPGA timing, measured board DDR performance, or network throughput. The current public adaptation has a two-Engine, two-block correctness smoke; it does not recompute the historical performance matrix.
+At an assumed 200 MHz, unrounded total-cycle values in the CSV project `1965.3022 / 3957.4642 beam/s`. These are RTL simulation projections, not FPGA implemented timing, measured board DDR throughput, or network throughput. The current public adaptation runs only a 2-Engine, 2-block correctness smoke and does not recompute the historical performance matrix.
+
+Sources: [Multi-Engine evidence](../../evidence/rdtc_v1_multiengine_rtl.yaml) · [public CSV](../../evidence/data/rdtc_v1_multiengine_scaling.csv)
 
 ## Memory-Implementation Boundary
 
-The `register-expanded` and `sram-macro` profiles preserve the same external AXI, packet, and functional contracts. Only the physical binding of the prefix/sample buffer changes. A wrapper adapts the one-cycle synchronous SRAM read latency; the memory difference must not be described as removing the buffer function or changing the bitstream. See [ASIC Implementation](asic_implementation.md).
+The `register-expanded` and `sram-macro` profiles preserve the same external AXI, packet, and functional contract while changing only the physical binding of prefix/sample buffers. A wrapper adapts the synchronous SRAM read latency; the memory implementation does not remove buffering behavior or change the bitstream.
+
+[See ASIC implementation and profile maturity](asic_implementation.md)

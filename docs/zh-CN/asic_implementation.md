@@ -4,13 +4,9 @@
 
 ## Register-expanded
 
-`register-expanded` 不绑定 SRAM leaf，prefix buffer 由标准单元寄存器实现，因此 SRAM macro count 为 0。NanGate15、Nangate45 和 ICsprout55 的 DC 矩阵使用 400/600/800 MHz、100 ps setup uncertainty 的内部单时钟约束；Nangate45 另增加 700 MHz 点。NanGate15 的 Liberty 时间单位为 1 ps，flow 通过 `SDC_TIME_SCALE=1000.0` 转换到 ns；45 nm 700 MHz 闭合而 800 MHz 未闭合，所以 700 MHz mapped netlist 被选作最新 physical handoff。
+`register-expanded` 不绑定 SRAM leaf，prefix buffer 由标准单元寄存器实现，因此 SRAM macro count 为 0。公开主结果使用 NanGate15 与 Nangate45 DC 矩阵；Nangate45 另增加 700 MHz 点。NanGate15 的 Liberty 时间单位为 1 ps，flow 通过 `SDC_TIME_SCALE=1000.0` 转换到 ns；45 nm 700 MHz 闭合而 800 MHz 未闭合，所以 700 MHz mapped netlist 被选作最新 physical handoff。
 
 公开 45 nm physical profile 使用 OpenROAD/OpenRCX 和 PrimeTime：以 700 MHz DC netlist 为输入，在 550 MHz 重新施加 P&R/STA 约束，完成 placement、CTS、route 和 SPEF。route DRC 与 antenna net/pin 均为 0，PrimeTime setup/hold WNS 为 +0.26/+0.04 ns，setup/hold coverage 为 100%。1756 个异步 reset pin 不在 max-delay coverage 内。该结果是内部 reg-to-reg academic timing，不是完整 IO、reset recovery/removal、OCV/MMMC 或 foundry signoff。
-
-15 nm 与 55 nm 都发布 DC-only 对比。55 nm 使用 ICsprout55 public-preview `v1.10.100` H7CR RVT、TT/1.2 V/25 C：400/600/800 MHz setup 均闭合，800 MHz 是最高已运行且 constraint-clean 的闭合点；600 MHz 仍有 2 个 max-transition net 和 3 个 max-capacitance net，因此该单点为 `partial`。移除 SRAM 不会自动提供匹配的寄生技术，DC closure 也不等于 P&R closure，因此本 DC claim 不声明 55 nm post-route Fmax。
-
-一次 ECOS/ICS55 完整 RDTC 400 MHz 尝试表明 platform-canary 成功不足以证明产品顶层可布线。floorplan、placement、CTS 和 legalization 已完成，但默认 detailed routing 在完成前因资源保护边界停止。没有 routed handoff 或 post-route STA，该尝试不是 implementation profile。精确条件见 [ICS55 ECOS 实现尝试](ics55_ecos_implementation.md)。
 
 ## SRAM-macro
 

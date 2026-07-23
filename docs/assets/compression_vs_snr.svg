@@ -1,7 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
   <title id="title">Synthetic compression ratio versus SNR</title>
   <desc id="desc">ZERO Rice and DELTA Rice compression ratios from negative 20 through 30 decibels on a controlled synthetic dataset.</desc>
-  <style>.title{font:700 27px Arial,sans-serif;fill:#0f172a}.sub{font:400 14px Arial,sans-serif;fill:#475569}.axis{font:400 13px Arial,sans-serif;fill:#334155}.label{font:700 14px Arial,sans-serif;fill:#0f172a}.grid{stroke:#cbd5e1;stroke-width:1}.zero{stroke:#2563eb;stroke-width:4;fill:none}.delta{stroke:#dc2626;stroke-width:4;fill:none}</style>
+  <style>.title{font:700 31px Arial,sans-serif;fill:#0f172a}.sub{font:400 17px Arial,sans-serif;fill:#475569}.axis{font:400 16px Arial,sans-serif;fill:#334155}.label{font:700 17px Arial,sans-serif;fill:#0f172a}.grid{stroke:#cbd5e1;stroke-width:1}.zero{stroke:#2563eb;stroke-width:5;fill:none}.delta{stroke:#dc2626;stroke-width:5;fill:none}</style>
   <rect width="1000" height="620" fill="#f8fafc"/>
   <text x="55" y="48" class="title">Compression ratio vs. synthetic SNR</text>
   <text x="55" y="75" class="sub">Controlled MATLAB study. Higher is smaller payload; this is not measured radar data.</text>

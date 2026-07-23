@@ -32,10 +32,7 @@
 - Complete top-level IO timing closure and silicon readiness are not claimed;
 - no CDC/RDC, clock-gating, DFT/ATPG, LEC, GLS/SDF, or foundry-signoff closure is claimed;
 - `register-expanded` maps the prefix buffer to standard-cell registers; it is not an SRAM-macro PPA result;
-- the 15 nm and 55 nm DC-only profiles provide ideal-clock internal reg-to-reg synthesis boundaries. Removing SRAM does not provide matching parasitic technology, and DC closure does not imply P&R closure, so these results do not establish post-route Fmax;
-- the 55 nm profile uses the Apache-2.0 ICsprout55 public-preview PDK. The public repository records source, version, hashes, and reviewed numerical summaries but does not distribute PDK/Liberty/DB payloads or raw commercial reports;
-- the 55 nm 600 MHz point closes setup but retains two max-transition nets and three max-capacitance nets, so it is not fully constraint-clean;
-- the ICS55/ECOS full-RDTC 400 MHz attempt completed through legalization but did not complete default detailed routing. The route reached 1,058 of 4,761 boxes while violations increased, then stopped under a documented memory-protection limit. It provides no routed netlist, GDS, SPEF, route-stage timing, or P&R/Fmax claim;
+- the 15 nm DC-only profile provides an ideal-clock internal reg-to-reg synthesis boundary. DC closure does not imply P&R closure, so this result does not establish post-route Fmax;
 - the latest 45 nm register-expanded 550 MHz result is a fixed verified internal reg-to-reg academic closure point, not a maximum-frequency result. It uses a 700 MHz setup-closed DC mapped netlist, OpenRCX SPEF, and PrimeTime. Setup/hold coverage is 100%, but 1,756 asynchronous-reset pins remain outside max-delay coverage; complete IO, reset recovery/removal, OCV/MMMC, macro DRC/LVS/PEX, and foundry signoff are not covered;
 - the 45 nm `sram-macro` 333 MHz result completed verified chip-level P&R, same-run SPEF, and internal PrimeTime setup/hold timing. Its overall profile remains partial because OpenRAM characterization is analytical and macro DRC/LVS/PEX is not closed;
 - the reviewed waiver is profile-specific and exact-set matched to 256 unused `dout0[127:0]` minimum-capacitance endpoints on the two macros, with no missing or extra objects allowed. It is not a blanket capacitance, setup/hold, or functional-read-data waiver;
