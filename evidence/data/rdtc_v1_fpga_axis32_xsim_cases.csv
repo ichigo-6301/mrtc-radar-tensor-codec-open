@@ -1,0 +1,4 @@
+name,blocks,input_scope,codec,input32_beats,packed128_beats,output32_beats,output_packets,output_bytes,output_backpressure_cycles,last_tkeep,decoded_blocks,status
+zero_rice_1block_no_bp,1,single_active_input,ZERO_RICE,1024,256,82,1,327,0,0x7,1,PASS
+delta_rice_1block_output_bp,1,single_active_input,DELTA_RICE,1024,256,84,1,333,39,0x1,1,PASS
+mixed_2block_input_gap_output_bp,2,single_active_input,"ZERO_RICE,DELTA_RICE",2048,512,323,2,1288,951,0x1,2,PASS

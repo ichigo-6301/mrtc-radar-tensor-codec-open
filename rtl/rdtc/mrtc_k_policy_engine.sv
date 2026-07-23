@@ -219,7 +219,7 @@ module mrtc_k_policy_engine #(
         .rst_n             (rst_n),
         .i_start           (size_start),
         .i_codec_mode      (codec_mode_reg),
-        .i_rice_mode       (MRTC_RICE_FIXED_K),
+        .i_rice_mode       (8'(MRTC_RICE_FIXED_K)),
         .i_fixed_k         (prefix_selected_k_reg[3:0]),
         .o_rd_req          (size_rd_req),
         .o_rd_addr         (size_rd_addr),

@@ -1,82 +1,92 @@
-# MRTC RDTC
+# MRTC-RDTC Scalable Lossless Radar-Tensor Codec IP
 
-[中文](README.md)
+[中文](README.md) · [Algorithm](docs/en/algorithm.md) · [Architecture](docs/en/architecture.md) · [Verification](docs/en/verification.md) · [Results](docs/en/results.md) · [Immutable RC3](docs/en/release_model.md)
 
-MRTC RDTC is a streaming lossless-compression digital IP for Range-Doppler tensors in OFDM sensing and mmWave radar pipelines.
+**A streaming lossless codec for OFDM sensing and millimeter-wave radar Range-Doppler tensors, engineered from MATLAB algorithms and synthesizable RTL through Multi-Engine scheduling, FPGA emulation, and ASIC post-route STA.**
 
-## Current Public Release
+RDTC compresses I16Q16 samples block by block while preserving bit-exact reconstruction. A 64-byte self-describing header carries mode, length, and Frame/Block identity so each packet can be stored, transported, and reconstructed independently.
 
-The current public release is **RDTC v1 lossless codec IP `register550-rc3`**. It adds verified ICS55 RVT DC-only evidence and a bounded record of an incomplete ECOS routing attempt without changing RTL, reference behavior, bitstream, interfaces, register map, or published implementation metrics.
+![MRTC-RDTC end-to-end overview](docs/assets/rdtc_overview.svg)
 
-## Features
+## 60-Second Overview
 
-- RAW_BYPASS, ZERO_RICE, and DELTA_RICE encoding modes;
-- Corresponding streaming decoder path;
-- AXI-Stream data interfaces with backpressure support;
-- AXI4-Lite configuration and status interface;
-- Malformed-stream error detection;
-- C/DPI-C bit-exact reference model;
-- File-vector, loopback, and negative-test environments.
+| Dimension | Implemented and verified content |
+|---|---|
+| Lossless algorithm | `RAW_BYPASS`, `ZERO_RICE`, and `DELTA_RICE`; bit-exact I/Q reconstruction |
+| Single Engine | `1024` I16Q16 samples/block, `4096` raw bytes, 64-byte header, 128-bit AXI-Stream |
+| Multi-Engine | Round-robin block dispatch, independent feeder/codec/packet buffer, packet-locked arbitration |
+| RTL throughput | 1/2/4 Engines: `785 / 397.52 / 197.41 cycles/block` on the fixed 256-block simulation workload |
+| FPGA | Fixed-commit, single-`s0` Vivado 2018.3 AXIS32 XSim `3/3` passes; Zynq trial covers only compatibility-copied RTL elaboration + SDK/ELF build |
+| ASIC | Nangate45 register-expanded at 550 MHz and dual-OpenRAM SRAM-macro at 333 MHz; both implementation/internal-timing points are fixed and verified, while the overall SRAM profile remains partial |
 
-## Implementation Profiles
+## 1. Algorithm: Why RDTC
 
-Both profiles preserve the same external RTL interfaces, AXI behavior, register map, and bitstream format. Only the physical implementation of the prefix buffer changes.
+The ZERO/DELTA paths map prediction residuals to non-negative integers, evaluate candidate Rice `k` values over each block, and emit a variable-length payload through a lane-parallel bitpacker. Encoder paths that implement fallback retain RAW payload when coding provides no benefit. Mode and fallback behavior remain explicit properties of each integration path rather than an unsupported universal auto-selection claim.
 
-| Profile ID | Maturity | Scope | Current Result |
-|---|---|---|---|
-| `rdtc_v1_register_nangate45_550` | verified | Register-expanded Nangate45 | 700 MHz DC-closed netlist; 550 MHz OpenROAD/OpenRCX/PT internal reg-to-reg closure |
-| `rdtc_v1_sram_nangate45_333` | overall profile partial | 2 x `64x128 1RW1R` SRAM macros | Verified 333 MHz chip-level P&R, same-run SPEF, and internal PT timing; partial only at macro-model and macro-signoff level |
-| `rdtc_v1_register_ics55_rvt_dc` | verified | Register-expanded ICS55 RVT | 400/800 MHz DC points are constraint-clean; highest setup-closed point is 800 MHz; DC-only |
-| `rdtc_v1_register_ics55_ecos_preview` | planned | ICS55/ECOS preview | The 400 MHz full-RDTC attempt reached detailed routing but stopped for non-convergence and resource protection; no P&R or STA claim |
+The MATLAB synthetic study compares ZERO_RICE and DELTA_RICE on controlled Range-Doppler-like scenes and checks `NMSE=0`, `max_abs_error=0`, and point-cloud match ratio `1` for the recorded cases. These are not measured radar captures, and PointCloud is not an RTL feature.
 
-The 55 nm comparison uses the Apache-2.0 ICsprout55 `v1.10.100` public-preview PDK and publishes only register-expanded DC evidence. PDK payloads and raw commercial reports are not distributed, and no 15/55 nm post-route Fmax is claimed.
+<p align="center">
+  <img src="docs/assets/compression_vs_snr.svg" width="49%" alt="Synthetic compression ratio versus SNR">
+  <img src="docs/assets/engine_scaling.svg" width="49%" alt="Multi-Engine RTL simulation scaling">
+</p>
 
-## System Position And Interfaces
+Data and boundaries: [algorithm theory and original MATLAB output](docs/en/algorithm.md) · [MATLAB evidence](evidence/rdtc_v1_matlab_algorithm_study.yaml) · [Multi-Engine evidence](evidence/rdtc_v1_multiengine_rtl.yaml)
 
-RDTC consumes block-organized complex Range-Doppler samples and produces compressed AXI-Stream packets with block headers. The decoder reconstructs the corresponding sample stream. See [Interfaces](docs/en/interfaces.md) and [Bitstream Format](docs/en/bitstream_format.md).
+## 2. Architecture: Single Engine to Multi-Engine
 
-## Verification Status
+A Single Engine combines a ping-pong block buffer, predictor/residual mapper, prefix-cost and `k` selection, lane-parallel bitpacker, header generator, packet buffer, and decoder. Input capture overlaps current-block computation, while the packet buffer isolates variable-length encoding from AXI backpressure.
 
-| Stage | Status | Current Result |
+The parameterized Multi-Engine wrapper dispatches whole blocks round-robin and locks an output packet through `tlast`, preventing beat interleaving within a packet. Completion order remains data-dependent and is not guaranteed. Frame/Block metadata provides an indexed software-reconstruction interface; this repository does not claim a software reorder program PASS or turn an unobserved reorder event into a verification result.
+
+[See the Single-Engine pipeline, Multi-Engine wrapper, and ordering contract](docs/en/architecture.md)
+
+## 3. Verification: One Bitstream Contract Across Layers
+
+```text
+MATLAB synthetic study
+        -> C reference model
+        -> DPI-C / SystemVerilog bit-exact comparison
+        -> Multi-Engine packet and backpressure regression
+        -> FPGA emulation boundary
+        -> ASIC P&R / same-run SPEF / PrimeTime
+```
+
+Public smoke tests cover the C reference model, RTL loopback, packet boundaries, `tkeep/tlast`, randomized backpressure, Multi-Engine arbitration, and the AXIS32 wrapper. Passing finite vectors and regressions is not formal exhaustiveness or coverage closure.
+
+[See the verification matrix and reproducible entrypoints](docs/en/verification.md)
+
+## 4. FPGA: Layered Maturity
+
+**FPGA emulation verified.** At fixed source commit `43deb9f`, Vivado 2018.3 AXIS32 wrapper XSim passes `3/3` cases covering the real encoder/decoder path, width conversion, variable-length packets, `tkeep/tlast`, input gaps, and output backpressure. That testbench drives only `s0`; a separate RTL regression supports dual-Engine scaling. The public Icarus-compatible wrapper/testbench is an adaptation of the historical source, not a new Vivado result, and the current public RTL is not claimed to elaborate directly in Vivado 2018.3. The Zynq-7000 trial claims only compatibility-copied RTL elaboration and SDK/ELF build, not a matching bitstream, board-console PASS, MCDMA/DDR runtime, FPGA timing, or resource results.
+
+[See FPGA emulation and Zynq integration boundaries](docs/en/fpga_implementation.md)
+
+## 5. ASIC: Fixed Closure Points, Not Fmax
+
+| Profile | Verified implementation result | Maturity boundary |
 |---|---|---|
-| C reference model and public vectors | verified | RAW/ZERO/DELTA tests pass |
-| RTL elaboration and Questa regression | verified | Icarus PASS; public full regression PASS |
-| SpyGlass Lint | partial | 0 fatal, 0 error, 225 warnings |
-| Register-expanded 15/45/55 nm DC | verified | ICS55 RVT 400/800 MHz points are constraint-clean and 800 MHz is the highest setup-closed point; 600 MHz retains 2/3 transition/capacitance violations |
-| Register-expanded 45 nm P&R/PT | verified | 550 MHz; zero route DRC/antenna violations; setup/hold WNS +0.26/+0.04 ns |
-| SRAM-macro 45 nm P&R/PT | implementation verified; overall profile partial | 333 MHz; route DRC/antenna 0/0, same-run SPEF, setup/hold WNS +0.57/+0.04 ns; analytical-SRAM, exact 256-endpoint min-cap waiver, and macro-signoff caveats retained |
-| Register-expanded ICS55/ECOS P&R | not completed | The 400 MHz full-design route stopped in detailed routing for non-convergence and resource protection; no routed handoff or STA was run |
+| `rdtc_v1_register_nangate45_550` | 550 MHz OpenROAD P&R + same-run OpenRCX SPEF + PrimeTime; core area `421,120 um2`; route DRC `0`; antenna net/pin `0/0`; setup/hold WNS `+0.26/+0.04 ns` | internal register-to-register implementation/timing verified |
+| `rdtc_v1_sram_nangate45_333` | Two `64x128 1RW1R` OpenRAM macros; 333 MHz chip-level P&R + same-run SPEF + internal PT; route DRC `0`; antenna net/pin `0/0`; setup/hold WNS `+0.57/+0.04 ns` | implementation chain verified; overall profile remains partial because the analytical macro model and macro DRC/LVS/PEX are not closed; the 256-endpoint exact-set waiver remains separately disclosed |
 
-Verified results, conditions, and nonclaims are listed in [Results](docs/en/results.md) and [Limitations](docs/en/limitations.md). These are academic implementation results, not complete top-level IO timing closure or foundry signoff.
+These frequencies are fixed verified closure points for the stated profiles, not maximum frequencies. The results are academic implementation evidence and do not claim complete top-level IO timing, OCV/MMMC, foundry signoff, or silicon readiness.
 
-## Quick Start
+[See the ASIC flow contract](docs/en/asic_implementation.md) · [complete result matrix](docs/en/results.md) · [limitations and nonclaims](docs/en/limitations.md)
 
-Open-source preflight:
+## Quick Reproduction
 
 ```bash
 make rdtc_v1_public_preflight_defconfig
-make showconfig
 make -C ref_model/c test
 make rtl-smoke
+make multiengine-smoke
+make fpga-wrapper-smoke
+make showcase-assets-check
 ```
 
-Questa/ModelSim regression:
+Questa/ModelSim environments can additionally run `make sim` and `make sim-full`. Commercial-tool, PDK, library, and macro paths are allowed only in ignored `flows/local/` files.
 
-```bash
-make sim
-make sim-full
-```
+## Documentation and Release Boundary
 
-Select a profile with `make rdtc_v1_register_45nm_dc700_pnr550_cap60_defconfig` or `make rdtc_v1_45nm_dc900mapped_pnr333_spice_guardband_eco1_defconfig`. Commercial-tool, PDK, library, and macro paths belong only in ignored `flows/local/`. See [Verification](docs/en/verification.md) and [Implementation Flow](flows/README.md) for the complete contracts.
+[Interfaces](docs/en/interfaces.md) · [Bitstream format](docs/en/bitstream_format.md) · [Register map](docs/en/register_map.md) · [Public release model](docs/en/release_model.md) · [Evidence index](provenance/evidence.yaml) · [Claims](provenance/claims.yaml)
 
-## Documentation
-
-- [Architecture](docs/en/architecture.md)
-- [Algorithm](docs/en/algorithm.md)
-- [Verification](docs/en/verification.md)
-- [FPGA Implementation](docs/en/fpga_implementation.md)
-- [ASIC Implementation](docs/en/asic_implementation.md)
-- [ICS55 ECOS Implementation Attempt](docs/en/ics55_ecos_implementation.md)
-- [Implementation Flow](flows/README.md)
-- [Release Model](docs/en/release_model.md)
-- [Roadmap](docs/en/roadmap.md)
+This showcase is a post-RC3 presentation update. The immutable annotated tag `rdtc-v1-register550-rc3` still identifies the original `register550-rc3` release and is not moved or recreated by documentation or public-adaptation changes.

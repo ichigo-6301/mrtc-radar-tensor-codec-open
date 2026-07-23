@@ -1,0 +1,37 @@
+title: RDTC v1 synthetic MATLAB lossless algorithm study
+status: verified
+source_commit: bf27b88d77c422ed385e35bb2f19335e054af244
+source_visibility: private_fixed_commit
+public_evidence_scope: curated synthetic-study summary, public SNR/result CSV, and byte-identical fixed-commit MATLAB figure
+source_path: matlab/compressed_pointcloud_consistency/results/tables/summary_compressed_pointcloud.csv
+curated_data: evidence/data/rdtc_v1_matlab_lossless_snr.csv
+curated_data_sha256: 49063a58e7c1cdf73d21be249aeb7428402bb849171c64bf3a796414daecdac7
+published_figure:
+  source_commit: bf27b88d77c422ed385e35bb2f19335e054af244
+  source_path: matlab/compressed_pointcloud_consistency/results/figures/rdb_before_after_rdtc_zero_rice.png
+  source_git_blob: 593fa31e6fe06bf3f166617040fdbc60d36ad390
+  public_path: docs/assets/matlab/rdb_before_after_rdtc_zero_rice.png
+  transfer: byte_for_byte_unmodified
+  media_type: image/png
+  size_bytes: 56847
+  dimensions_px:
+    width: 875
+    height: 656
+  sha256: 005d1e9e03784faa9655633b203f6c4917bb84e9aaf02a7a47ae866a2f857d8b
+  semantic_scope: synthetic ZERO_RICE raw-versus-reconstructed illustration
+configuration: Synthetic Range-Doppler-beam scenes at -20, -10, 0, 10, 20, and 30 dB SNR
+tool: MATLAB R2024b
+algorithms:
+  - rdtc_zero_rice
+  - rdtc_delta_rice
+case_count: 12
+checks:
+  lossless_flag: 1
+  nmse: 0
+  max_abs_error: 0
+  pointcloud_match_ratio: 1
+result: pass
+caveats:
+  - The study uses synthetic scenes, not measured radar captures.
+  - Point-cloud consistency is a MATLAB analysis result; PointCloud RTL is not claimed.
+  - The curated table preserves source values and does not infer untested SNR points.

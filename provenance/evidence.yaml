@@ -57,3 +57,77 @@ evidence:
     sha256: 53d16931151293e7e54d23648dbbe01c442ac6ea77ea21b7f3b475a53973cdb1
     public: true
     maturity: verified
+  - id: rdtc_v1_matlab_algorithm_study_public
+    path: evidence/rdtc_v1_matlab_algorithm_study.yaml
+    type: synthetic_algorithm_study_summary
+    source_ref: bf27b88d77c422ed385e35bb2f19335e054af244
+    source_visibility: private_fixed_commit
+    public_evidence_scope: curated synthetic-study summary, public SNR/result CSV, and byte-identical fixed-commit MATLAB figure
+    tool: MATLAB R2024b
+    claims:
+      - rdtc_v1_matlab_lossless_synthetic_snr
+    sha256: 754799114e5cc7243df4408317e795a101925064b43a504229db97e028643fa6
+    public: true
+    maturity: verified
+  - id: rdtc_v1_multiengine_rtl_public
+    path: evidence/rdtc_v1_multiengine_rtl.yaml
+    type: multiengine_rtl_scaling_and_packet_summary
+    source_ref: 8628ee4d561bf4ee4a97a02c800e1c52c9e9a28a
+    source_visibility: private_fixed_commit
+    public_evidence_scope: curated summary, scaling CSV, source hashes, and adapted public smoke
+    tool: fixed-commit Questa/ModelSim RTL regression
+    claims:
+      - rdtc_v1_multiengine_rtl_scaling
+      - rdtc_v1_multiengine_packet_atomicity
+    sha256: 48b66a5a32c7990cccf938713ee0515b8f0c1c1ddbb765fe1acd977355efb6ce
+    public: true
+    maturity: verified
+  - id: rdtc_v1_fpga_axis32_emulation_public
+    path: evidence/rdtc_v1_fpga_axis32_emulation.yaml
+    type: fpga_emulation_simulation_summary
+    source_ref: 43deb9fd99ce5d1b96578dd70fe5f1ddbf3a3bfb
+    source_visibility: private_fixed_commit
+    public_evidence_scope: curated XSim summary, case CSV, source hashes, and adapted public smoke
+    tool: Vivado Simulator 2018.3
+    claims:
+      - rdtc_v1_fpga_axis32_emulation
+    sha256: 78edd59384db6795fadd9e9be711ce4f47bf00c04e96617904d34537e69ed398
+    public: true
+    maturity: partial
+    evidence_result_status: verified
+    fpga_source_ready: partial
+    fpga_rtl_simulation: verified
+    fpga_synthesis: not_claimed
+    fpga_implementation: not_claimed
+    fpga_timing: not_claimed
+    fpga_bitstream: not_claimed
+    fpga_board_smoke: not_claimed
+    fpga_workload_validation: verified
+    workload_validation_scope: rtl_simulation
+    overall_fpga_maturity: partial
+    concurrent_dual_input_fpga_status: not_claimed
+  - id: rdtc_v1_zynq_trial_build_public
+    path: evidence/rdtc_v1_zynq_trial_build.yaml
+    type: zynq_trial_copy_build_summary
+    source_ref: 43deb9fd99ce5d1b96578dd70fe5f1ddbf3a3bfb
+    source_visibility: private_fixed_commit
+    public_evidence_scope: curated build summary; no Vivado project, Block Design, IP payload, or SDK workspace
+    tool: Vivado 2018.3 and Vivado SDK 2018.3
+    claims:
+      - rdtc_v1_zynq_trial_build
+    sha256: 0658969067aa473ce60307d8cd9a83c0268d0760ed8e29b8e3c5476a590e14c2
+    public: true
+    maturity: partial
+    evidence_result_status: verified
+    fpga_source_ready: partial
+    fpga_rtl_simulation: not_claimed
+    fpga_synthesis: not_claimed
+    fpga_implementation: not_claimed
+    fpga_timing: not_claimed
+    fpga_bitstream: not_claimed
+    fpga_board_smoke: not_claimed
+    fpga_workload_validation: not_claimed
+    overall_fpga_maturity: partial
+    trial_copy_rtl_elaboration_status: verified_with_compatibility_copy
+    sdk_application_elf_build_status: verified
+    direct_current_public_rtl_elaboration_status: not_claimed

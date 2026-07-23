@@ -9,6 +9,9 @@ FLOWCTL := $(PYTHON) flows/scripts/flowctl.py --root "$(ROOT)" --config "$(CONFI
 PROFILE_VALIDATOR := $(PYTHON) flows/scripts/validate_profile.py --root "$(ROOT)" --config "$(CONFIG)"
 CHECKSUM_GENERATOR := $(PYTHON) provenance/generate_checksums.py --root "$(ROOT)"
 RELEASE_VERIFIER := $(PYTHON) provenance/verify_release.py --root "$(ROOT)"
+SHOWCASE_SMOKE = $(PYTHON) flows/scripts/iverilog_run.py --root "$(ROOT)" \
+  --iverilog "$(RDTC_TOOL_IVERILOG)" --vvp "$(RDTC_TOOL_VVP)" \
+  $(if $(strip $(RDTC_IVERILOG_BASE)),--iverilog-base "$(RDTC_IVERILOG_BASE)",)
 unquote = $(subst ",,$(1))
 
 -include $(CONFIG)
@@ -62,6 +65,9 @@ endif
 endif
 RDTC_TOOL_SPYGLASS ?= spyglass
 RDTC_TOOL_PYTHON ?= $(PYTHON)
+RDTC_TOOL_IVERILOG ?= iverilog
+RDTC_TOOL_VVP ?= vvp
+RDTC_IVERILOG_BASE ?=
 RDTC_TOOL_VLIB ?= vlib
 RDTC_TOOL_VLOG ?= vlog
 RDTC_TOOL_VSIM ?= vsim
@@ -124,7 +130,7 @@ endif
         list-stages lib-prep lib-prep-dry-run sram-model-smoke \
         sram-prep sram-prep-dry-run rc-itf rc-prep rc-prep-dry-run \
         icc2-libs icc2-libs-dry-run \
-        rtl-smoke sim sim-dry-run sim-full selected selected-dry-run \
+        rtl-smoke multiengine-smoke fpga-wrapper-smoke showcase-assets-check verify-current-checksums sim sim-dry-run sim-full selected selected-dry-run \
         lint lint-dry-run cdc cdc-dry-run \
         dc-baseline dc-baseline-dry-run dc-gated dc-gated-dry-run \
         dft dft-dry-run lec lec-dry-run pnr pnr-full pnr-floorplan pnr-dry-run sta sta-dry-run timing-audit
@@ -158,6 +164,10 @@ help:
 	  '  make validate-profile          Validate profile, claim, evidence, and config consistency' \
 	  '  make public-preflight          Run the complete open-source release preflight' \
 	  '  make rtl-smoke                 Elaborate the selected top with Icarus' \
+	  '  make multiengine-smoke         Run bounded packet-buffer and DDR multi-engine Icarus tests' \
+	  '  make fpga-wrapper-smoke        Run the historical single-active-input AXIS32 Icarus test' \
+	  '  make showcase-assets-check     Verify charts against their public CSV sources' \
+	  '  make verify-current-checksums   Check current HEAD against its checksum manifest' \
 	  '  make sim                       Run the bounded Questa/ModelSim smoke suite' \
 	  '  make sim-full                  Run the extended RTL regression matrix' \
 	  '  make <stage>-dry-run           Show one tool invocation without running it' \
@@ -256,6 +266,9 @@ validate-profile:
 verify-checksums:
 	@$(CHECKSUM_GENERATOR) --ref "$(RELEASE_REF)" --check
 
+verify-current-checksums:
+	@$(CHECKSUM_GENERATOR) --ref HEAD --check
+
 verify-release:
 	@$(RELEASE_VERIFIER) --ref "$(RELEASE_REF)"
 
@@ -263,8 +276,11 @@ public-preflight:
 	@$(MAKE) showconfig
 	@$(MAKE) -C ref_model/c test
 	@$(MAKE) rtl-smoke
+	@$(MAKE) multiengine-smoke
+	@$(MAKE) fpga-wrapper-smoke
+	@$(MAKE) showcase-assets-check
 	@$(PROFILE_VALIDATOR)
-	@$(CHECKSUM_GENERATOR) --ref "$(RELEASE_REF)" --check
+	@$(CHECKSUM_GENERATOR) --ref HEAD --check
 	@$(PYTHON) -m unittest flows/scripts/test_flowctl_primetime.py flows/scripts/test_validate_profile.py provenance/test_verify_release.py -v
 	@$(PYTHON) flows/scripts/check_public_docs.py
 	@$(PYTHON) flows/scripts/scan_public_release.py --ref HEAD
@@ -304,6 +320,40 @@ icc2-libs-dry-run:
 
 rtl-smoke:
 	@$(PYTHON) flows/scripts/rtl_smoke.py --root "$(ROOT)" --filelist "$(RDTC_FILELIST)" --top "$(if $(RDTC_TOP),$(RDTC_TOP),mrtc_rdtc_wb_wrapper)"
+
+multiengine-smoke:
+	@$(SHOWCASE_SMOKE) --filelist flows/manifests/rdtc_v1_multiengine_smoke.f \
+	  --top tb_mrtc_axis_packet_buffer --marker "PASS tb_mrtc_axis_packet_buffer"
+	@$(SHOWCASE_SMOKE) --filelist flows/manifests/rdtc_v1_multiengine_smoke.f \
+	  --top tb_rdtc_ddr_multiengine_wrapper --marker "PASS tb_rdtc_ddr_multiengine_wrapper" \
+	  --timeout 180 \
+	  --plusarg CASE=smoke_multi_block \
+	  --plusarg VEC_ROOT=vectors/rdtc_v1 \
+	  --plusarg SCENARIO=public_smoke_multi_block_x2 \
+	  --plusarg EXPECTED_BLOCKS=2 \
+	  --plusarg COMPARE_CSV=build/showcase_smoke/tb_rdtc_ddr_multiengine_wrapper/compare.csv \
+	  --plusarg LAT_CSV=build/showcase_smoke/tb_rdtc_ddr_multiengine_wrapper/latency.csv \
+	  --plusarg UTIL_CSV=build/showcase_smoke/tb_rdtc_ddr_multiengine_wrapper/engine_util.csv \
+	  --plusarg FEEDER_UTIL_CSV=build/showcase_smoke/tb_rdtc_ddr_multiengine_wrapper/feeder_util.csv \
+	  --plusarg PKTBUF_UTIL_CSV=build/showcase_smoke/tb_rdtc_ddr_multiengine_wrapper/packet_buffer_util.csv \
+	  --plusarg MEM_BW_CSV=build/showcase_smoke/tb_rdtc_ddr_multiengine_wrapper/memory_bandwidth.csv
+	@$(SHOWCASE_SMOKE) --filelist flows/manifests/rdtc_v1_multiengine_smoke.f \
+	  --top tb_rdtc_ddr_multiengine_output_in_order_rejected \
+	  --marker "OUTPUT_IN_ORDER is not implemented" --expect-run-failure
+
+fpga-wrapper-smoke:
+	@$(SHOWCASE_SMOKE) --filelist flows/manifests/rdtc_v1_fpga_wrapper_smoke.f \
+	  --top tb_mrtc_axis_raw_block_capture_replay \
+	  --marker "PASS tb_mrtc_axis_raw_block_capture_replay"
+	@$(SHOWCASE_SMOKE) --filelist flows/manifests/rdtc_v1_fpga_wrapper_smoke.f \
+	  --top tb_mrtc_axis_raw_block_capture_replay_one_slot \
+	  --marker "PASS tb_mrtc_axis_raw_block_capture_replay slots=1"
+	@$(SHOWCASE_SMOKE) --filelist flows/manifests/rdtc_v1_fpga_wrapper_smoke.f \
+	  --top tb_stage22f_r9c2p_pre_mrtc_axis32_wrapper \
+	  --marker "R9C2P_PRE_AXIS32_WRAPPER_SIM_PASS cases=3" --timeout 180
+
+showcase-assets-check:
+	@$(PYTHON) flows/scripts/generate_showcase_assets.py --root "$(ROOT)" --check
 
 sim:
 	@$(FLOWCTL) run --stage sim

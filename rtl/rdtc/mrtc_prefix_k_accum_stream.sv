@@ -342,7 +342,11 @@ module mrtc_prefix_k_accum_stream #(
               sample_count_reg <= SAMPLE_COUNT_W'(PHASES_PER_BEAT);
               prev_i_reg <= input_word_last_i_s16;
               prev_q_reg <= input_word_last_q_s16;
-              state_reg <= input_word_final ? ST_DRAIN : ST_CAPTURE;
+              if (input_word_final) begin
+                state_reg <= ST_DRAIN;
+              end else begin
+                state_reg <= ST_CAPTURE;
+              end
             end else begin
               state_reg <= ST_CAPTURE;
             end

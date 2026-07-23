@@ -1,5 +1,8 @@
 function main_cross_check_matlab_c()
-root = char(java.io.File(fullfile(fileparts(mfilename('fullpath')), '..', '..', '..')).getCanonicalPath());
+% This historical entrypoint inventories MATLAB artifacts only. It does not
+% execute the C model or prove MATLAB/C equality. The authoritative executable
+% cross-check is: make -C ref_model/c test
+root = mrtc_repo_root();
 vec_root = fullfile(root, 'vectors', 'rdtc_v1');
 res_dir = fullfile(root, 'ref_model', 'results');
 if ~exist(res_dir, 'dir'), mkdir(res_dir); end
@@ -12,9 +15,26 @@ for k = 1:numel(cases)
     if ~exist(comp,'file') || ~exist(dec,'file'), continue; end
     bytes = readlines(comp);
     nbytes = sum(strlength(strtrim(bytes)) > 0);
-    rows = [rows; table(string(cases(k).name), nbytes, nbytes, true, true, true, true, true, ...
-        'VariableNames', {'case_name','matlab_compressed_bytes','c_compressed_bytes', ...
-        'compressed_equal','decoded_equal','header_equal','payload_equal','pass_flag'})]; %#ok<AGROW>
+    rows = [rows; table(string(cases(k).name), nbytes, true, true, ...
+        'VariableNames', {'case_name','matlab_compressed_bytes', ...
+        'decoded_csv_present','inventory_pass'})]; %#ok<AGROW>
 end
-writetable(rows, fullfile(res_dir, 'summary_matlab_c_crosscheck.csv'));
+writetable(rows, fullfile(res_dir, 'summary_matlab_vector_inventory.csv'));
+end
+
+function root = mrtc_repo_root()
+root = fileparts(mfilename('fullpath'));
+for depth = 1:8
+    has_release = exist(fullfile(root, 'provenance', 'release.yaml'), 'file') == 2;
+    has_rtl = exist(fullfile(root, 'rtl', 'common', 'mrtc_pkg.sv'), 'file') == 2;
+    if has_release && has_rtl
+        return;
+    end
+    parent = fileparts(root);
+    if strcmp(parent, root)
+        break;
+    end
+    root = parent;
+end
+error('Unable to locate the MRTC-RDTC repository root from %s', mfilename('fullpath'));
 end
