@@ -659,12 +659,14 @@ module mrtc_rdtc_ddr_multiengine_wrapper #(
       completion_pending_reg <= 1'b0;
       completion_bytes_reg <= 32'd0;
       completion_engine_reg <= '0;
+      stat_busy <= 1'b0;
       stat_done <= 1'b0;
       stat_num_blocks <= 32'd0;
       stat_raw_bytes <= 32'd0;
       stat_comp_bytes <= 32'd0;
       stat_stall_input_cycles <= 32'd0;
       stat_stall_output_cycles <= 32'd0;
+      stat_error <= MRTC_ERR_NONE;
       stat_error_reg <= MRTC_ERR_NONE;
       desc_dispatched_total_reg <= 32'd0;
       desc_stall_cycles_reg <= 32'd0;
@@ -698,13 +700,15 @@ module mrtc_rdtc_ddr_multiengine_wrapper #(
 `ifdef RDTC_BOUNDED_HT_WAY_RING
       if (completion_pending_reg) begin
         completion_pending_reg <= 1'b0;
-        stat_done <= 1'b1;
-        stat_num_blocks <= stat_num_blocks + 32'd1;
-        stat_raw_bytes <= stat_raw_bytes + MRTC_RAW_BYTES;
-        stat_comp_bytes <= stat_comp_bytes + completion_bytes_reg;
-        output_packets_total_reg <= output_packets_total_reg + 32'd1;
-        output_packets_per_engine_reg[completion_engine_reg] <=
-          output_packets_per_engine_reg[completion_engine_reg] + 32'd1;
+        if (!i_clear_status) begin
+          stat_done <= 1'b1;
+          stat_num_blocks <= stat_num_blocks + 32'd1;
+          stat_raw_bytes <= stat_raw_bytes + MRTC_RAW_BYTES;
+          stat_comp_bytes <= stat_comp_bytes + completion_bytes_reg;
+          output_packets_total_reg <= output_packets_total_reg + 32'd1;
+          output_packets_per_engine_reg[completion_engine_reg] <=
+            output_packets_per_engine_reg[completion_engine_reg] + 32'd1;
+        end
       end
 `endif
       if (i_clear_status) begin
@@ -740,52 +744,57 @@ module mrtc_rdtc_ddr_multiengine_wrapper #(
         end
       end
 
-      if (s_desc_valid && !s_desc_ready) begin
-        stat_stall_input_cycles <= stat_stall_input_cycles + 32'd1;
-        desc_stall_cycles_reg <= desc_stall_cycles_reg + 32'd1;
-      end
-      if (m_axis_comp_tvalid && !m_axis_comp_tready) begin
-        stat_stall_output_cycles <= stat_stall_output_cycles + 32'd1;
-        output_backpressure_cycles_reg <= output_backpressure_cycles_reg + 32'd1;
-      end
-      if (!packet_active_reg && packet_candidate_valid && !selected_packet_tvalid) begin
-        output_arb_stall_cycles_reg <= output_arb_stall_cycles_reg + 32'd1;
-      end
-      if (packet_active_reg) begin
-        arbiter_active_cycles_reg <= arbiter_active_cycles_reg + 32'd1;
-      end else if (!packet_candidate_valid) begin
-        arbiter_idle_cycles_reg <= arbiter_idle_cycles_reg + 32'd1;
-      end
-
-      for (eng_idx = 0; eng_idx < NUM_ENGINES; eng_idx = eng_idx + 1) begin
-        if (eng_stat_busy[eng_idx]) begin
-          engine_busy_cycles_reg[eng_idx] <= engine_busy_cycles_reg[eng_idx] + 32'd1;
+      if (!i_clear_status) begin
+        if (s_desc_valid && !s_desc_ready) begin
+          stat_stall_input_cycles <= stat_stall_input_cycles + 32'd1;
+          desc_stall_cycles_reg <= desc_stall_cycles_reg + 32'd1;
         end
-        if (feeder_busy[eng_idx]) begin
-          feeder_busy_cycles_reg[eng_idx] <= feeder_busy_cycles_reg[eng_idx] + 32'd1;
+        if (m_axis_comp_tvalid && !m_axis_comp_tready) begin
+          stat_stall_output_cycles <= stat_stall_output_cycles + 32'd1;
+          output_backpressure_cycles_reg <= output_backpressure_cycles_reg + 32'd1;
         end
-        feeder_mem_wait_cycles_shadow_reg[eng_idx] <= feeder_mem_wait_cycles_sig[eng_idx];
-        feeder_axis_stall_cycles_shadow_reg[eng_idx] <= feeder_axis_stall_cycles_sig[eng_idx];
-        feeder_bursts_shadow_reg[eng_idx] <= feeder_bursts_issued_sig[eng_idx];
-        feeder_beats_shadow_reg[eng_idx] <= feeder_beats_streamed_sig[eng_idx];
-        pktbuf_packets_written_shadow_reg[eng_idx] <= pktbuf_packets_written_sig[eng_idx];
-        pktbuf_packets_read_shadow_reg[eng_idx] <= pktbuf_packets_read_sig[eng_idx];
-        pktbuf_write_stall_shadow_reg[eng_idx] <= pktbuf_write_stall_cycles_sig[eng_idx];
-        pktbuf_read_stall_shadow_reg[eng_idx] <= pktbuf_read_stall_cycles_sig[eng_idx];
-        pktbuf_max_occupancy_shadow_reg[eng_idx] <= pktbuf_max_occupancy_sig[eng_idx];
-        if (pktbuf_full[eng_idx]) begin
-          pktbuf_full_cycles_reg[eng_idx] <= pktbuf_full_cycles_reg[eng_idx] + 32'd1;
+        if (!packet_active_reg && packet_candidate_valid && !selected_packet_tvalid) begin
+          output_arb_stall_cycles_reg <= output_arb_stall_cycles_reg + 32'd1;
         end
-        if (pktbuf_packet_valid[eng_idx] && (!packet_active_reg || (packet_engine_reg != ENGINE_IDX_W'(eng_idx)))) begin
-          completed_packet_wait_cycles_reg[eng_idx] <= completed_packet_wait_cycles_reg[eng_idx] + 32'd1;
+        if (packet_active_reg) begin
+          arbiter_active_cycles_reg <= arbiter_active_cycles_reg + 32'd1;
+        end else if (!packet_candidate_valid) begin
+          arbiter_idle_cycles_reg <= arbiter_idle_cycles_reg + 32'd1;
         end
 
-        if ((stat_error_reg == MRTC_ERR_NONE) && (eng_stat_error[eng_idx] != MRTC_ERR_NONE)) begin
-          stat_error_reg <= eng_stat_error[eng_idx];
-        end
-        if ((stat_error_reg == MRTC_ERR_NONE) &&
-            (pktbuf_error[eng_idx] != MRTC_ERR_NONE)) begin
-          stat_error_reg <= pktbuf_error[eng_idx];
+        for (eng_idx = 0; eng_idx < NUM_ENGINES; eng_idx = eng_idx + 1) begin
+          if (eng_stat_busy[eng_idx]) begin
+            engine_busy_cycles_reg[eng_idx] <= engine_busy_cycles_reg[eng_idx] + 32'd1;
+          end
+          if (feeder_busy[eng_idx]) begin
+            feeder_busy_cycles_reg[eng_idx] <= feeder_busy_cycles_reg[eng_idx] + 32'd1;
+          end
+          feeder_mem_wait_cycles_shadow_reg[eng_idx] <= feeder_mem_wait_cycles_sig[eng_idx];
+          feeder_axis_stall_cycles_shadow_reg[eng_idx] <= feeder_axis_stall_cycles_sig[eng_idx];
+          feeder_bursts_shadow_reg[eng_idx] <= feeder_bursts_issued_sig[eng_idx];
+          feeder_beats_shadow_reg[eng_idx] <= feeder_beats_streamed_sig[eng_idx];
+          pktbuf_packets_written_shadow_reg[eng_idx] <= pktbuf_packets_written_sig[eng_idx];
+          pktbuf_packets_read_shadow_reg[eng_idx] <= pktbuf_packets_read_sig[eng_idx];
+          pktbuf_write_stall_shadow_reg[eng_idx] <= pktbuf_write_stall_cycles_sig[eng_idx];
+          pktbuf_read_stall_shadow_reg[eng_idx] <= pktbuf_read_stall_cycles_sig[eng_idx];
+          pktbuf_max_occupancy_shadow_reg[eng_idx] <= pktbuf_max_occupancy_sig[eng_idx];
+          if (pktbuf_full[eng_idx]) begin
+            pktbuf_full_cycles_reg[eng_idx] <= pktbuf_full_cycles_reg[eng_idx] + 32'd1;
+          end
+          if (pktbuf_packet_valid[eng_idx] &&
+              (!packet_active_reg || (packet_engine_reg != ENGINE_IDX_W'(eng_idx)))) begin
+            completed_packet_wait_cycles_reg[eng_idx] <=
+              completed_packet_wait_cycles_reg[eng_idx] + 32'd1;
+          end
+
+          if ((stat_error_reg == MRTC_ERR_NONE) &&
+              (eng_stat_error[eng_idx] != MRTC_ERR_NONE)) begin
+            stat_error_reg <= eng_stat_error[eng_idx];
+          end
+          if ((stat_error_reg == MRTC_ERR_NONE) &&
+              (pktbuf_error[eng_idx] != MRTC_ERR_NONE)) begin
+            stat_error_reg <= pktbuf_error[eng_idx];
+          end
         end
       end
 
@@ -800,9 +809,11 @@ module mrtc_rdtc_ddr_multiengine_wrapper #(
         end
         meta_wr_ptr_reg[desc_candidate_engine] <= META_PTR_W'(next_ptr);
         meta_count_reg[desc_candidate_engine] <= meta_count_reg[desc_candidate_engine] + META_COUNT_W'(1);
-        desc_dispatched_total_reg <= desc_dispatched_total_reg + 32'd1;
-        desc_per_engine_reg[desc_candidate_engine] <=
-          desc_per_engine_reg[desc_candidate_engine] + 32'd1;
+        if (!i_clear_status) begin
+          desc_dispatched_total_reg <= desc_dispatched_total_reg + 32'd1;
+          desc_per_engine_reg[desc_candidate_engine] <=
+            desc_per_engine_reg[desc_candidate_engine] + 32'd1;
+        end
         desc_rr_ptr_reg <= (desc_candidate_engine == ENGINE_IDX_W'(NUM_ENGINES - 1)) ?
                            '0 : (desc_candidate_engine + ENGINE_IDX_W'(1));
       end
@@ -823,7 +834,9 @@ module mrtc_rdtc_ddr_multiengine_wrapper #(
         beat_bytes = axis_valid_bytes(selected_packet_tlast, selected_packet_tuser);
         if (selected_packet_tlast) begin
           if (meta_count_reg[selected_packet_engine] == META_COUNT_W'(0)) begin
-            stat_error_reg <= MRTC_ERR_INTERNAL_STATE;
+            if (!i_clear_status) begin
+              stat_error_reg <= MRTC_ERR_INTERNAL_STATE;
+            end
           end else begin
             next_ptr = meta_rd_ptr_reg[selected_packet_engine] + 1;
             if (next_ptr >= META_FIFO_DEPTH) begin
@@ -834,20 +847,24 @@ module mrtc_rdtc_ddr_multiengine_wrapper #(
           end
 `ifdef RDTC_BOUNDED_HT_WAY_RING
           if (completion_pending_reg) begin
-            stat_error_reg <= MRTC_ERR_INTERNAL_STATE;
-          end else begin
+            if (!i_clear_status) begin
+              stat_error_reg <= MRTC_ERR_INTERNAL_STATE;
+            end
+          end else if (!i_clear_status) begin
             completion_pending_reg <= 1'b1;
             completion_bytes_reg <= packet_byte_count_reg + beat_bytes;
             completion_engine_reg <= selected_packet_engine;
           end
 `else
-          stat_done <= 1'b1;
-          stat_num_blocks <= stat_num_blocks + 32'd1;
-          stat_raw_bytes <= stat_raw_bytes + MRTC_RAW_BYTES;
-          stat_comp_bytes <= stat_comp_bytes + packet_byte_count_reg + beat_bytes;
-          output_packets_total_reg <= output_packets_total_reg + 32'd1;
-          output_packets_per_engine_reg[selected_packet_engine] <=
-            output_packets_per_engine_reg[selected_packet_engine] + 32'd1;
+          if (!i_clear_status) begin
+            stat_done <= 1'b1;
+            stat_num_blocks <= stat_num_blocks + 32'd1;
+            stat_raw_bytes <= stat_raw_bytes + MRTC_RAW_BYTES;
+            stat_comp_bytes <= stat_comp_bytes + packet_byte_count_reg + beat_bytes;
+            output_packets_total_reg <= output_packets_total_reg + 32'd1;
+            output_packets_per_engine_reg[selected_packet_engine] <=
+              output_packets_per_engine_reg[selected_packet_engine] + 32'd1;
+          end
 `endif
           packet_active_reg <= 1'b0;
           packet_beat_idx_reg <= '0;
@@ -869,7 +886,7 @@ module mrtc_rdtc_ddr_multiengine_wrapper #(
                          (meta_count_reg[eng_idx] != META_COUNT_W'(0)) || pktbuf_busy[eng_idx];
       end
       stat_busy <= any_busy_local;
-      stat_error <= stat_error_reg;
+      stat_error <= i_clear_status ? MRTC_ERR_NONE : stat_error_reg;
     end
   end
 endmodule

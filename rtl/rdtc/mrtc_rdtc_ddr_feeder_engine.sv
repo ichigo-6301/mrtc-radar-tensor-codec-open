@@ -252,7 +252,7 @@ module mrtc_rdtc_ddr_feeder_engine #(
             beats_received_reg <= beats_received_reg + BEAT_COUNT_W'(1);
           end
 
-          if (m_axis_raw_tvalid && !m_axis_raw_tready) begin
+          if (!i_clear_status && m_axis_raw_tvalid && !m_axis_raw_tready) begin
             o_axis_stall_cycles <= o_axis_stall_cycles + 32'd1;
           end
 
@@ -263,7 +263,9 @@ module mrtc_rdtc_ddr_feeder_engine #(
               fifo_rd_ptr_reg <= fifo_rd_ptr_reg + FIFO_IDX_W'(1);
             end
             beats_sent_reg <= beats_sent_reg + BEAT_COUNT_W'(1);
-            o_beats_streamed <= o_beats_streamed + 32'd1;
+            if (!i_clear_status) begin
+              o_beats_streamed <= o_beats_streamed + 32'd1;
+            end
             if (final_pop) begin
               gap_count_reg <= '0;
             end else if (FEED_GAP_CYCLES > 0) begin
@@ -280,7 +282,9 @@ module mrtc_rdtc_ddr_feeder_engine #(
               issue_addr_word_reg + BEAT_COUNT_W'(burst_len_words);
             beats_requested_reg <=
               beats_requested_reg + BEAT_COUNT_W'(burst_len_words);
-            o_bursts_issued <= o_bursts_issued + 32'd1;
+            if (!i_clear_status) begin
+              o_bursts_issued <= o_bursts_issued + 32'd1;
+            end
           end
 
           case ({issue_fire, burst_complete})
@@ -311,14 +315,16 @@ module mrtc_rdtc_ddr_feeder_engine #(
               (fifo_count_reg == COUNT_W'(0))) begin
             mem_wait_this_cycle = 1'b1;
           end
-          if (mem_wait_this_cycle) begin
+          if (!i_clear_status && mem_wait_this_cycle) begin
             o_mem_wait_cycles <= o_mem_wait_cycles + 32'd1;
           end
 
           if (final_pop) begin
             state_reg <= ST_IDLE;
             o_done <= 1'b1;
-            o_blocks_fed <= o_blocks_fed + 32'd1;
+            if (!i_clear_status) begin
+              o_blocks_fed <= o_blocks_fed + 32'd1;
+            end
           end
         end
 
