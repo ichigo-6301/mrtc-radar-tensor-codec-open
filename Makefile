@@ -468,7 +468,6 @@ bounded-dc-ab-run:
 	@$(RDTC_TOOL_PYTHON) flows/scripts/bounded_buffered_direct_dc_ab.py \
 	  --root "$(ROOT)" run \
 	  --dc-tool "$(RDTC_TOOL_DC)" \
-	  --dc-setup "$(RDTC_REGISTER_DC_SETUP)" \
 	  --stdcell-db "$(RDTC_NANGATE45_DB)" \
 	  --orchestration-root "$(RDTC_DC_AB_ROOT)" \
 	  --output "$(RDTC_DC_AB_SUMMARY)" \
@@ -477,7 +476,6 @@ bounded-dc-ab-run:
 bounded-dc-ab-collect:
 	@$(RDTC_TOOL_PYTHON) flows/scripts/bounded_buffered_direct_dc_ab.py \
 	  --root "$(ROOT)" collect \
-	  --dc-setup "$(RDTC_REGISTER_DC_SETUP)" \
 	  --orchestration-root "$(RDTC_DC_AB_ROOT)" \
 	  --output "$(RDTC_DC_AB_SUMMARY)" \
 	  --markdown-output "$(RDTC_DC_AB_MARKDOWN)"

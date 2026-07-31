@@ -46,6 +46,8 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
             "unmapped_cell_count": "0",
             "memory_macro_count": "0",
             "retiming": "disabled",
+            "retiming_control": "tracked_compile_ultra_without_retime",
+            "bounded_library_setup": "inline_hash_bound_register",
             "bounded_asic_family": family,
             "bounded_bulk_storage_bits": str(point["storage_bits"]),
             "bounded_register_storage_bits": str(point["storage_bits"]),
@@ -86,6 +88,8 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
             "unmapped_cell_count": closure["unmapped_cell_count"],
             "memory_macro_count": closure["memory_macro_count"],
             "retiming": closure["retiming"],
+            "retiming_control": closure["retiming_control"],
+            "bounded_library_setup": closure["bounded_library_setup"],
             "stdcell_db_sha256": closure["stdcell_db_sha256"],
             "dc_max_cores": closure["dc_max_cores"],
             "input_manifest_sha256": MANIFEST_SHA256,
@@ -177,6 +181,7 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
         self.assertEqual(str(ROOT / AB.COMMON_SDC), environment["RDTC_SDC"])
         self.assertEqual("y", environment["RDTC_BOUNDED_DC_AB"])
         self.assertEqual("y", environment["RDTC_DC_NO_INIT"])
+        self.assertEqual("", environment["RDTC_DC_SETUP"])
         self.assertEqual("32768", environment["RDTC_EXPECTED_BOUNDED_BULK_STORAGE_BITS"])
         self.assertEqual(AB.EXPECTED_DB_SHA256, environment["RDTC_EXPECTED_STDCELL_DB_SHA256"])
         self.assertEqual("4", environment["RDTC_DC_MAX_CORES"])
@@ -237,6 +242,20 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
             command = AB.flowctl.stage_command(ROOT, "dc-baseline", False, config)
         self.assertIn("-no_init", command)
         self.assertLess(command.index("-no_init"), command.index("-f"))
+
+    def test_ab_stage_requires_db_but_not_local_dc_setup(self):
+        with tempfile.TemporaryDirectory() as temp:
+            database = Path(temp) / "Nangate45.db"
+            database.write_bytes(b"test-db")
+            environment = {
+                "RDTC_BOUNDED_DC_AB": "y",
+                "RDTC_STDCELL_DB": str(database),
+                "RDTC_DC_SETUP": "",
+            }
+            AB.flowctl.require_local_setup("dc-baseline", environment)
+            database.unlink()
+            with self.assertRaisesRegex(RuntimeError, "requires RDTC_STDCELL_DB"):
+                AB.flowctl.require_local_setup("dc-baseline", environment)
 
     def test_dc_uses_single_define_list_for_o2018(self):
         tcl = (ROOT / AB.RUN_TCL).read_text(encoding="utf-8")
@@ -508,40 +527,33 @@ u_engine.u_engine                     40.0000   23.7  1.0
                     execution,
                 )
 
-    def test_comparison_inputs_bind_dc_setup_content(self):
-        with tempfile.TemporaryDirectory() as temp:
-            orchestration = Path(temp) / "orchestration"
-            setup = Path(temp) / "dc_setup_registers.tcl"
-            setup.write_text("set_app_var test_mode false\n", encoding="utf-8")
-            first = AB.comparison_inputs(ROOT, {"source_head": "test"}, setup)
-            self.assertEqual(AB.sha256_file(setup), first["dc_setup"]["sha256"])
-            self.assertEqual(setup.name, first["dc_setup"]["path"])
-            manifest = AB.write_input_manifest(ROOT, orchestration, first)
-            execution = {
-                "input_manifest": manifest,
-                "input_manifest_sha256": manifest["sha256"],
-                "runs": [],
-            }
+    def test_comparison_inputs_pin_sdc_and_exclude_local_setup(self):
+        inputs = AB.comparison_inputs(ROOT, {"source_head": "test"})
+        self.assertEqual(AB.EXPECTED_SDC_SHA256, inputs["sdc"]["sha256"])
+        self.assertEqual(
+            AB.EXPECTED_SOURCE_SET_SHA256,
+            inputs["expected_source_set_sha256"],
+        )
+        self.assertNotIn("dc_setup", inputs)
 
-            setup.write_text("set_app_var test_mode true\n", encoding="utf-8")
-            second = AB.comparison_inputs(ROOT, {"source_head": "test"}, setup)
-            self.assertNotEqual(
-                first["dc_setup"]["sha256"], second["dc_setup"]["sha256"]
-            )
-            with self.assertRaisesRegex(RuntimeError, "as-run manifest"):
-                AB.validate_bound_inputs(
-                    ROOT, orchestration, second, execution
-                )
+    def test_source_identity_rejects_changed_ordered_filelist_membership(self):
+        entries = AB.filelist_sources(ROOT)
+        with mock.patch.object(AB, "filelist_sources", return_value=entries[::-1]):
+            with self.assertRaisesRegex(RuntimeError, "ordered source set"):
+                AB.source_identity(ROOT)
 
-    def test_comparison_inputs_reject_nested_dc_setup_source(self):
-        with tempfile.TemporaryDirectory() as temp:
-            setup = Path(temp) / "dc_setup_registers.tcl"
-            setup.write_text(
-                "set_app_var test_mode false\nsource ./extra_setup.tcl\n",
-                encoding="utf-8",
-            )
-            with self.assertRaisesRegex(RuntimeError, "must be standalone"):
-                AB.comparison_inputs(ROOT, {"source_head": "test"}, setup)
+    def test_comparison_inputs_rejects_changed_sdc(self):
+        real_file_record = AB.file_record
+
+        def changed_sdc_record(root, path):
+            record = real_file_record(root, path)
+            if Path(path).resolve() == (ROOT / AB.COMMON_SDC).resolve():
+                record["sha256"] = "0" * 64
+            return record
+
+        with mock.patch.object(AB, "file_record", side_effect=changed_sdc_record):
+            with self.assertRaisesRegex(RuntimeError, "SDC differs"):
+                AB.comparison_inputs(ROOT, {"source_head": "test"})
 
     def test_collect_run_rejects_truncated_area_report(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -595,15 +607,13 @@ u_engine.u_engine                     40.0000   23.7  1.0
                     any("repair" in failure for failure in failures)
                 )
 
-    def test_validate_live_inputs_rechecks_bound_source_setup_and_db(self):
+    def test_validate_live_inputs_rechecks_bound_source_sdc_and_db(self):
         with tempfile.TemporaryDirectory() as temp:
             orchestration = Path(temp) / "orchestration"
-            setup = Path(temp) / "setup.tcl"
-            setup.write_text("set_app_var test_mode false\n", encoding="utf-8")
             database = Path(temp) / "Nangate45.db"
             database.write_bytes(b"test-db")
             identity = {"tracked_worktree_clean": True, "source_head": "test"}
-            inputs = {"source": identity, "dc_setup": {"sha256": "test"}}
+            inputs = {"source": identity, "sdc": {"sha256": "test"}}
             manifest = AB.write_input_manifest(ROOT, orchestration, inputs)
             execution = {
                 "input_manifest": manifest,
@@ -623,7 +633,7 @@ u_engine.u_engine                     40.0000   23.7  1.0
                 AB, "comparison_inputs", return_value=inputs
             ), mock.patch.object(AB, "sha256_file", side_effect=hash_file):
                 bound, checked = AB.validate_live_inputs(
-                    ROOT, orchestration, setup, database, execution
+                    ROOT, orchestration, database, execution
                 )
             self.assertEqual(inputs, bound)
             self.assertEqual(manifest, checked)
@@ -641,8 +651,6 @@ u_engine.u_engine                     40.0000   23.7  1.0
             orchestration = temp_root / "orchestration"
             database = temp_root / "Nangate45.db"
             database.write_bytes(b"test-db")
-            setup = temp_root / "setup.tcl"
-            setup.write_text("set_app_var test_mode false\n", encoding="utf-8")
             args = SimpleNamespace(
                 root=ROOT,
                 orchestration_root=orchestration,
@@ -650,7 +658,6 @@ u_engine.u_engine                     40.0000   23.7  1.0
                 point=["buffered315"],
                 resume=False,
                 dc_tool="dc_shell",
-                dc_setup=setup,
                 output=temp_root / "summary.json",
                 markdown_output=temp_root / "summary.md",
             )
@@ -774,18 +781,35 @@ u_engine.u_engine                     40.0000   23.7  1.0
 
     def test_resume_skips_only_an_existing_gate_pass(self):
         point = AB.POINTS[0]
+        execution = {point["key"]: {"returncode": 0}}
         with mock.patch.object(AB, "collect_run", return_value={"status": "PASS"}), mock.patch.object(
             AB, "gate_run", return_value=(False, ["failed closure"])
         ):
             self.assertFalse(
-                AB.existing_run_passes(ROOT, point, {}, MANIFEST_SHA256)
+                AB.existing_run_passes(ROOT, point, execution, MANIFEST_SHA256)
             )
         with mock.patch.object(AB, "collect_run", return_value={"status": "PASS"}), mock.patch.object(
             AB, "gate_run", return_value=(True, [])
         ):
             self.assertTrue(
-                AB.existing_run_passes(ROOT, point, {}, MANIFEST_SHA256)
+                AB.existing_run_passes(ROOT, point, execution, MANIFEST_SHA256)
             )
+
+    def test_resume_never_reuses_input_drift_artifacts(self):
+        point = AB.POINTS[0]
+        execution = {
+            point["key"]: {
+                "returncode": 0,
+                "status": "REJECTED_INPUT_DRIFT",
+            }
+        }
+        with mock.patch.object(AB, "collect_run") as collect_run:
+            self.assertFalse(
+                AB.existing_run_passes(
+                    ROOT, point, execution, MANIFEST_SHA256
+                )
+            )
+        collect_run.assert_not_called()
 
     def test_resume_archives_and_invalidates_failed_closure(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -813,7 +837,6 @@ u_engine.u_engine                     40.0000   23.7  1.0
                 point=["buffered315"],
                 resume=False,
                 dc_tool="dc_shell",
-                dc_setup=root / "setup.tcl",
                 output=root / "summary.json",
                 markdown_output=root / "summary.md",
             )
@@ -879,8 +902,10 @@ u_engine.u_engine                     40.0000   23.7  1.0
             "dc_closure_summary.txt",
             "RDTC_DC_AB_INPUT_MANIFEST_SHA256",
             "input_manifest_sha256",
-            "nested source is disabled",
+            "inline_hash_bound_register",
+            "if {!$bounded_dc_ab} {\n  source $dc_setup",
             "bounded_register_storage_bits",
+            "retiming_control=tracked_compile_ultra_without_retime",
         ):
             self.assertIn(marker, tcl)
         self.assertIn("bounded-dc-ab-run:", makefile)

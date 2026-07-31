@@ -32,11 +32,14 @@ set filelist [require_env RDTC_FILELIST]
 set top [require_env RDTC_TOP]
 set sdc [require_env RDTC_SDC]
 set build_root [require_env RDTC_BUILD_ROOT]
-set dc_setup [require_env RDTC_DC_SETUP]
 set bounded_dc_ab [expr {
   [info exists ::env(RDTC_BOUNDED_DC_AB)] &&
   $::env(RDTC_BOUNDED_DC_AB) eq "y"
 }]
+set dc_setup ""
+if {!$bounded_dc_ab} {
+  set dc_setup [require_env RDTC_DC_SETUP]
+}
 set bounded_input_manifest_sha256 ""
 if {$bounded_dc_ab} {
   set bounded_input_manifest_sha256 \
@@ -53,7 +56,21 @@ set forbid_retime [expr {
   [info exists ::env(RDTC_DC_FORBID_RETIME)] &&
   $::env(RDTC_DC_FORBID_RETIME) eq "y"
 }]
-if {$forbid_retime || $bounded_dc_ab} {
+set bounded_library_setup "external_dc_setup"
+if {$bounded_dc_ab} {
+  set rdtc_stdcell_db [require_env RDTC_STDCELL_DB]
+  if {![file isfile $rdtc_stdcell_db]} {
+    fail "Missing bounded DC A/B standard-cell DB: $rdtc_stdcell_db"
+  }
+  set search_path [list [file dirname $rdtc_stdcell_db]]
+  set target_library [list $rdtc_stdcell_db]
+  set link_library [concat "*" $target_library]
+  set rdtc_use_sram_macro 0
+  set rdtc_use_bounded_sram_macro 0
+  set rdtc_rtl_defines {}
+  set rdtc_memory_model_files {}
+  set bounded_library_setup "inline_hash_bound_register"
+} elseif {$forbid_retime} {
   set dc_setup_fh [open $dc_setup r]
   set dc_setup_text [read $dc_setup_fh]
   close $dc_setup_fh
@@ -68,24 +85,8 @@ if {$forbid_retime || $bounded_dc_ab} {
       $dc_setup_code]} {
     fail "RDTC DC setup enables register retiming, which this profile forbids"
   }
-  if {$bounded_dc_ab && [regexp -nocase \
-      {(^|[[:space:];{}])(::)?source([[:space:];{}]|$)} \
-      $dc_setup_code]} {
-    fail "bounded DC A/B setup must be standalone and cannot source other Tcl"
-  }
 }
-if {$bounded_dc_ab} {
-  rename source __rdtc_entry_source
-  proc source {args} {
-    error "nested source is disabled while loading bounded DC A/B setup"
-  }
-  set dc_setup_status [catch {__rdtc_entry_source $dc_setup} dc_setup_message]
-  rename source {}
-  rename __rdtc_entry_source source
-  if {$dc_setup_status} {
-    fail "bounded DC A/B setup load failed: $dc_setup_message"
-  }
-} else {
+if {!$bounded_dc_ab} {
   source $dc_setup
 }
 
@@ -564,6 +565,7 @@ redirect -file "$output_dir/run_contract.txt" {
   echo "sdc_time_scale=$sdc_time_scale"
   echo "memory_mode=$configured_memory_mode"
   echo "bounded_dc_ab=$bounded_dc_ab"
+  echo "bounded_library_setup=$bounded_library_setup"
   echo "bounded_asic_family=$bounded_ab_family"
   echo "bounded_bulk_storage_bits=$bounded_expected_bulk_bits"
   if {$bounded_dc_ab} {
@@ -580,6 +582,7 @@ redirect -file "$output_dir/run_contract.txt" {
     echo "designware_cell_count=$designware_cell_count"
     echo "unmapped_cell_count=$unmapped_cell_count"
     echo "retiming=disabled"
+    echo "retiming_control=tracked_compile_ultra_without_retime"
   }
   if {$use_sram_macro} {
     echo "memory_macro_count=$mapped_sram_count"
@@ -624,6 +627,8 @@ if {$bounded_dc_ab} {
     echo "designware_cell_count=$designware_cell_count"
     echo "unmapped_cell_count=$unmapped_cell_count"
     echo "retiming=disabled"
+    echo "retiming_control=tracked_compile_ultra_without_retime"
+    echo "bounded_library_setup=$bounded_library_setup"
     echo "bounded_asic_family=$bounded_ab_family"
     echo "bounded_bulk_storage_bits=$bounded_expected_bulk_bits"
     echo "bounded_register_storage_bits=$bounded_mapped_register_bits"

@@ -28,6 +28,12 @@ EXPECTED_DC_VERSION = "O-2018.06-SP1"
 EXPECTED_DB_SHA256 = flowctl.BOUNDED_DC_AB_STDCELL_DB_SHA256
 EXPECTED_TECHNOLOGY = "nangate45_registers"
 EXPECTED_MEMORY_MODE = "registers"
+EXPECTED_SOURCE_SET_SHA256 = (
+    "c32e780aad70dd3414e13c0509e8cdc2969e6c4afb6ef24fc2ef1d47c3f24a8d"
+)
+EXPECTED_SDC_SHA256 = (
+    "d49d2eeb1727ff8bc682783e14db317d8616938242b8bba98b76629341f96b25"
+)
 FILELIST = flowctl.BOUNDED_DC_AB_FILELIST
 COMMON_SDC = flowctl.BOUNDED_DC_AB_SDC
 RUN_TCL = "flows/synthesis/dc/baseline/run.tcl"
@@ -86,6 +92,8 @@ PUBLIC_CLOSURE_FIELDS = (
     "designware_cell_count",
     "unmapped_cell_count",
     "retiming",
+    "retiming_control",
+    "bounded_library_setup",
     "bounded_asic_family",
     "bounded_bulk_storage_bits",
     "bounded_register_storage_bits",
@@ -105,6 +113,7 @@ PUBLIC_CONTRACT_FIELDS = (
     "sdc_time_scale",
     "memory_mode",
     "bounded_dc_ab",
+    "bounded_library_setup",
     "bounded_asic_family",
     "bounded_bulk_storage_bits",
     "bounded_register_storage_bits",
@@ -119,6 +128,7 @@ PUBLIC_CONTRACT_FIELDS = (
     "unmapped_cell_count",
     "memory_macro_count",
     "retiming",
+    "retiming_control",
     "total_cell_count",
     "stdcell_db_sha256",
     "dc_max_cores",
@@ -218,13 +228,19 @@ def source_identity(root):
         aggregate.update(b"\0")
         aggregate.update(record["sha256"].encode("ascii"))
         aggregate.update(b"\n")
+    source_set_sha256 = aggregate.hexdigest()
+    if source_set_sha256 != EXPECTED_SOURCE_SET_SHA256:
+        raise RuntimeError(
+            "paired RTL ordered source set differs from the fixed public contract"
+        )
     _, status = run_git(root, ("status", "--porcelain", "--untracked-files=no"))
     return {
         "source_head": head,
         "fixed_public_rtl_commit": FIXED_PUBLIC_RTL_COMMIT,
         "fixed_public_rtl_match": True,
         "tracked_worktree_clean": not bool(status),
-        "source_set_sha256": aggregate.hexdigest(),
+        "source_set_sha256": source_set_sha256,
+        "expected_source_set_sha256": EXPECTED_SOURCE_SET_SHA256,
         "source_count": len(records),
         "files": records,
     }
@@ -237,23 +253,6 @@ def parse_key_values(path):
             key, value = line.split("=", 1)
             values[key.strip()] = value.strip()
     return values
-
-
-def validate_standalone_dc_setup(path):
-    path = Path(path)
-    try:
-        text = path.read_text(encoding="utf-8", errors="replace")
-    except OSError as error:
-        raise RuntimeError("cannot read DC setup {}: {}".format(path, error))
-    code_lines = []
-    for raw_line in text.splitlines():
-        if raw_line.lstrip().startswith("#"):
-            continue
-        code_lines.append(raw_line.split("#", 1)[0])
-    code = "\n".join(code_lines)
-    if re.search(r"(?i)(?<![A-Za-z0-9_])(?:::)?source(?=\s|[;{}]|$)", code):
-        raise RuntimeError("paired comparison DC setup must be standalone")
-    return path
 
 
 def select_public_fields(values, fields):
@@ -407,6 +406,8 @@ def gate_run(run, point):
         "unmapped_cell_count": "0",
         "memory_macro_count": "0",
         "retiming": "disabled",
+        "retiming_control": "tracked_compile_ultra_without_retime",
+        "bounded_library_setup": "inline_hash_bound_register",
         "bounded_asic_family": point["family"],
         "bounded_bulk_storage_bits": str(point["storage_bits"]),
         "bounded_register_storage_bits": str(point["storage_bits"]),
@@ -442,6 +443,7 @@ def gate_run(run, point):
         "technology": EXPECTED_TECHNOLOGY,
         "memory_mode": EXPECTED_MEMORY_MODE,
         "bounded_dc_ab": "1",
+        "bounded_library_setup": "inline_hash_bound_register",
         "bounded_asic_family": point["family"],
         "bounded_bulk_storage_bits": str(point["storage_bits"]),
         "bounded_register_storage_bits": str(point["storage_bits"]),
@@ -454,6 +456,7 @@ def gate_run(run, point):
         "unmapped_cell_count": "0",
         "memory_macro_count": "0",
         "retiming": "disabled",
+        "retiming_control": "tracked_compile_ultra_without_retime",
         "stdcell_db_sha256": EXPECTED_DB_SHA256,
         "dc_max_cores": "4",
         "input_manifest_sha256": run.get("input_manifest_sha256"),
@@ -476,6 +479,8 @@ def gate_run(run, point):
         "designware_cell_count",
         "unmapped_cell_count",
         "memory_macro_count",
+        "retiming_control",
+        "bounded_library_setup",
         "stdcell_db_sha256",
         "dc_max_cores",
         "input_manifest_sha256",
@@ -546,7 +551,7 @@ def percent_reduction(baseline, optimized):
     return 100.0 * (baseline - optimized) / baseline
 
 
-def comparison_inputs(root, identity, dc_setup=None):
+def comparison_inputs(root, identity):
     configs = {}
     for point in POINTS:
         path = root / "configs" / point["config"]
@@ -555,21 +560,22 @@ def comparison_inputs(root, identity, dc_setup=None):
         if spec is None or spec["family"] != point["family"]:
             raise RuntimeError("invalid paired config: {}".format(path.name))
         configs[point["key"]] = file_record(root, path)
+    sdc = file_record(root, root / COMMON_SDC)
+    if sdc["sha256"] != EXPECTED_SDC_SHA256:
+        raise RuntimeError("paired comparison SDC differs from the fixed contract")
     inputs = {
         "source": identity,
         "filelist": file_record(root, root / FILELIST),
-        "sdc": file_record(root, root / COMMON_SDC),
+        "sdc": sdc,
         "dc_run_tcl": file_record(root, root / RUN_TCL),
         "flowctl": file_record(root, root / "flows/scripts/flowctl.py"),
         "paired_runner": file_record(root, Path(__file__)),
         "configs": configs,
         "expected_stdcell_db_sha256": EXPECTED_DB_SHA256,
+        "expected_source_set_sha256": EXPECTED_SOURCE_SET_SHA256,
+        "expected_sdc_sha256": EXPECTED_SDC_SHA256,
         "expected_dc_version": EXPECTED_DC_VERSION,
     }
-    if dc_setup is not None:
-        inputs["dc_setup"] = file_record(
-            root, validate_standalone_dc_setup(dc_setup)
-        )
     return inputs
 
 
@@ -611,12 +617,12 @@ def validate_bound_inputs(root, orchestration_root, current_inputs, execution):
 
 
 def validate_live_inputs(
-    root, orchestration_root, dc_setup, stdcell_db, execution
+    root, orchestration_root, stdcell_db, execution
 ):
     identity = source_identity(root)
     if not identity["tracked_worktree_clean"]:
         raise RuntimeError("paired DC execution requires a tracked-clean worktree")
-    current_inputs = comparison_inputs(root, identity, dc_setup)
+    current_inputs = comparison_inputs(root, identity)
     inputs, input_manifest = validate_bound_inputs(
         root, orchestration_root, current_inputs, execution
     )
@@ -659,6 +665,11 @@ def update_execution_run(execution, record):
 
 
 def existing_run_passes(root, point, execution, input_manifest_sha256):
+    execution_record = execution.get(point["key"], {})
+    if execution_record.get("returncode") != 0:
+        return False
+    if execution_record.get("status") == "REJECTED_INPUT_DRIFT":
+        return False
     run = collect_run(root, point, execution, input_manifest_sha256)
     return gate_run(run, point)[0]
 
@@ -697,10 +708,10 @@ def archive_retry_closure(orchestration_root, point, closure_path):
     return archive_path
 
 
-def collect(root, orchestration_root, dc_setup):
+def collect(root, orchestration_root):
     root = Path(root).resolve()
     identity = source_identity(root)
-    current_inputs = comparison_inputs(root, identity, dc_setup)
+    current_inputs = comparison_inputs(root, identity)
     execution_path = Path(orchestration_root) / "execution.json"
     execution_document = read_execution_document(execution_path)
     inputs, input_manifest = validate_bound_inputs(
@@ -857,7 +868,7 @@ def run_all(args):
     root = Path(args.root).resolve()
     orchestration_root = Path(args.orchestration_root).resolve()
     identity = source_identity(root)
-    inputs = comparison_inputs(root, identity, args.dc_setup)
+    inputs = comparison_inputs(root, identity)
     if not identity["tracked_worktree_clean"]:
         raise RuntimeError("paired DC execution requires a tracked-clean worktree")
     if sha256_file(args.stdcell_db) != EXPECTED_DB_SHA256:
@@ -901,7 +912,6 @@ def run_all(args):
         validate_live_inputs(
             root,
             orchestration_root,
-            args.dc_setup,
             args.stdcell_db,
             execution,
         )
@@ -926,7 +936,6 @@ def run_all(args):
         environment.update(
             {
                 "RDTC_TOOL_DC": args.dc_tool,
-                "RDTC_DC_SETUP": str(Path(args.dc_setup).resolve()),
                 "RDTC_STDCELL_DB": str(Path(args.stdcell_db).resolve()),
                 "RDTC_DC_AB_INPUT_MANIFEST_SHA256": input_manifest["sha256"],
             }
@@ -960,7 +969,6 @@ def run_all(args):
             validate_live_inputs(
                 root,
                 orchestration_root,
-                args.dc_setup,
                 args.stdcell_db,
                 execution,
             )
@@ -975,7 +983,7 @@ def run_all(args):
         if returncode:
             if is_mandatory_point(point):
                 break
-    summary = collect(root, orchestration_root, args.dc_setup)
+    summary = collect(root, orchestration_root)
     execution["status"] = summary["execution_status"]
     write_json(execution_path, execution)
     write_json(args.output, summary)
@@ -991,13 +999,11 @@ def main():
 
     collect_parser = subparsers.add_parser("collect")
     collect_parser.add_argument("--orchestration-root", required=True)
-    collect_parser.add_argument("--dc-setup", required=True)
     collect_parser.add_argument("--output", required=True)
     collect_parser.add_argument("--markdown-output", required=True)
 
     run_parser = subparsers.add_parser("run")
     run_parser.add_argument("--dc-tool", required=True)
-    run_parser.add_argument("--dc-setup", required=True)
     run_parser.add_argument("--stdcell-db", required=True)
     run_parser.add_argument("--orchestration-root", required=True)
     run_parser.add_argument("--output", required=True)
@@ -1014,7 +1020,7 @@ def main():
             print(json.dumps(comparison_inputs(root, source_identity(root)), indent=2))
             return 0
         if args.command == "collect":
-            summary = collect(root, args.orchestration_root, args.dc_setup)
+            summary = collect(root, args.orchestration_root)
             execution_path = Path(args.orchestration_root) / "execution.json"
             execution = read_execution_document(execution_path)
             execution["status"] = summary["execution_status"]

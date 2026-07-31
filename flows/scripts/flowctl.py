@@ -468,6 +468,7 @@ def stage_environment(
                 "RDTC_SDC": str(root / BOUNDED_DC_AB_SDC),
                 "RDTC_TOP": config["CONFIG_RDTC_TOP"],
                 "RDTC_BOUNDED_DC_AB": "y",
+                "RDTC_DC_SETUP": "",
                 "RDTC_DC_NO_INIT": "y",
                 "RDTC_EXPECTED_BOUNDED_BULK_STORAGE_BITS": str(
                     ab_spec["storage_bits"]
@@ -483,6 +484,13 @@ def stage_environment(
 
 
 def require_local_setup(stage: str, environment: Dict[str, str]) -> None:
+    if stage == "dc-baseline" and environment.get("RDTC_BOUNDED_DC_AB") == "y":
+        stdcell_db = Path(environment.get("RDTC_STDCELL_DB", "")).expanduser()
+        if not stdcell_db.is_file():
+            raise RuntimeError(
+                "bounded DC A/B requires RDTC_STDCELL_DB: {}".format(stdcell_db)
+            )
+        return
     setup_key = STAGES[stage]["setup"]
     if stage == "sram-prep" and environment.get("CONFIG_FLOW_TECHNOLOGY", "").startswith("tsmc90"):
         setup_key = (
