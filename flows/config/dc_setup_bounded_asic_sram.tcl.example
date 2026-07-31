@@ -1,0 +1,47 @@
+# Copy to flows/local/dc_setup_bounded_asic_sram.tcl. Keep DB paths and
+# hashes in the ignored toolchain.mk; this file only constructs the exact
+# target/link-library contract consumed by the bounded ASIC DC flow.
+set bounded_direct_sram [expr {
+  [info exists ::env(RDTC_BOUNDED_DIRECT_ASIC_SRAM)] &&
+  $::env(RDTC_BOUNDED_DIRECT_ASIC_SRAM) eq "y"
+}]
+set required_library_variables [list \
+  RDTC_STDCELL_DB RDTC_BOUNDED_RING_SRAM_DB RDTC_BOUNDED_RING_SRAM_MODEL]
+if {!$bounded_direct_sram} {
+  lappend required_library_variables \
+    RDTC_BOUNDED_FEEDER_SRAM_DB RDTC_BOUNDED_PAYLOAD_SRAM_DB
+}
+foreach variable $required_library_variables {
+  if {![info exists ::env($variable)] || $::env($variable) eq ""} {
+    error "Missing $variable"
+  }
+  if {![file isfile $::env($variable)]} {
+    error "Missing DC library from $variable: $::env($variable)"
+  }
+}
+
+set stdcell_db $::env(RDTC_STDCELL_DB)
+set rdtc_bounded_ring_sram_db $::env(RDTC_BOUNDED_RING_SRAM_DB)
+set bounded_sram_dbs [list $rdtc_bounded_ring_sram_db]
+if {!$bounded_direct_sram} {
+  set rdtc_bounded_feeder_sram_db $::env(RDTC_BOUNDED_FEEDER_SRAM_DB)
+  set rdtc_bounded_payload_sram_db $::env(RDTC_BOUNDED_PAYLOAD_SRAM_DB)
+  set bounded_sram_dbs [list \
+    $rdtc_bounded_feeder_sram_db \
+    $rdtc_bounded_ring_sram_db \
+    $rdtc_bounded_payload_sram_db]
+}
+
+set search_path [list [file dirname $stdcell_db]]
+foreach bounded_sram_db $bounded_sram_dbs {
+  lappend search_path [file dirname $bounded_sram_db]
+}
+set target_library [list $stdcell_db]
+set link_library [concat "*" $target_library $bounded_sram_dbs]
+
+set rdtc_use_sram_macro 0
+set rdtc_use_bounded_sram_macro 1
+set rdtc_bounded_sram_cell mrtc_rdtc_bounded_ring_1rw_32x128
+set rdtc_expected_bounded_sram_count 8
+set rdtc_rtl_defines [list RDTC_BOUNDED_DIRECT_ASIC_SRAM]
+set rdtc_memory_model_files [list $::env(RDTC_BOUNDED_RING_SRAM_MODEL)]

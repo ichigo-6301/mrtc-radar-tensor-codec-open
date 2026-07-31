@@ -36,6 +36,47 @@ PRIMETIME_CONSTRAINT_TYPES = frozenset(
     ]
 )
 
+BOUNDED_DIRECT_TOP = "mrtc_rdtc_bounded_axis_multiengine_wrapper"
+BOUNDED_DIRECT_FILELIST = "flows/manifests/rdtc_v1_bounded_direct.f"
+BOUNDED_DIRECT_SDC = "flows/constraints/rdtc_v1_direct_axis_sync_boundary.sdc"
+
+
+def bounded_direct_mode(config: Dict[str, str]) -> str:
+    register = config.get("CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED") == "y"
+    sram = config.get("CONFIG_FLOW_BOUNDED_DIRECT_ASIC_SRAM") == "y"
+    if register and sram:
+        raise RuntimeError(
+            "Direct-AXIS register-expanded and SRAM profiles are mutually exclusive"
+        )
+    if not register and not sram:
+        return ""
+
+    mode = "register" if register else "sram"
+    expected = {
+        "register": {
+            "CONFIG_FLOW_MEMORY_MODE": "registers",
+            "CONFIG_FLOW_PRODUCT_PROFILE": "bounded-direct-register-expanded",
+            "CONFIG_FLOW_TECHNOLOGY": "nangate45_registers",
+        },
+        "sram": {
+            "CONFIG_FLOW_MEMORY_MODE": "macro",
+            "CONFIG_FLOW_PRODUCT_PROFILE": "bounded-direct-sram-macro",
+            "CONFIG_FLOW_TECHNOLOGY": "nangate45_openram_bounded_direct",
+        },
+    }[mode]
+    for symbol, value in expected.items():
+        if config.get(symbol) != value:
+            raise RuntimeError(
+                "Direct-AXIS {} profile requires {}={}".format(mode, symbol, value)
+            )
+    if config.get("CONFIG_RDTC_TOP") != BOUNDED_DIRECT_TOP:
+        raise RuntimeError("Direct-AXIS profile requires top " + BOUNDED_DIRECT_TOP)
+    if config.get("CONFIG_FLOW_SDC_FILE") != BOUNDED_DIRECT_SDC:
+        raise RuntimeError("Direct-AXIS profile requires SDC " + BOUNDED_DIRECT_SDC)
+    if config.get("CONFIG_FLOW_DC_FORBID_RETIME") != "y":
+        raise RuntimeError("Direct-AXIS profile requires CONFIG_FLOW_DC_FORBID_RETIME=y")
+    return mode
+
 NUMBER_PATTERN = r"[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?"
 
 
@@ -231,6 +272,7 @@ def stage_environment(
     root: Path, config_path: Path, config: Dict[str, str], stage: str
 ) -> Dict[str, str]:
     environment = os.environ.copy()
+    direct_mode = bounded_direct_mode(config)
     default_period = config.get("CONFIG_FLOW_CLOCK_PERIOD_NS", "2.500")
     dc_period = config.get("CONFIG_FLOW_DC_CLOCK_PERIOD_NS", "") or default_period
     pnr_period = config.get("CONFIG_FLOW_PNR_CLOCK_PERIOD_NS", "") or default_period
@@ -245,11 +287,15 @@ def stage_environment(
         "pnr": pnr_period,
         "sta": sta_period,
     }.get(stage, default_period)
+    filelist = BOUNDED_DIRECT_FILELIST if direct_mode else "flows/manifests/rdtc_v1.f"
+    sdc = config.get(
+        "CONFIG_FLOW_SDC_FILE", "flows/constraints/rdtc_v1_internal_400m.sdc"
+    )
     defaults = {
         "RDTC_FLOW_ROOT": str(root),
         "RDTC_FLOW_CONFIG": str(config_path.resolve()),
-        "RDTC_FILELIST": str(root / "flows/manifests/rdtc_v1.f"),
-        "RDTC_SDC": str(root / "flows/constraints/rdtc_v1_internal_400m.sdc"),
+        "RDTC_FILELIST": str(root / filelist),
+        "RDTC_SDC": str(root / sdc),
         "RDTC_TOP": config.get("CONFIG_RDTC_TOP", "mrtc_rdtc_wb_wrapper"),
         "RDTC_BUILD_ROOT": str(root / "build" / build_tag),
         "RDTC_DC_HANDOFF_ROOT": str(root / "build" / dc_handoff_tag),
@@ -301,6 +347,13 @@ def stage_environment(
             "CONFIG_FLOW_TSMC90_MEMORY_VARIANT", "rf64x128"
         ),
         "RDTC_ORFS_PLATFORM": config.get("CONFIG_FLOW_OPENROAD_PLATFORM", "nangate45"),
+        "RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED": config.get(
+            "CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED", "n"
+        ),
+        "RDTC_BOUNDED_DIRECT_ASIC_SRAM": config.get(
+            "CONFIG_FLOW_BOUNDED_DIRECT_ASIC_SRAM", "n"
+        ),
+        "RDTC_DC_FORBID_RETIME": config.get("CONFIG_FLOW_DC_FORBID_RETIME", "n"),
     }
     for key, value in defaults.items():
         if not environment.get(key):
@@ -729,6 +782,7 @@ def command_defconfig(args: argparse.Namespace) -> None:
 
 def command_show_config(args: argparse.Namespace) -> None:
     config = parse_config(Path(args.config))
+    direct_mode = bounded_direct_mode(config)
     print(f"top: {config.get('CONFIG_RDTC_TOP', 'mrtc_rdtc_wb_wrapper')}")
     print(f"product_profile: {config.get('CONFIG_FLOW_PRODUCT_PROFILE', 'sram-macro')}")
     print(f"technology: {config.get('CONFIG_FLOW_TECHNOLOGY', 'unset')}")
@@ -786,6 +840,7 @@ def command_show_config(args: argparse.Namespace) -> None:
     print("pnr_backend: " + config.get("CONFIG_FLOW_PNR_BACKEND", "openroad"))
     print("pnr_scope: " + config.get("CONFIG_FLOW_PNR_SCOPE", "full"))
     print("public_rtl_smoke: " + config.get("CONFIG_FLOW_PUBLIC_RTL_SMOKE", "n"))
+    print("bounded_direct_mode: " + (direct_mode or "disabled"))
     print("enabled_stages: " + ", ".join(stage for stage, spec in STAGES.items() if config.get(spec["symbol"]) == "y"))
 
 

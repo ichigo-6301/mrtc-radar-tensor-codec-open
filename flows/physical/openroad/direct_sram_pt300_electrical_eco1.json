@@ -1,0 +1,312 @@
+{
+  "buffer_cells": {
+    "addr": "BUF_X4",
+    "dout": "BUF_X1"
+  },
+  "name": "direct_sram_pt300_electrical_eco1",
+  "parent": {
+    "artifacts": {
+      "floorplan_contract": {
+        "relative_path": "openroad/floorplan_contract.json",
+        "sha256": "07e8e1aa945733b91436d93e8bf899a13dba4425dff5926656468736d7fdd231"
+      },
+      "grt_odb": {
+        "relative_path": "openroad/orfs/results/nangate45/rdtc_v1/base/5_1_grt.odb",
+        "sha256": "5167ea19964febd60aef50743209fb4807bed14c3481d570ed168c3e6c506193"
+      },
+      "grt_sdc": {
+        "relative_path": "openroad/orfs/results/nangate45/rdtc_v1/base/5_1_grt.sdc",
+        "sha256": "e5818d35d4cd852bcc9bc6d0156597182c7d4ed52894b66c901d40b482e6e252"
+      },
+      "macro_audit": {
+        "relative_path": "openroad/direct_macro_placement_audit.json",
+        "sha256": "8b2ee1e5f5a9afdece3c2ae29d22b13bdfcbbe0a0c5cdac91e8d5fd0674f249c"
+      },
+      "relocation_manifest": {
+        "relative_path": "openroad/sta_relocation_manifest.json",
+        "sha256": "ead7d997273d593efe8af484d46ce8fdc0d18f2a26d107e3fd90d26b9ae98eb0"
+      },
+      "route_guide": {
+        "relative_path": "openroad/orfs/results/nangate45/rdtc_v1/base/route.guide",
+        "sha256": "a4ade6dd6bc4c6869d237e46c50e06dde246164fb6fe35db57de70175ac74c75"
+      },
+      "run_contract": {
+        "relative_path": "openroad/run_contract.json",
+        "sha256": "f6d149ecb2d9499c7691d592a1e5cf6a032c7a9953b8bec69900e5dccbf5b702"
+      },
+      "verification": {
+        "relative_path": "openroad/verification.json",
+        "sha256": "fd9215cc222947d1b1509bfb73f90ede6c74530cf949ec415e05d0665d29397c"
+      }
+    },
+    "build_tag": "rdtc_v1_bounded_direct_sram_dc315_pnr300_syncio10",
+    "source_commit": "e00e17c87f93a5635762a58bd588647ec1ff235b",
+    "sram_macro": "mrtc_rdtc_bounded_ring_1rw_32x128",
+    "sram_macro_count": 8
+  },
+  "placement_policy": {
+    "macro_channel_um": 60.0,
+    "macro_halo_um": 20.0,
+    "target_offsets_um": {
+      "addr": 30.0,
+      "dout": 22.0
+    }
+  },
+  "pt_artifacts": {
+    "analysis_coverage": {
+      "relative_path": "primetime/analysis_coverage.rpt",
+      "sha256": "638e63a662791fcbf720206349f7bca5eff42e32d7081423cc20d28dcd25d481"
+    },
+    "check_timing": {
+      "relative_path": "primetime/check_timing.rpt",
+      "sha256": "e4dfa7b28e22e2d0dc13ac67a6e8d187af1cc39b4f2030477d2953a60d55d040"
+    },
+    "constraint_violations": {
+      "relative_path": "primetime/constraint_violations.rpt",
+      "sha256": "7b1aeccefe4b3932723731dcd59b2bcbdba08e5365586fbd7ea0011a6855e0cc"
+    },
+    "hold_summary": {
+      "relative_path": "primetime/hold_summary.rpt",
+      "sha256": "8198740e405c522bacc8ecd41bed06f7ff9ef3c468a4da39f0120ef25501649d"
+    },
+    "max_capacitance": {
+      "relative_path": "primetime/max_capacitance.rpt",
+      "sha256": "aa8dd03fa2db6e1f99cec2575c5fc337f059da55739aedd79acc947b15417cd0"
+    },
+    "max_transition": {
+      "relative_path": "primetime/max_transition.rpt",
+      "sha256": "50f54449849509d435cf9c808cb1b8c9f05bc12c1322116adff90a193c4e90e7"
+    },
+    "minimum_period": {
+      "relative_path": "primetime/minimum_period.rpt",
+      "sha256": "30db9f7ef502c1963016018030dccff1507addecc2460ece13b5077f7141922b"
+    },
+    "minimum_pulse_width": {
+      "relative_path": "primetime/minimum_pulse_width.rpt",
+      "sha256": "e60beee387b5b6787870bc885d9b5ec36d5b70e01cb078b3fe24f5d442848e0f"
+    },
+    "parasitics_command_log": {
+      "relative_path": "sta/work/parasitics_command.log",
+      "sha256": "1301f982cb2b4d3323ce98eaf07f26688c48905551254a2d2d4b28b44ae98734"
+    },
+    "pt_command_log": {
+      "relative_path": "sta/work/pt_shell_command.log",
+      "sha256": "01f286cae4bea662a8f6d50d0e2d6ccdf533647215b44a1ada3fa89286af4b97"
+    },
+    "relocation_manifest": {
+      "relative_path": "handoff_extract/build/rdtc_v1_bounded_direct_sram_dc315_pnr300_syncio10/openroad/sta_relocation_manifest.json",
+      "sha256": "ead7d997273d593efe8af484d46ce8fdc0d18f2a26d107e3fd90d26b9ae98eb0"
+    },
+    "setup_summary": {
+      "relative_path": "primetime/setup_summary.rpt",
+      "sha256": "fda8dc3c122f6793c7245ccaf6b684bf1d5a01613248ed4d564dcccb92eab39b"
+    },
+    "sta_execution": {
+      "relative_path": "sta/execution.json",
+      "sha256": "278552210a93c04272115b92f22d9127ae9e2d3502ad973c335c9b8ce044515c"
+    },
+    "verification_summary": {
+      "relative_path": "primetime/verification_summary.txt",
+      "sha256": "d1ea891b9d435af9652a7272513e9bcc9a32ea81917b2996c227faa7e8f95ce7"
+    }
+  },
+  "schema_version": 1,
+  "targets": [
+    {
+      "buffer_name": "rdtc_direct_eco_addr_buf_00",
+      "engine": 1,
+      "kind": "addr",
+      "peer": {
+        "instance": "g_engine[1].u_engine/place14478",
+        "io_type": "OUTPUT",
+        "master": "BUF_X8",
+        "pin": "Z"
+      },
+      "pin": "g_engine[1].u_engine/u_way_ring/g_way[3].u_way/u_sram/addr0[2]",
+      "side": "top",
+      "way": 3
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_addr_buf_01",
+      "engine": 1,
+      "kind": "addr",
+      "peer": {
+        "instance": "g_engine[1].u_engine/wire21058",
+        "io_type": "OUTPUT",
+        "master": "BUF_X2",
+        "pin": "Z"
+      },
+      "pin": "g_engine[1].u_engine/u_way_ring/g_way[2].u_way/u_sram/addr0[3]",
+      "side": "top",
+      "way": 2
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_addr_buf_02",
+      "engine": 1,
+      "kind": "addr",
+      "peer": {
+        "instance": "g_engine[1].u_engine/wire21117",
+        "io_type": "OUTPUT",
+        "master": "BUF_X2",
+        "pin": "Z"
+      },
+      "pin": "g_engine[1].u_engine/u_way_ring/g_way[2].u_way/u_sram/addr0[4]",
+      "side": "top",
+      "way": 2
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_addr_buf_03",
+      "engine": 1,
+      "kind": "addr",
+      "peer": {
+        "instance": "g_engine[1].u_engine/wire21210",
+        "io_type": "OUTPUT",
+        "master": "BUF_X4",
+        "pin": "Z"
+      },
+      "pin": "g_engine[1].u_engine/u_way_ring/g_way[0].u_way/u_sram/addr0[4]",
+      "side": "top",
+      "way": 0
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_addr_buf_04",
+      "engine": 1,
+      "kind": "addr",
+      "peer": {
+        "instance": "g_engine[1].u_engine/place14474",
+        "io_type": "OUTPUT",
+        "master": "BUF_X2",
+        "pin": "Z"
+      },
+      "pin": "g_engine[1].u_engine/u_way_ring/g_way[2].u_way/u_sram/addr0[2]",
+      "side": "top",
+      "way": 2
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_addr_buf_05",
+      "engine": 0,
+      "kind": "addr",
+      "peer": {
+        "instance": "g_engine[0].u_engine/wire21156",
+        "io_type": "OUTPUT",
+        "master": "CLKBUF_X3",
+        "pin": "Z"
+      },
+      "pin": "g_engine[0].u_engine/u_way_ring/g_way[2].u_way/u_sram/addr0[0]",
+      "side": "bottom",
+      "way": 2
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_addr_buf_06",
+      "engine": 1,
+      "kind": "addr",
+      "peer": {
+        "instance": "g_engine[1].u_engine/wire21118",
+        "io_type": "OUTPUT",
+        "master": "BUF_X1",
+        "pin": "Z"
+      },
+      "pin": "g_engine[1].u_engine/u_way_ring/g_way[2].u_way/u_sram/addr0[1]",
+      "side": "top",
+      "way": 2
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_addr_buf_07",
+      "engine": 1,
+      "kind": "addr",
+      "peer": {
+        "instance": "g_engine[1].u_engine/U1223",
+        "io_type": "OUTPUT",
+        "master": "OAI22_X1",
+        "pin": "ZN"
+      },
+      "pin": "g_engine[1].u_engine/u_way_ring/g_way[0].u_way/u_sram/addr0[0]",
+      "side": "bottom",
+      "way": 0
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_addr_buf_08",
+      "engine": 0,
+      "kind": "addr",
+      "peer": {
+        "instance": "g_engine[0].u_engine/place14503",
+        "io_type": "OUTPUT",
+        "master": "BUF_X8",
+        "pin": "Z"
+      },
+      "pin": "g_engine[0].u_engine/u_way_ring/g_way[3].u_way/u_sram/addr0[0]",
+      "side": "bottom",
+      "way": 3
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_addr_buf_09",
+      "engine": 0,
+      "kind": "addr",
+      "peer": {
+        "instance": "g_engine[0].u_engine/U1225",
+        "io_type": "OUTPUT",
+        "master": "OAI22_X1",
+        "pin": "ZN"
+      },
+      "pin": "g_engine[0].u_engine/u_way_ring/g_way[1].u_way/u_sram/addr0[3]",
+      "side": "top",
+      "way": 1
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_addr_buf_10",
+      "engine": 0,
+      "kind": "addr",
+      "peer": {
+        "instance": "g_engine[0].u_engine/place14499",
+        "io_type": "OUTPUT",
+        "master": "BUF_X8",
+        "pin": "Z"
+      },
+      "pin": "g_engine[0].u_engine/u_way_ring/g_way[3].u_way/u_sram/addr0[4]",
+      "side": "top",
+      "way": 3
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_dout_buf_00",
+      "engine": 0,
+      "kind": "dout",
+      "peer": {
+        "instance": "g_engine[0].u_engine/wire33563",
+        "io_type": "INPUT",
+        "master": "BUF_X2",
+        "pin": "A"
+      },
+      "pin": "g_engine[0].u_engine/u_way_ring/g_way[1].u_way/u_sram/dout0[88]",
+      "side": "bottom",
+      "way": 1
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_dout_buf_01",
+      "engine": 0,
+      "kind": "dout",
+      "peer": {
+        "instance": "g_engine[0].u_engine/wire33570",
+        "io_type": "INPUT",
+        "master": "BUF_X2",
+        "pin": "A"
+      },
+      "pin": "g_engine[0].u_engine/u_way_ring/g_way[1].u_way/u_sram/dout0[45]",
+      "side": "bottom",
+      "way": 1
+    },
+    {
+      "buffer_name": "rdtc_direct_eco_dout_buf_02",
+      "engine": 1,
+      "kind": "dout",
+      "peer": {
+        "instance": "g_engine[1].u_engine/wire33398",
+        "io_type": "INPUT",
+        "master": "BUF_X2",
+        "pin": "A"
+      },
+      "pin": "g_engine[1].u_engine/u_way_ring/g_way[1].u_way/u_sram/dout0[43]",
+      "side": "bottom",
+      "way": 1
+    }
+  ]
+}

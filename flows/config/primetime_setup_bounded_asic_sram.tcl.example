@@ -1,0 +1,37 @@
+# Copy to flows/local/primetime_setup_bounded_asic_sram.tcl. The direct
+# profile consumes only the ring DB; the legacy bounded profile consumes all
+# three layer DBs.
+foreach variable {RDTC_STDCELL_DB RDTC_BOUNDED_RING_SRAM_DB} {
+  if {![info exists ::env($variable)] || $::env($variable) eq ""} {
+    error "Missing $variable for bounded SRAM PrimeTime"
+  }
+  if {![file isfile $::env($variable)]} {
+    error "Missing bounded SRAM PrimeTime library: $::env($variable)"
+  }
+}
+
+set bounded_direct_sram [expr {
+  [info exists ::env(RDTC_BOUNDED_DIRECT_ASIC_SRAM)] &&
+  $::env(RDTC_BOUNDED_DIRECT_ASIC_SRAM) eq "y"
+}]
+set rdtc_stdcell_db $::env(RDTC_STDCELL_DB)
+set rdtc_bounded_ring_sram_db $::env(RDTC_BOUNDED_RING_SRAM_DB)
+set rdtc_bounded_sram_dbs [list $rdtc_bounded_ring_sram_db]
+if {!$bounded_direct_sram} {
+  foreach variable {RDTC_BOUNDED_FEEDER_SRAM_DB RDTC_BOUNDED_PAYLOAD_SRAM_DB} {
+    if {![info exists ::env($variable)] || ![file isfile $::env($variable)]} {
+      error "Missing $variable for legacy bounded SRAM PrimeTime"
+    }
+  }
+  set rdtc_bounded_feeder_sram_db $::env(RDTC_BOUNDED_FEEDER_SRAM_DB)
+  set rdtc_bounded_payload_sram_db $::env(RDTC_BOUNDED_PAYLOAD_SRAM_DB)
+  set rdtc_bounded_sram_dbs [list \
+    $rdtc_bounded_feeder_sram_db \
+    $rdtc_bounded_ring_sram_db \
+    $rdtc_bounded_payload_sram_db]
+}
+
+set rdtc_sram_db ""
+set rdtc_postroute_netlist $::env(RDTC_POSTROUTE_NETLIST)
+set rdtc_postroute_sdc $::env(RDTC_POSTROUTE_SDC)
+set rdtc_postroute_spef $::env(RDTC_POSTROUTE_SPEF)

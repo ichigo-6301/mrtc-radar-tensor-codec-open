@@ -17,10 +17,20 @@ unquote = $(subst ",,$(1))
 -include $(CONFIG)
 -include $(LOCAL_CONFIG)
 
+ifeq ($(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED)$(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_SRAM),yy)
+$(error Direct-AXIS register-expanded and SRAM profiles are mutually exclusive)
+endif
+RDTC_BOUNDED_DIRECT_PROFILE := $(filter y,$(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED) $(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_SRAM))
+
 export RDTC_FLOW_ROOT := $(ROOT)
 export RDTC_FLOW_CONFIG := $(abspath $(CONFIG))
+ifneq ($(strip $(RDTC_BOUNDED_DIRECT_PROFILE)),)
+export RDTC_FILELIST ?= $(ROOT)/flows/manifests/rdtc_v1_bounded_direct.f
+export RDTC_SDC ?= $(ROOT)/$(call unquote,$(CONFIG_FLOW_SDC_FILE))
+else
 export RDTC_FILELIST ?= $(ROOT)/flows/manifests/rdtc_v1.f
 export RDTC_SDC ?= $(ROOT)/flows/constraints/rdtc_v1_internal_400m.sdc
+endif
 export RDTC_TOP ?= $(call unquote,$(CONFIG_RDTC_TOP))
 export RDTC_BUILD_ROOT ?= $(ROOT)/build/$(call unquote,$(CONFIG_FLOW_BUILD_TAG))
 RDTC_DC_HANDOFF_ROOT ?= $(RDTC_BUILD_ROOT)
@@ -47,6 +57,9 @@ export RDTC_MEMORY_MODE ?= $(call unquote,$(CONFIG_FLOW_MEMORY_MODE))
 export RDTC_TSMC90_MEMORY_VARIANT ?= $(call unquote,$(CONFIG_FLOW_TSMC90_MEMORY_VARIANT))
 export RDTC_ORFS_PLATFORM ?= $(call unquote,$(CONFIG_FLOW_OPENROAD_PLATFORM))
 export RDTC_TECHNOLOGY ?= $(call unquote,$(CONFIG_FLOW_TECHNOLOGY))
+export RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED ?= $(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED)
+export RDTC_BOUNDED_DIRECT_ASIC_SRAM ?= $(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_SRAM)
+export RDTC_DC_FORBID_RETIME ?= $(CONFIG_FLOW_DC_FORBID_RETIME)
 
 RDTC_REGISTER_DC_SETUP ?= $(ROOT)/flows/local/dc_setup_registers.tcl
 RDTC_REGISTER_PRIMETIME_SETUP ?= $(ROOT)/flows/local/primetime_setup_registers.tcl
@@ -63,6 +76,10 @@ ifeq ($(RDTC_TECHNOLOGY),icsprout55_registers)
 RDTC_STDCELL_DB ?= $(RDTC_ICSPROUT55_DB)
 endif
 endif
+ifeq ($(RDTC_BOUNDED_DIRECT_ASIC_SRAM),y)
+RDTC_DC_SETUP := $(ROOT)/flows/local/dc_setup_bounded_asic_sram.tcl
+RDTC_PRIMETIME_SETUP := $(ROOT)/flows/local/primetime_setup_bounded_asic_sram.tcl
+endif
 RDTC_TOOL_SPYGLASS ?= spyglass
 RDTC_TOOL_PYTHON ?= $(PYTHON)
 RDTC_TOOL_IVERILOG ?= iverilog
@@ -72,6 +89,10 @@ RDTC_TOOL_VLIB ?= vlib
 RDTC_TOOL_VLOG ?= vlog
 RDTC_TOOL_VSIM ?= vsim
 RDTC_TOOL_VCS ?= vcs
+RDTC_TOOL_VIVADO ?= vivado
+RDTC_BOUNDED_DIRECT_SRAM_MODEL ?=
+RDTC_BOUNDED_DIRECT_SRAM_MANIFEST ?=
+RDTC_BOUNDED_DIRECT_SRAM_MANIFEST_SHA256 ?=
 RDTC_TOOL_DC ?= dc_shell
 RDTC_TOOL_LC ?= lc_shell
 RDTC_SYNOPSYS_LC_ROOT ?=
@@ -87,6 +108,7 @@ RDTC_TOOL_OPENROAD ?= bash
 RDTC_TOOL_PRIMETIME ?= pt_shell
 export RDTC_TOOL_PYTHON RDTC_TOOL_VLIB RDTC_TOOL_VLOG RDTC_TOOL_VSIM
 export RDTC_TOOL_VCS
+export RDTC_TOOL_VIVADO
 export RDTC_TOOL_SPYGLASS RDTC_TOOL_DC RDTC_TOOL_DFT RDTC_TOOL_LEC
 export RDTC_TOOL_LC RDTC_TOOL_OPENRAM_PYTHON RDTC_OPENRAM_HOME
 export RDTC_OPENRAM_REUSE_DIR
@@ -100,6 +122,8 @@ export RDTC_POST_GRT_HOLD_SLACK_MARGIN_NS
 export RDTC_TARGETED_DRC_ECO RDTC_EXPECTED_DC_NETLIST_SHA256 RDTC_DC_HANDOFF_ROOT
 export RDTC_STA_UNUSED_RW_DOUT_MIN_CAP_WAIVER RDTC_STA_WAIVER_POLICY
 export RDTC_PRODUCT_PROFILE RDTC_MEMORY_MODE RDTC_TSMC90_MEMORY_VARIANT RDTC_ORFS_PLATFORM RDTC_TECHNOLOGY
+export RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED RDTC_BOUNDED_DIRECT_ASIC_SRAM RDTC_DC_FORBID_RETIME
+export RDTC_BOUNDED_RING_SRAM_DB RDTC_BOUNDED_RING_SRAM_MODEL
 export RDTC_STDCELL_DB RDTC_NANGATE15_DB RDTC_NANGATE45_DB RDTC_ICSPROUT55_DB
 export RDTC_TSMC90_RF_GENERATOR RDTC_TSMC90_SRAM_GENERATOR
 export RDTC_TOOL_GRDGENXO RDTC_FREEPDK45_ROOT RDTC_RC_OUTPUT_DIR
@@ -131,6 +155,8 @@ endif
         sram-prep sram-prep-dry-run rc-itf rc-prep rc-prep-dry-run \
         icc2-libs icc2-libs-dry-run \
         rtl-smoke integration-smoke codec-demo multiengine-smoke fpga-wrapper-smoke showcase-assets-check verify-current-checksums sim sim-dry-run sim-full selected selected-dry-run \
+        bounded-direct-register-modelsim-regression bounded-direct-modelsim-regression bounded-direct-modelsim-regression-dry-run \
+        bounded-direct-rtl-smoke bounded-direct-vivado-route200 bounded-direct-vivado-route200-check \
         lint lint-dry-run cdc cdc-dry-run \
         dc-baseline dc-baseline-dry-run dc-gated dc-gated-dry-run \
         dft dft-dry-run lec lec-dry-run pnr pnr-full pnr-floorplan pnr-dry-run sta sta-dry-run timing-audit
@@ -172,6 +198,11 @@ help:
 	  '  make verify-current-checksums   Check current HEAD against its checksum manifest' \
 	  '  make sim                       Run the bounded Questa/ModelSim smoke suite' \
 	  '  make sim-full                  Run the extended RTL regression matrix' \
+	  '  make bounded-direct-register-modelsim-regression  Verify the Direct-AXIS register profile' \
+	  '  make bounded-direct-modelsim-regression  Compare Direct-AXIS register and local OpenRAM profiles' \
+	  '  make bounded-direct-modelsim-regression-dry-run  Validate the Direct-AXIS ModelSim plan' \
+	  '  make bounded-direct-rtl-smoke  Elaborate the Direct-AXIS top with Icarus' \
+	  '  make bounded-direct-vivado-route200  Run the 200 MHz Vivado OOC post-route gate' \
 	  '  make <stage>-dry-run           Show one tool invocation without running it' \
 	  '  make <stage>                   Run an enabled stage using flows/local setup' \
 	  '  make timing-audit              Parse existing DC/PT reports using local audit paths' \
@@ -189,6 +220,9 @@ rdtc_v1_45nm_defconfig:
 	@$(FLOWCTL) defconfig --source configs/rdtc_v1_45nm_defconfig
 
 rdtc_v1_register_%_defconfig:
+	@$(FLOWCTL) defconfig --source "configs/$@"
+
+rdtc_v1_bounded_%_defconfig:
 	@$(FLOWCTL) defconfig --source "configs/$@"
 
 rdtc_v1_45nm_holdfix_400m_defconfig:
@@ -282,10 +316,13 @@ public-preflight:
 	@$(MAKE) integration-smoke
 	@$(MAKE) multiengine-smoke
 	@$(MAKE) fpga-wrapper-smoke
+	@$(MAKE) bounded-direct-rtl-smoke
 	@$(MAKE) showcase-assets-check
 	@$(PROFILE_VALIDATOR)
 	@$(CHECKSUM_GENERATOR) --ref HEAD --check
-	@$(PYTHON) -m unittest flows/scripts/test_flowctl_primetime.py flows/scripts/test_validate_profile.py provenance/test_verify_release.py -v
+	@$(PYTHON) -m unittest discover -s flows/scripts -p 'test_*.py' -v
+	@$(PYTHON) -m unittest discover -s scripts/vivado -p 'test_*.py' -v
+	@$(PYTHON) -m unittest provenance/test_verify_release.py -v
 	@$(PYTHON) flows/scripts/check_public_docs.py
 	@$(PYTHON) flows/scripts/scan_public_release.py --ref HEAD
 
@@ -377,6 +414,41 @@ sim-dry-run:
 
 sim-full:
 	@$(PYTHON) flows/scripts/rtl_regression.py --root "$(ROOT)" --filelist "$(RDTC_FILELIST)" --suite full
+
+bounded-direct-register-modelsim-regression:
+	@$(RDTC_TOOL_PYTHON) flows/scripts/bounded_direct_modelsim_regression.py \
+	  --root "$(ROOT)" --filelist "$(ROOT)/flows/manifests/rdtc_v1_bounded_direct.f" \
+	  --profiles register
+
+bounded-direct-modelsim-regression:
+	@$(RDTC_TOOL_PYTHON) flows/scripts/bounded_direct_modelsim_regression.py \
+	  --root "$(ROOT)" --filelist "$(ROOT)/flows/manifests/rdtc_v1_bounded_direct.f" \
+	  --sram-model "$(RDTC_BOUNDED_DIRECT_SRAM_MODEL)" \
+	  --sram-manifest "$(RDTC_BOUNDED_DIRECT_SRAM_MANIFEST)" \
+	  --sram-manifest-sha256 "$(RDTC_BOUNDED_DIRECT_SRAM_MANIFEST_SHA256)" \
+	  --sram-target-period-ns "$(RDTC_CLOCK_PERIOD_NS)"
+
+bounded-direct-modelsim-regression-dry-run:
+	@$(RDTC_TOOL_PYTHON) flows/scripts/bounded_direct_modelsim_regression.py \
+	  --root "$(ROOT)" --filelist "$(ROOT)/flows/manifests/rdtc_v1_bounded_direct.f" \
+	  --sram-model "$(RDTC_BOUNDED_DIRECT_SRAM_MODEL)" \
+	  --sram-manifest "$(RDTC_BOUNDED_DIRECT_SRAM_MANIFEST)" \
+	  --sram-manifest-sha256 "$(RDTC_BOUNDED_DIRECT_SRAM_MANIFEST_SHA256)" \
+	  --sram-target-period-ns "$(RDTC_CLOCK_PERIOD_NS)" \
+	  --dry-run
+
+bounded-direct-rtl-smoke:
+	@$(PYTHON) flows/scripts/rtl_smoke.py --root "$(ROOT)" \
+	  --filelist flows/manifests/rdtc_v1_bounded_direct.f \
+	  --top mrtc_rdtc_bounded_axis_multiengine_wrapper
+
+bounded-direct-vivado-route200:
+	@$(PYTHON) scripts/vivado/mrtc_bounded_direct_axis_route_parser.py \
+	  --run --target-mhz 200 --vivado "$(RDTC_TOOL_VIVADO)"
+
+bounded-direct-vivado-route200-check:
+	@$(PYTHON) scripts/vivado/mrtc_bounded_direct_axis_route_parser.py \
+	  --check --target-mhz 200
 
 selected:
 	@$(FLOWCTL) run-selected

@@ -15,7 +15,28 @@ set filelist [require_env RDTC_FILELIST]
 set top [require_env RDTC_TOP]
 set sdc [require_env RDTC_SDC]
 set build_root [require_env RDTC_BUILD_ROOT]
-source [require_env RDTC_DC_SETUP]
+set dc_setup [require_env RDTC_DC_SETUP]
+set forbid_retime [expr {
+  [info exists ::env(RDTC_DC_FORBID_RETIME)] &&
+  $::env(RDTC_DC_FORBID_RETIME) eq "y"
+}]
+if {$forbid_retime} {
+  set dc_setup_fh [open $dc_setup r]
+  set dc_setup_text [read $dc_setup_fh]
+  close $dc_setup_fh
+  regsub -all {\\[ \t]*\r?\n} $dc_setup_text { } dc_setup_joined
+  set dc_setup_code ""
+  foreach setup_line [split $dc_setup_joined "\n"] {
+    regsub {#.*$} $setup_line "" setup_line_code
+    append dc_setup_code " " [string trim $setup_line_code]
+  }
+  if {[regexp -nocase \
+      {(compile_ultra[^;\n]*-retime|set_optimize_registers|optimize_registers)} \
+      $dc_setup_code]} {
+    fail "RDTC DC setup enables register retiming, which this profile forbids"
+  }
+}
+source $dc_setup
 
 set output_dir "$build_root/dc_baseline"
 file mkdir $output_dir
@@ -58,11 +79,15 @@ if {[llength $rtl_files] == 0} {
 set_app_var search_path [concat $include_dirs [get_app_var search_path]]
 
 set use_sram_macro [expr {[info exists rdtc_use_sram_macro] && $rdtc_use_sram_macro}]
+set use_bounded_sram_macro [expr {
+  [info exists rdtc_use_bounded_sram_macro] && $rdtc_use_bounded_sram_macro
+}]
+set use_any_sram_macro [expr {$use_sram_macro || $use_bounded_sram_macro}]
 set configured_memory_mode [require_env RDTC_MEMORY_MODE]
-if {$configured_memory_mode eq "registers" && $use_sram_macro} {
+if {$configured_memory_mode eq "registers" && $use_any_sram_macro} {
   fail "register-expanded profile selected a macro-aware DC setup"
 }
-if {$configured_memory_mode eq "macro" && !$use_sram_macro} {
+if {$configured_memory_mode eq "macro" && !$use_any_sram_macro} {
   fail "sram-macro profile selected a register-expanded DC setup"
 }
 if {![info exists rdtc_rtl_defines]} {
@@ -77,6 +102,28 @@ if {![info exists rdtc_rtl_defines]} {
     set rdtc_rtl_defines {}
   }
 }
+set direct_register [expr {
+  [info exists ::env(RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED)] &&
+  $::env(RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED) eq "y"
+}]
+set direct_sram [expr {
+  [info exists ::env(RDTC_BOUNDED_DIRECT_ASIC_SRAM)] &&
+  $::env(RDTC_BOUNDED_DIRECT_ASIC_SRAM) eq "y"
+}]
+if {$direct_register && $direct_sram} {
+  fail "Direct-AXIS register-expanded and SRAM defines are mutually exclusive"
+}
+if {$direct_register || $direct_sram} {
+  if {$top ne "mrtc_rdtc_bounded_axis_multiengine_wrapper"} {
+    fail "Direct-AXIS profile selected the wrong top: $top"
+  }
+  lappend rdtc_rtl_defines [expr {
+    $direct_register ?
+      "RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED" :
+      "RDTC_BOUNDED_DIRECT_ASIC_SRAM"
+  }]
+  set rdtc_rtl_defines [lsort -unique $rdtc_rtl_defines]
+}
 if {![info exists rdtc_memory_model_files]} {set rdtc_memory_model_files {}}
 foreach memory_model $rdtc_memory_model_files {
   if {![file isfile $memory_model]} {
@@ -84,7 +131,7 @@ foreach memory_model $rdtc_memory_model_files {
   }
   lappend rtl_files $memory_model
 }
-if {$use_sram_macro} {
+if {[llength $rdtc_rtl_defines] > 0} {
   set analyze_command [list analyze -format sverilog]
   foreach define $rdtc_rtl_defines {
     lappend analyze_command -define $define
@@ -114,6 +161,18 @@ if {$use_sram_macro} {
   set linked_sram_count [sizeof_collection $linked_sram_cells]
   if {$linked_sram_count != $rdtc_expected_sram_count} {
     fail "expected $rdtc_expected_sram_count linked SRAM macros, found $linked_sram_count"
+  }
+  set_dont_touch $linked_sram_cells
+} elseif {$use_bounded_sram_macro} {
+  if {![info exists rdtc_bounded_sram_cell] ||
+      ![info exists rdtc_expected_bounded_sram_count]} {
+    fail "bounded SRAM mode requires cell name and expected count"
+  }
+  set linked_sram_cells [get_cells -hierarchical -quiet \
+    -filter "ref_name == $rdtc_bounded_sram_cell"]
+  set linked_sram_count [sizeof_collection $linked_sram_cells]
+  if {$linked_sram_count != $rdtc_expected_bounded_sram_count} {
+    fail "expected $rdtc_expected_bounded_sram_count bounded SRAM macros, found $linked_sram_count"
   }
   set_dont_touch $linked_sram_cells
 } else {

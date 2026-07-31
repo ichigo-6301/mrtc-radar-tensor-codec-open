@@ -35,6 +35,13 @@ config FLOW_SDC_TIME_SCALE
 		Use 1000.0 for libraries whose Liberty time_unit is 1ps. Documented
 		clock periods remain in ns; the constraint adapter applies this scale.
 
+config FLOW_SDC_FILE
+	string "Constraint file relative to the repository root"
+	default "flows/constraints/rdtc_v1_internal_400m.sdc"
+	help
+		Select the tracked SDC used by synthesis and physical implementation.
+		Direct-AXIS profiles use rdtc_v1_direct_axis_sync_boundary.sdc.
+
 config FLOW_DC_CLOCK_PERIOD_NS
 	string "Design Compiler clock period in ns"
 	default ""
@@ -155,6 +162,31 @@ config FLOW_MEMORY_MODE
 	help
 		Use macro for a technology memory leaf or registers for the
 		standard-cell-expanded comparison profile.
+
+config FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED
+	bool "Bounded Direct-AXIS profile with register-expanded way rings"
+	depends on FLOW_MEMORY_MODE = "registers"
+	default n
+	help
+		Select the opt-in dual-Engine Direct-AXIS top with all eight 32x128
+		way-ring memories expanded into standard-cell registers. This option
+		is mutually exclusive with FLOW_BOUNDED_DIRECT_ASIC_SRAM.
+
+config FLOW_BOUNDED_DIRECT_ASIC_SRAM
+	bool "Bounded Direct-AXIS profile with SRAM way rings"
+	depends on FLOW_MEMORY_MODE = "macro"
+	default n
+	help
+		Bind the eight 32x128 way-ring memories in the opt-in dual-Engine
+		Direct-AXIS top to local OpenRAM 1RW macros. Macro views remain local.
+
+config FLOW_DC_FORBID_RETIME
+	bool "Reject Design Compiler setup that enables retiming"
+	default n
+	help
+		Fail before RTL analysis when the selected setup uses compile_ultra
+		-retime, set_optimize_registers, or optimize_registers. Direct-AXIS
+		ASIC profiles require this guard.
 
 config FLOW_TSMC90_MEMORY_VARIANT
 	string "TSMC90 prefix-memory variant"
