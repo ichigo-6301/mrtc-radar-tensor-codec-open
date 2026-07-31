@@ -81,6 +81,7 @@ RUN_OUTPUTS = (
     ARTIFACT_MANIFEST,
     "gate_summary.json",
     "terminal_status.txt",
+    "tight_setup_hold_pins.txt",
 )
 RUN_BOUND_ARTIFACTS = (
     "vivado.log",
@@ -826,7 +827,7 @@ def run_vivado(repo_root: Path, build_dir: Path, vivado: str) -> dict[str, objec
     environment["MRTC_DIRECT_CLOCK_PERIOD_NS"] = CLOCK_PERIOD_NS
     completed = subprocess.run(
         build_vivado_command(vivado, arguments),
-        cwd=repo_root,
+        cwd=build_dir,
         env=environment,
         check=False,
     )

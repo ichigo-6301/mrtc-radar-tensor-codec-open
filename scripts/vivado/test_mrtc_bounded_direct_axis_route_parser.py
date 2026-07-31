@@ -228,6 +228,14 @@ class StaticContractTests(unittest.TestCase):
         self.assertNotIn("ENGINE_BOUNDED_PAYLOAD_DEPTH", text)
         self.assertNotIn("mrtc_rdtc_ddr_multiengine_wrapper", text)
 
+    def test_vivado_runs_inside_ignored_build_workspace(self) -> None:
+        text = (SCRIPT_DIR / "mrtc_bounded_direct_axis_route_parser.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('"tight_setup_hold_pins.txt"', text)
+        self.assertIn("cwd=build_dir", text)
+        self.assertNotIn("cwd=repo_root", text)
+
     def test_target_configuration_is_exact(self) -> None:
         gate.configure_target(200)
 
