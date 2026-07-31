@@ -9,6 +9,7 @@ import json
 import math
 import os
 import re
+import shutil
 import subprocess
 import sys
 import time
@@ -357,18 +358,24 @@ def gate_run(run, point):
     )
     if contract.get("top") != expected_top:
         failures.append("top identity mismatch")
-    try:
-        documented_period = float(contract["documented_clock_period_ns"])
-    except (KeyError, ValueError):
-        failures.append("documented clock period is missing or invalid")
-    else:
+    numeric_contract = (
+        ("documented_clock_period_ns", "documented clock period", point["period_ns"], 1.0e-6),
+        ("clock_period_library_units", "library-unit clock period", point["period_ns"], 1.0e-6),
+        ("sdc_time_scale", "SDC time scale", 1.0, 1.0e-12),
+    )
+    for key, label, expected_value, tolerance in numeric_contract:
+        try:
+            actual_value = float(contract[key])
+        except (KeyError, ValueError):
+            failures.append("{} is missing or invalid".format(label))
+            continue
         if (
-            not math.isfinite(documented_period)
-            or abs(documented_period - float(point["period_ns"])) > 1.0e-9
+            not math.isfinite(actual_value)
+            or abs(actual_value - float(expected_value)) > tolerance
         ):
             failures.append(
-                "clock period expected {:.6f} got {}".format(
-                    point["period_ns"], contract.get("documented_clock_period_ns")
+                "{} expected {:.6f} got {}".format(
+                    label, expected_value, contract.get(key)
                 )
             )
     if run["area"]["tool_version"] != EXPECTED_DC_VERSION:
@@ -407,10 +414,70 @@ def comparison_inputs(root, identity):
 
 
 def read_execution(path):
-    if not path.is_file():
-        return {}
-    data = json.loads(path.read_text(encoding="utf-8"))
+    data = read_execution_document(path)
     return {item["key"]: item for item in data.get("runs", [])}
+
+
+def read_execution_document(path):
+    path = Path(path)
+    if not path.is_file():
+        return {"status": "NEW", "runs": []}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise RuntimeError("cannot read execution metadata {}: {}".format(path, error))
+    if not isinstance(data, dict) or not isinstance(data.get("runs"), list):
+        raise RuntimeError("execution metadata is malformed: {}".format(path))
+    if any(not isinstance(item, dict) or "key" not in item for item in data["runs"]):
+        raise RuntimeError("execution run record is malformed: {}".format(path))
+    return data
+
+
+def update_execution_run(execution, record):
+    retained = [
+        item for item in execution.get("runs", []) if item.get("key") != record["key"]
+    ]
+    retained.append(record)
+    point_order = {point["key"]: index for index, point in enumerate(POINTS)}
+    execution["runs"] = sorted(
+        retained, key=lambda item: point_order.get(item.get("key"), len(POINTS))
+    )
+
+
+def existing_run_passes(root, point, execution):
+    run = collect_run(root, point, execution)
+    return gate_run(run, point)[0]
+
+
+def preflight_new_run_outputs(root, orchestration_root, points):
+    conflicts = []
+    for point in points:
+        _, dc_root = run_paths(root, point)
+        if dc_root.exists():
+            conflicts.append(str(dc_root))
+    execution_path = Path(orchestration_root) / "execution.json"
+    if execution_path.exists():
+        conflicts.append(str(execution_path))
+    if conflicts:
+        raise RuntimeError(
+            "refusing to overwrite existing paired DC output: {}".format(
+                ", ".join(conflicts)
+            )
+        )
+
+
+def archive_retry_closure(orchestration_root, point, closure_path):
+    closure_path = Path(closure_path)
+    if not closure_path.is_file():
+        return None
+    digest = sha256_file(closure_path)[:12]
+    archive_root = Path(orchestration_root) / "resume_archive"
+    archive_root.mkdir(parents=True, exist_ok=True)
+    archive_path = archive_root / "{}.{}.txt".format(point["key"], digest)
+    if not archive_path.exists():
+        shutil.copy2(str(closure_path), str(archive_path))
+    closure_path.unlink()
+    return archive_path
 
 
 def collect(root, orchestration_root):
@@ -525,25 +592,36 @@ def run_all(args):
         raise RuntimeError("paired DC execution requires a tracked-clean worktree")
     if sha256_file(args.stdcell_db) != EXPECTED_DB_SHA256:
         raise RuntimeError("standard-cell DB SHA256 differs from the comparison contract")
-    orchestration_root.mkdir(parents=True, exist_ok=True)
-    execution_path = orchestration_root / "execution.json"
-    execution = {"status": "RUNNING", "runs": []}
-    write_json(execution_path, execution)
     selected = set(args.point or [point["key"] for point in POINTS])
     unknown = selected - {point["key"] for point in POINTS}
     if unknown:
         raise RuntimeError("unknown comparison point(s): {}".format(", ".join(sorted(unknown))))
+    selected_points = [point for point in POINTS if point["key"] in selected]
+    execution_path = orchestration_root / "execution.json"
+    if not args.resume:
+        preflight_new_run_outputs(root, orchestration_root, selected_points)
+        execution = {"status": "RUNNING", "runs": []}
+    else:
+        execution = read_execution_document(execution_path)
+        execution["status"] = "RUNNING"
+    orchestration_root.mkdir(parents=True, exist_ok=True)
+    write_json(execution_path, execution)
     stress_failed = False
-    for point in POINTS:
-        if point["key"] not in selected:
-            continue
+    for point in selected_points:
         build_root, dc_root = run_paths(root, point)
-        if dc_root.exists() and not args.resume:
-            raise RuntimeError("refusing to overwrite existing DC output: {}".format(dc_root))
-        if args.resume and (dc_root / "dc_closure_summary.txt").is_file():
-            execution["runs"].append({"key": point["key"], "status": "SKIPPED_EXISTING"})
+        execution_by_key = {
+            item["key"]: item for item in execution.get("runs", []) if "key" in item
+        }
+        if args.resume and existing_run_passes(root, point, execution_by_key):
+            record = dict(execution_by_key.get(point["key"], {}))
+            record.update({"key": point["key"], "status": "SKIPPED_EXISTING"})
+            update_execution_run(execution, record)
             write_json(execution_path, execution)
             continue
+        if args.resume:
+            archive_retry_closure(
+                orchestration_root, point, dc_root / "dc_closure_summary.txt"
+            )
         config_path = root / "configs" / point["config"]
         log_path = orchestration_root / (point["key"] + ".log")
         command = [
@@ -581,14 +659,15 @@ def run_all(args):
                 flush=True,
             )
             returncode = process.wait()
-        execution["runs"].append(
+        update_execution_run(
+            execution,
             {
                 "key": point["key"],
                 "returncode": returncode,
                 "elapsed_seconds": round(time.monotonic() - started, 2),
                 "build_root": relative_path(root, build_root),
                 "log": relative_path(root, log_path),
-            }
+            },
         )
         write_json(execution_path, execution)
         if returncode:

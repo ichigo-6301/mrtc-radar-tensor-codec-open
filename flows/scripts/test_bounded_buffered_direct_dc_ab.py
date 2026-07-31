@@ -5,6 +5,7 @@ import importlib.util
 import os
 from pathlib import Path
 import tempfile
+from types import SimpleNamespace
 import unittest
 from unittest import mock
 
@@ -52,6 +53,8 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
         for field, value in (
             ("CONFIG_FLOW_EXPECTED_STDCELL_DB_SHA256", "0" * 64),
             ("CONFIG_FLOW_DC_CLOCK_PERIOD_NS", "3.200000"),
+            ("CONFIG_FLOW_SDC_TIME_SCALE", "1000.0"),
+            ("CONFIG_FLOW_DC_HANDOFF_BUILD_TAG", "wrong_handoff"),
             ("CONFIG_FLOW_DC_MAX_CORES", "8"),
             ("CONFIG_FLOW_PNR", "y"),
         ):
@@ -67,6 +70,18 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
         inherited = {
             "RDTC_BUILD_ROOT": str(ROOT / "build" / "wrong_parent"),
             "RDTC_DC_HANDOFF_ROOT": str(ROOT / "build" / "wrong_handoff"),
+            "RDTC_PRODUCT_PROFILE": "wrong-profile",
+            "RDTC_TECHNOLOGY": "wrong-technology",
+            "CONFIG_FLOW_TECHNOLOGY": "wrong-technology",
+            "RDTC_SDC_TIME_SCALE": "1000.0",
+            "RDTC_MEMORY_MODE": "macro",
+            "RDTC_BOUNDED_ASIC_REGISTER_EXPANDED": "y",
+            "RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED": "y",
+            "RDTC_BOUNDED_DIRECT_ASIC_SRAM": "y",
+            "RDTC_DC_FORBID_RETIME": "n",
+            "RDTC_DC_CLOCK_PERIOD_NS": "99.0",
+            "RDTC_PNR_CLOCK_PERIOD_NS": "99.0",
+            "RDTC_STA_CLOCK_PERIOD_NS": "99.0",
         }
         with mock.patch.dict(os.environ, inherited, clear=True):
             environment = AB.flowctl.stage_environment(
@@ -82,11 +97,31 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
         self.assertEqual("32768", environment["RDTC_EXPECTED_BOUNDED_BULK_STORAGE_BITS"])
         self.assertEqual(AB.EXPECTED_DB_SHA256, environment["RDTC_EXPECTED_STDCELL_DB_SHA256"])
         self.assertEqual("4", environment["RDTC_DC_MAX_CORES"])
+        self.assertEqual("bounded-direct-register-expanded", environment["RDTC_PRODUCT_PROFILE"])
+        self.assertEqual("nangate45_registers", environment["RDTC_TECHNOLOGY"])
+        self.assertEqual("nangate45_registers", environment["CONFIG_FLOW_TECHNOLOGY"])
+        self.assertEqual("1.0", environment["RDTC_SDC_TIME_SCALE"])
+        self.assertEqual("registers", environment["RDTC_MEMORY_MODE"])
+        self.assertEqual("n", environment["RDTC_BOUNDED_ASIC_REGISTER_EXPANDED"])
+        self.assertEqual("y", environment["RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED"])
+        self.assertEqual("n", environment["RDTC_BOUNDED_DIRECT_ASIC_SRAM"])
+        self.assertEqual("y", environment["RDTC_DC_FORBID_RETIME"])
+        for key in (
+            "RDTC_CLOCK_PERIOD_NS",
+            "RDTC_DC_CLOCK_PERIOD_NS",
+            "RDTC_PNR_CLOCK_PERIOD_NS",
+            "RDTC_STA_CLOCK_PERIOD_NS",
+        ):
+            self.assertEqual("3.174603", environment[key])
 
     def test_every_ab_point_overrides_inherited_build_roots(self):
         inherited = {
             "RDTC_BUILD_ROOT": str(ROOT / "build" / "parent_profile"),
             "RDTC_DC_HANDOFF_ROOT": str(ROOT / "build" / "parent_handoff"),
+            "RDTC_BOUNDED_ASIC_REGISTER_EXPANDED": "y",
+            "RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED": "y",
+            "RDTC_BOUNDED_DIRECT_ASIC_SRAM": "y",
+            "RDTC_SDC_TIME_SCALE": "1000.0",
         }
         for point in AB.POINTS:
             path = ROOT / "configs" / point["config"]
@@ -99,6 +134,16 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
                 expected = str(ROOT / "build" / point["build_tag"])
                 self.assertEqual(expected, environment["RDTC_BUILD_ROOT"])
                 self.assertEqual(expected, environment["RDTC_DC_HANDOFF_ROOT"])
+                self.assertEqual("1.0", environment["RDTC_SDC_TIME_SCALE"])
+                self.assertEqual(
+                    "y" if point["family"] == "buffered" else "n",
+                    environment["RDTC_BOUNDED_ASIC_REGISTER_EXPANDED"],
+                )
+                self.assertEqual(
+                    "y" if point["family"] == "direct" else "n",
+                    environment["RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED"],
+                )
+                self.assertEqual("n", environment["RDTC_BOUNDED_DIRECT_ASIC_SRAM"])
 
     def test_stage_command_uses_no_init(self):
         config = self.config("rdtc_v1_bounded_ab_buffered_dc315_defconfig")
@@ -162,6 +207,8 @@ Total cell area: 168.750
             "contract": {
                 "top": AB.flowctl.BOUNDED_BUFFERED_TOP,
                 "documented_clock_period_ns": "3.174603",
+                "clock_period_library_units": "3.174603",
+                "sdc_time_scale": "1.0",
             },
             "area": {"tool_version": AB.EXPECTED_DC_VERSION, "macro_count": 0},
         }
@@ -193,6 +240,8 @@ Total cell area: 168.750
             "contract": {
                 "top": AB.flowctl.BOUNDED_BUFFERED_TOP,
                 "documented_clock_period_ns": "1.587302",
+                "clock_period_library_units": "3.174603",
+                "sdc_time_scale": "1.0",
             },
             "area": {"tool_version": AB.EXPECTED_DC_VERSION, "macro_count": 0},
         }
@@ -206,6 +255,8 @@ Total cell area: 168.750
             ("setup_wns", "nan"),
             ("setup_tns", "nan"),
             ("documented_clock_period_ns", "nan"),
+            ("clock_period_library_units", "nan"),
+            ("sdc_time_scale", "nan"),
         ):
             closure = {
                 "status": "PASS",
@@ -228,6 +279,8 @@ Total cell area: 168.750
             contract = {
                 "top": AB.flowctl.BOUNDED_BUFFERED_TOP,
                 "documented_clock_period_ns": "3.174603",
+                "clock_period_library_units": "3.174603",
+                "sdc_time_scale": "1.0",
             }
             if field in closure:
                 closure[field] = value
@@ -244,6 +297,75 @@ Total cell area: 168.750
             }
             with self.subTest(field=field):
                 self.assertFalse(AB.gate_run(run, point)[0])
+
+    def test_gate_rejects_scaled_library_clock(self):
+        point = AB.POINTS[0]
+        closure = {
+            "status": "PASS",
+            "setup_wns": "0.01",
+            "setup_tns": "0.0",
+            "setup_violating_paths": "0",
+            "constraint_violating_checks": "0",
+            "seqgen_cell_count": "0",
+            "gtech_cell_count": "0",
+            "designware_cell_count": "0",
+            "unmapped_cell_count": "0",
+            "memory_macro_count": "0",
+            "retiming": "disabled",
+            "bounded_asic_family": "buffered",
+            "bounded_bulk_storage_bits": "180224",
+            "bounded_register_storage_bits": "180224",
+            "stdcell_db_sha256": AB.EXPECTED_DB_SHA256,
+            "dc_max_cores": "4",
+        }
+        run = {
+            "status": "PASS",
+            "closure": closure,
+            "contract": {
+                "top": AB.flowctl.BOUNDED_BUFFERED_TOP,
+                "documented_clock_period_ns": "3.174603",
+                "clock_period_library_units": "3174.603",
+                "sdc_time_scale": "1000.0",
+            },
+            "area": {"tool_version": AB.EXPECTED_DC_VERSION, "macro_count": 0},
+        }
+        passed, failures = AB.gate_run(run, point)
+        self.assertFalse(passed)
+        self.assertTrue(any("library-unit clock period" in item for item in failures))
+        self.assertTrue(any("SDC time scale" in item for item in failures))
+
+    def test_gate_accepts_sub_microsecond_report_rounding(self):
+        point = AB.POINTS[0]
+        closure = {
+            "status": "PASS",
+            "setup_wns": "0.01",
+            "setup_tns": "0.0",
+            "setup_violating_paths": "0",
+            "constraint_violating_checks": "0",
+            "seqgen_cell_count": "0",
+            "gtech_cell_count": "0",
+            "designware_cell_count": "0",
+            "unmapped_cell_count": "0",
+            "memory_macro_count": "0",
+            "retiming": "disabled",
+            "bounded_asic_family": "buffered",
+            "bounded_bulk_storage_bits": "180224",
+            "bounded_register_storage_bits": "180224",
+            "stdcell_db_sha256": AB.EXPECTED_DB_SHA256,
+            "dc_max_cores": "4",
+        }
+        run = {
+            "status": "PASS",
+            "closure": closure,
+            "contract": {
+                "top": AB.flowctl.BOUNDED_BUFFERED_TOP,
+                "documented_clock_period_ns": "3.1746034",
+                "clock_period_library_units": "3.1746026",
+                "sdc_time_scale": "1.0",
+            },
+            "area": {"tool_version": AB.EXPECTED_DC_VERSION, "macro_count": 0},
+        }
+        self.assertEqual((True, []), AB.gate_run(run, point))
 
     def test_public_summary_field_allowlists_drop_local_db_path(self):
         local_db = "/licensed/local/path/Nangate45.db"
@@ -266,6 +388,59 @@ Total cell area: 168.750
         tcl = (ROOT / AB.RUN_TCL).read_text(encoding="utf-8")
         marker = 'if {$bounded_dc_ab} {\n    echo "constraint_violating_checks='
         self.assertIn(marker, tcl)
+
+    def test_resume_skips_only_an_existing_gate_pass(self):
+        point = AB.POINTS[0]
+        with mock.patch.object(AB, "collect_run", return_value={"status": "PASS"}), mock.patch.object(
+            AB, "gate_run", return_value=(False, ["failed closure"])
+        ):
+            self.assertFalse(AB.existing_run_passes(ROOT, point, {}))
+        with mock.patch.object(AB, "collect_run", return_value={"status": "PASS"}), mock.patch.object(
+            AB, "gate_run", return_value=(True, [])
+        ):
+            self.assertTrue(AB.existing_run_passes(ROOT, point, {}))
+
+    def test_resume_archives_and_invalidates_failed_closure(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            closure = root / "build" / "dc_closure_summary.txt"
+            closure.parent.mkdir(parents=True)
+            closure.write_text("status=FAIL\n", encoding="utf-8")
+            archive = AB.archive_retry_closure(root / "orchestration", AB.POINTS[0], closure)
+            self.assertFalse(closure.exists())
+            self.assertTrue(archive.is_file())
+            self.assertEqual("status=FAIL\n", archive.read_text(encoding="utf-8"))
+
+    def test_new_run_preflight_preserves_existing_execution_metadata(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            orchestration = root / "orchestration"
+            orchestration.mkdir()
+            execution_path = orchestration / "execution.json"
+            sentinel = '{"status":"COMPLETE","runs":[{"key":"buffered315"}]}\n'
+            execution_path.write_text(sentinel, encoding="utf-8")
+            args = SimpleNamespace(
+                root=root,
+                orchestration_root=orchestration,
+                stdcell_db=root / "Nangate45.db",
+                point=["buffered315"],
+                resume=False,
+                dc_tool="dc_shell",
+                dc_setup=root / "setup.tcl",
+                output=root / "summary.json",
+                markdown_output=root / "summary.md",
+            )
+            with mock.patch.object(
+                AB,
+                "source_identity",
+                return_value={"tracked_worktree_clean": True},
+            ), mock.patch.object(AB, "comparison_inputs"), mock.patch.object(
+                AB, "sha256_file", return_value=AB.EXPECTED_DB_SHA256
+            ), mock.patch.object(AB, "write_json") as write_json:
+                with self.assertRaisesRegex(RuntimeError, "refusing to overwrite"):
+                    AB.run_all(args)
+            write_json.assert_not_called()
+            self.assertEqual(sentinel, execution_path.read_text(encoding="utf-8"))
 
     def test_gate_rejects_negative_slack(self):
         point = AB.POINTS[0]

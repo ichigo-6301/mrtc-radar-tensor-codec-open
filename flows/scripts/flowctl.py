@@ -3,6 +3,7 @@
 
 import argparse
 from collections import Counter
+import math
 import os
 import re
 import shlex
@@ -78,8 +79,10 @@ def bounded_dc_ab_spec(config: Dict[str, str]):
         "CONFIG_FLOW_TECHNOLOGY": "nangate45_registers",
         "CONFIG_FLOW_MEMORY_MODE": "registers",
         "CONFIG_FLOW_SDC_FILE": BOUNDED_DC_AB_SDC,
+        "CONFIG_FLOW_SDC_TIME_SCALE": "1.0",
         "CONFIG_FLOW_EXPECTED_STDCELL_DB_SHA256": BOUNDED_DC_AB_STDCELL_DB_SHA256,
         "CONFIG_FLOW_DC_MAX_CORES": "4",
+        "CONFIG_FLOW_DC_HANDOFF_BUILD_TAG": build_tag,
         "CONFIG_FLOW_DC_FORBID_RETIME": "y",
         "CONFIG_FLOW_DC_BASELINE": "y",
         "CONFIG_FLOW_PNR": "n",
@@ -100,7 +103,7 @@ def bounded_dc_ab_spec(config: Dict[str, str]):
             actual = float(config.get(field, ""))
         except ValueError:
             raise RuntimeError("bounded DC A/B {} is malformed".format(field))
-        if abs(actual - period_ns) > 1.0e-6:
+        if not math.isfinite(actual) or abs(actual - period_ns) > 1.0e-6:
             raise RuntimeError(
                 "bounded DC A/B {} must equal {:.6f}".format(field, period_ns)
             )
@@ -453,6 +456,10 @@ def stage_environment(
         if not environment.get(key):
             environment[key] = value
     if ab_spec is not None:
+        # A paired run may be launched from a Make environment exported by a
+        # different profile. Every configuration-derived value belongs to the
+        # child point; only tool and license setup remains inherited.
+        environment.update(defaults)
         environment.update(
             {
                 "RDTC_BUILD_ROOT": str(root / "build" / build_tag),
