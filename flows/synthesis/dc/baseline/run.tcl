@@ -37,6 +37,14 @@ set bounded_dc_ab [expr {
   [info exists ::env(RDTC_BOUNDED_DC_AB)] &&
   $::env(RDTC_BOUNDED_DC_AB) eq "y"
 }]
+set bounded_input_manifest_sha256 ""
+if {$bounded_dc_ab} {
+  set bounded_input_manifest_sha256 \
+    [require_env RDTC_DC_AB_INPUT_MANIFEST_SHA256]
+  if {![regexp {^[0-9a-f]{64}$} $bounded_input_manifest_sha256]} {
+    fail "RDTC_DC_AB_INPUT_MANIFEST_SHA256 is malformed"
+  }
+}
 set bounded_legacy_register [expr {
   [info exists ::env(RDTC_BOUNDED_ASIC_REGISTER_EXPANDED)] &&
   $::env(RDTC_BOUNDED_ASIC_REGISTER_EXPANDED) eq "y"
@@ -559,6 +567,9 @@ redirect -file "$output_dir/run_contract.txt" {
   echo "stdcell_db=$approved_stdcell_db"
   echo "stdcell_db_sha256=$approved_stdcell_db_sha256"
   echo "dc_max_cores=$dc_max_cores"
+  if {$bounded_dc_ab} {
+    echo "input_manifest_sha256=$bounded_input_manifest_sha256"
+  }
 }
 
 if {[catch {
@@ -597,6 +608,7 @@ if {$bounded_dc_ab} {
     echo "stdcell_db=$approved_stdcell_db"
     echo "stdcell_db_sha256=$approved_stdcell_db_sha256"
     echo "dc_max_cores=$dc_max_cores"
+    echo "input_manifest_sha256=$bounded_input_manifest_sha256"
   }
   if {!$dc_closure_pass} {
     fail "DC A/B point did not close: WNS=$setup_wns TNS=$setup_tns"

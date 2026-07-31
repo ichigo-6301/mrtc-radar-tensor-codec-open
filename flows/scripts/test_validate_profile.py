@@ -8,7 +8,11 @@ from pathlib import Path
 
 import yaml
 
-from flows.scripts.validate_profile import validate_repository
+from flows.scripts.validate_profile import (
+    parse_config,
+    validate_repository,
+    validate_selected_config,
+)
 
 
 SOURCE_ROOT = Path(__file__).resolve().parents[2]
@@ -84,6 +88,24 @@ class ProfileValidationTest(unittest.TestCase):
         self.save("provenance/evidence.yaml", evidence)
         with self.assertRaisesRegex(RuntimeError, "missing fields"):
             validate_repository(self.root)
+
+    def test_bounded_dc_ab_validator_enforces_complete_contract(self):
+        path = SOURCE_ROOT / "configs/rdtc_v1_bounded_ab_direct_dc315_defconfig"
+        original = parse_config(path)
+        validate_selected_config(SOURCE_ROOT, original)
+        mutations = (
+            ("CONFIG_FLOW_PRODUCT_PROFILE", "bounded-register-expanded"),
+            ("CONFIG_FLOW_SDC_TIME_SCALE", "1000.0"),
+            ("CONFIG_FLOW_DC_HANDOFF_BUILD_TAG", "wrong-handoff"),
+            ("CONFIG_FLOW_BOUNDED_DIRECT_ASIC_SRAM", "y"),
+        )
+        for field, value in mutations:
+            changed = dict(original)
+            changed[field] = value
+            with self.subTest(field=field), self.assertRaisesRegex(
+                RuntimeError, "bounded DC A/B"
+            ):
+                validate_selected_config(SOURCE_ROOT, changed)
 
 
 if __name__ == "__main__":

@@ -20,11 +20,34 @@ SPEC = importlib.util.spec_from_file_location(
 )
 AB = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(AB)
+MANIFEST_SHA256 = "a" * 64
 
 
 class BoundedBufferedDirectDcAbTest(unittest.TestCase):
     def config(self, name):
         return AB.flowctl.parse_config(ROOT / "configs" / name)
+
+    def bind_run_integrity(self, run):
+        run["input_manifest_sha256"] = MANIFEST_SHA256
+        run["execution_input_manifest_sha256"] = MANIFEST_SHA256
+        run.setdefault("closure", {})["input_manifest_sha256"] = MANIFEST_SHA256
+        contract = run.setdefault("contract", {})
+        contract["input_manifest_sha256"] = MANIFEST_SHA256
+        area = run.setdefault("area", {})
+        area.setdefault("cell_count", 100)
+        area.setdefault("sequential_cell_count", 40)
+        area.setdefault("total_cell_area_um2", 168.75)
+        contract["total_cell_count"] = str(area["cell_count"])
+        run["hierarchy_area"] = {"top_area_um2": area["total_cell_area_um2"]}
+        report_hashes = {
+            name: (str(index + 1) * 64)[:64]
+            for index, name in enumerate(AB.REQUIRED_REPORTS)
+        }
+        run["execution_report_sha256"] = report_hashes
+        run["artifacts"] = {
+            name: {"sha256": digest} for name, digest in report_hashes.items()
+        }
+        return run
 
     def test_four_fixed_points_are_unique(self):
         self.assertEqual(4, len(AB.POINTS))
@@ -82,6 +105,7 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
             "RDTC_DC_CLOCK_PERIOD_NS": "99.0",
             "RDTC_PNR_CLOCK_PERIOD_NS": "99.0",
             "RDTC_STA_CLOCK_PERIOD_NS": "99.0",
+            "RDTC_DC_AB_INPUT_MANIFEST_SHA256": MANIFEST_SHA256,
         }
         with mock.patch.dict(os.environ, inherited, clear=True):
             environment = AB.flowctl.stage_environment(
@@ -106,6 +130,9 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
         self.assertEqual("y", environment["RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED"])
         self.assertEqual("n", environment["RDTC_BOUNDED_DIRECT_ASIC_SRAM"])
         self.assertEqual("y", environment["RDTC_DC_FORBID_RETIME"])
+        self.assertEqual(
+            MANIFEST_SHA256, environment["RDTC_DC_AB_INPUT_MANIFEST_SHA256"]
+        )
         for key in (
             "RDTC_CLOCK_PERIOD_NS",
             "RDTC_DC_CLOCK_PERIOD_NS",
@@ -181,6 +208,20 @@ Total cell area: 168.750
         self.assertEqual(100, parsed["cell_count"])
         self.assertEqual(168.75, parsed["total_cell_area_um2"])
 
+    def test_hierarchy_parser_records_top_area(self):
+        report = """mrtc_rdtc_ddr_multiengine_wrapper
+                                      168.7500  100.0  1.0
+u_engine.u_engine                     40.0000   23.7  1.0
+"""
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "area_hier.rpt"
+            path.write_text(report, encoding="utf-8")
+            parsed = AB.parse_hierarchy_area(
+                path, AB.flowctl.BOUNDED_BUFFERED_TOP
+            )
+        self.assertEqual(168.75, parsed["top_area_um2"])
+        self.assertEqual(40.0, parsed["engine_area_um2"])
+
     def test_gate_accepts_complete_closed_run(self):
         point = AB.POINTS[0]
         expected = {
@@ -212,7 +253,7 @@ Total cell area: 168.750
             },
             "area": {"tool_version": AB.EXPECTED_DC_VERSION, "macro_count": 0},
         }
-        self.assertEqual((True, []), AB.gate_run(run, point))
+        self.assertEqual((True, []), AB.gate_run(self.bind_run_integrity(run), point))
 
     def test_gate_rejects_mismatched_report_period(self):
         point = AB.POINTS[0]
@@ -365,7 +406,7 @@ Total cell area: 168.750
             },
             "area": {"tool_version": AB.EXPECTED_DC_VERSION, "macro_count": 0},
         }
-        self.assertEqual((True, []), AB.gate_run(run, point))
+        self.assertEqual((True, []), AB.gate_run(self.bind_run_integrity(run), point))
 
     def test_public_summary_field_allowlists_drop_local_db_path(self):
         local_db = "/licensed/local/path/Nangate45.db"
@@ -384,6 +425,97 @@ Total cell area: 168.750
         self.assertNotIn("stdcell_db", contract)
         self.assertNotIn(local_db, str({"closure": closure, "contract": contract}))
 
+    def test_bound_input_manifest_rejects_newer_checkout_inputs(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            orchestration = root / "orchestration"
+            inputs = {"source": {"source_head": "old"}, "filelist": {}}
+            record = AB.write_input_manifest(root, orchestration, inputs)
+            execution = {
+                "input_manifest": record,
+                "input_manifest_sha256": record["sha256"],
+                "runs": [],
+            }
+            bound, checked = AB.validate_bound_inputs(
+                root, orchestration, inputs, execution
+            )
+            self.assertEqual(inputs, bound)
+            self.assertEqual(record, checked)
+            with self.assertRaisesRegex(RuntimeError, "as-run manifest"):
+                AB.validate_bound_inputs(
+                    root,
+                    orchestration,
+                    {"source": {"source_head": "new"}, "filelist": {}},
+                    execution,
+                )
+
+    def test_gate_binds_area_hierarchy_and_report_hashes(self):
+        point = AB.POINTS[0]
+        run = self.bind_run_integrity(
+            {
+                "status": "PASS",
+                "closure": {},
+                "contract": {},
+                "area": {
+                    "tool_version": AB.EXPECTED_DC_VERSION,
+                    "macro_count": 0,
+                },
+            }
+        )
+        run["contract"]["total_cell_count"] = "101"
+        run["hierarchy_area"]["top_area_um2"] = 170.0
+        run["execution_report_sha256"]["area"] = "f" * 64
+        _, failures = AB.gate_run(run, point)
+        self.assertIn("area report cell count differs from run contract", failures)
+        self.assertIn("hierarchy top area differs from total cell area", failures)
+        self.assertIn(
+            "collected report hashes differ from execution metadata", failures
+        )
+
+    def test_markdown_renders_invalid_wns_as_na(self):
+        runs = {
+            point["key"]: {"status": "INCOMPLETE"} for point in AB.POINTS
+        }
+        bad_run = self.bind_run_integrity(
+            {
+                "status": "PASS",
+                "closure": {"setup_wns": "truncated"},
+                "contract": {},
+                "area": {
+                    "tool_version": AB.EXPECTED_DC_VERSION,
+                    "macro_count": 0,
+                },
+            }
+        )
+        runs[AB.POINTS[0]["key"]] = bad_run
+        summary = {
+            "status": "NOT_RESUME_READY",
+            "runs": runs,
+            "gates": {
+                point["key"]: {"pass": False, "failures": ["test"]}
+                for point in AB.POINTS
+            },
+            "dc315_comparison": None,
+            "limitations": [],
+        }
+        markdown = AB.render_markdown(summary)
+        self.assertIn("| buffered315 | n/a |", markdown)
+
+    def test_execution_status_comes_from_all_final_gates(self):
+        summary = {
+            "gates": {
+                point["key"]: {"pass": True, "failures": []}
+                for point in AB.POINTS
+            }
+        }
+        self.assertEqual("COMPLETE", AB.final_execution_status(summary))
+        summary["gates"]["buffered630"]["pass"] = False
+        self.assertEqual(
+            "COMPLETE_WITH_STRESS_FAILURE", AB.final_execution_status(summary)
+        )
+        summary["gates"]["buffered315"]["pass"] = False
+        self.assertEqual("FAILED_GATES", AB.final_execution_status(summary))
+
     def test_legacy_contract_does_not_claim_unmeasured_ab_audits(self):
         tcl = (ROOT / AB.RUN_TCL).read_text(encoding="utf-8")
         marker = 'if {$bounded_dc_ab} {\n    echo "constraint_violating_checks='
@@ -394,11 +526,15 @@ Total cell area: 168.750
         with mock.patch.object(AB, "collect_run", return_value={"status": "PASS"}), mock.patch.object(
             AB, "gate_run", return_value=(False, ["failed closure"])
         ):
-            self.assertFalse(AB.existing_run_passes(ROOT, point, {}))
+            self.assertFalse(
+                AB.existing_run_passes(ROOT, point, {}, MANIFEST_SHA256)
+            )
         with mock.patch.object(AB, "collect_run", return_value={"status": "PASS"}), mock.patch.object(
             AB, "gate_run", return_value=(True, [])
         ):
-            self.assertTrue(AB.existing_run_passes(ROOT, point, {}))
+            self.assertTrue(
+                AB.existing_run_passes(ROOT, point, {}, MANIFEST_SHA256)
+            )
 
     def test_resume_archives_and_invalidates_failed_closure(self):
         with tempfile.TemporaryDirectory() as temp:
@@ -490,6 +626,8 @@ Total cell area: 168.750
             "compile_ultra -incremental -only_design_rule",
             "bounded_register_storage_bits",
             "dc_closure_summary.txt",
+            "RDTC_DC_AB_INPUT_MANIFEST_SHA256",
+            "input_manifest_sha256",
         ):
             self.assertIn(marker, tcl)
         self.assertIn("bounded-dc-ab-run:", makefile)

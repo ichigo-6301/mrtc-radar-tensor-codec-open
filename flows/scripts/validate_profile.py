@@ -117,7 +117,10 @@ def validate_selected_config(root, config, stage=None):
         direct = config_value(
             config, "FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED", "n"
         ) == "y"
-        if buffered == direct or (family == "buffered") != buffered:
+        direct_sram = config_value(
+            config, "FLOW_BOUNDED_DIRECT_ASIC_SRAM", "n"
+        ) == "y"
+        if direct_sram or buffered == direct or (family == "buffered") != buffered:
             errors.append("bounded DC A/B family selection does not match its build tag")
         expected_top = (
             "mrtc_rdtc_ddr_multiengine_wrapper"
@@ -126,11 +129,21 @@ def validate_selected_config(root, config, stage=None):
         )
         exact_values = {
             "RDTC_TOP": expected_top,
+            "FLOW_PRODUCT_PROFILE": (
+                "bounded-register-expanded"
+                if buffered
+                else "bounded-direct-register-expanded"
+            ),
             "FLOW_MEMORY_MODE": "registers",
             "FLOW_TECHNOLOGY": "nangate45_registers",
             "FLOW_SDC_FILE": "flows/constraints/rdtc_v1_bounded_sync_boundary_10pct.sdc",
+            "FLOW_SDC_TIME_SCALE": "1.0",
             "FLOW_EXPECTED_STDCELL_DB_SHA256": BOUNDED_DC_AB_DB_SHA256,
             "FLOW_DC_MAX_CORES": "4",
+            "FLOW_DC_HANDOFF_BUILD_TAG": build_tag,
+            "FLOW_BOUNDED_ASIC_REGISTER_EXPANDED": "y" if buffered else "n",
+            "FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED": "n" if buffered else "y",
+            "FLOW_BOUNDED_DIRECT_ASIC_SRAM": "n",
             "FLOW_DC_FORBID_RETIME": "y",
             "FLOW_DC_BASELINE": "y",
             "FLOW_PNR": "n",

@@ -86,6 +86,7 @@ PUBLIC_CLOSURE_FIELDS = (
     "memory_macro_count",
     "stdcell_db_sha256",
     "dc_max_cores",
+    "input_manifest_sha256",
 )
 
 PUBLIC_CONTRACT_FIELDS = (
@@ -112,7 +113,17 @@ PUBLIC_CONTRACT_FIELDS = (
     "total_cell_count",
     "stdcell_db_sha256",
     "dc_max_cores",
+    "input_manifest_sha256",
 )
+
+REQUIRED_REPORTS = {
+    "closure": "dc_closure_summary.txt",
+    "contract": "run_contract.txt",
+    "area": "area.rpt",
+    "hierarchy": "area_hier.rpt",
+    "timing": "timing.rpt",
+}
+INPUT_MANIFEST_NAME = "input_manifest.json"
 
 
 def sha256_file(path):
@@ -255,10 +266,13 @@ def parse_area_report(path):
     return result
 
 
-def parse_hierarchy_area(path):
+def parse_hierarchy_area(path, top):
     text = Path(path).read_text(encoding="utf-8", errors="replace")
     entries = {}
-    pattern = re.compile(r"^(\S+)\s+([0-9]+\.[0-9]+)\s+", re.MULTILINE)
+    pattern = re.compile(
+        r"^(\S+)(?:[ \t]+|\r?\n[ \t]+)([0-9]+\.[0-9]+)[ \t]+",
+        re.MULTILINE,
+    )
     for match in pattern.finditer(text):
         entries[match.group(1)] = float(match.group(2))
 
@@ -266,6 +280,7 @@ def parse_hierarchy_area(path):
         return sum(area for name, area in entries.items() if name.endswith(suffix))
 
     return {
+        "top_area_um2": entries.get(top),
         "engine_area_um2": sum_suffix(".u_engine"),
         "ddr_feeder_area_um2": sum_suffix(".u_feeder"),
         "payload_commit_area_um2": sum_suffix(".u_pktbuf"),
@@ -278,15 +293,22 @@ def run_paths(root, point):
     return build_root, build_root / "dc_baseline"
 
 
-def collect_run(root, point, execution):
-    build_root, dc_root = run_paths(root, point)
-    required = {
-        "closure": dc_root / "dc_closure_summary.txt",
-        "contract": dc_root / "run_contract.txt",
-        "area": dc_root / "area.rpt",
-        "hierarchy": dc_root / "area_hier.rpt",
-        "timing": dc_root / "timing.rpt",
+def required_report_paths(root, point):
+    _, dc_root = run_paths(root, point)
+    return {name: dc_root / filename for name, filename in REQUIRED_REPORTS.items()}
+
+
+def available_report_hashes(root, point):
+    return {
+        name: sha256_file(path)
+        for name, path in required_report_paths(root, point).items()
+        if path.is_file()
     }
+
+
+def collect_run(root, point, execution, input_manifest_sha256):
+    build_root, dc_root = run_paths(root, point)
+    required = required_report_paths(root, point)
     missing = [name for name, path in required.items() if not path.is_file()]
     if missing:
         return {
@@ -296,6 +318,12 @@ def collect_run(root, point, execution):
         }
     closure = parse_key_values(required["closure"])
     contract = parse_key_values(required["contract"])
+    execution_record = execution.get(point["key"], {})
+    expected_top = (
+        flowctl.BOUNDED_BUFFERED_TOP
+        if point["family"] == "buffered"
+        else flowctl.BOUNDED_DIRECT_TOP
+    )
     return {
         "status": closure.get("status", "UNKNOWN"),
         "family": point["family"],
@@ -306,8 +334,13 @@ def collect_run(root, point, execution):
         "closure": select_public_fields(closure, PUBLIC_CLOSURE_FIELDS),
         "contract": select_public_fields(contract, PUBLIC_CONTRACT_FIELDS),
         "area": parse_area_report(required["area"]),
-        "hierarchy_area": parse_hierarchy_area(required["hierarchy"]),
-        "elapsed_seconds": execution.get(point["key"], {}).get("elapsed_seconds"),
+        "hierarchy_area": parse_hierarchy_area(required["hierarchy"], expected_top),
+        "elapsed_seconds": execution_record.get("elapsed_seconds"),
+        "input_manifest_sha256": input_manifest_sha256,
+        "execution_input_manifest_sha256": execution_record.get(
+            "input_manifest_sha256"
+        ),
+        "execution_report_sha256": execution_record.get("report_sha256", {}),
         "artifacts": {
             name: file_record(root, path) for name, path in required.items()
         },
@@ -335,6 +368,7 @@ def gate_run(run, point):
         "bounded_register_storage_bits": str(point["storage_bits"]),
         "stdcell_db_sha256": EXPECTED_DB_SHA256,
         "dc_max_cores": "4",
+        "input_manifest_sha256": run.get("input_manifest_sha256"),
     }
     for key, value in expected.items():
         if closure.get(key) != value:
@@ -378,10 +412,41 @@ def gate_run(run, point):
                     label, expected_value, contract.get(key)
                 )
             )
-    if run["area"]["tool_version"] != EXPECTED_DC_VERSION:
+    area = run.get("area", {})
+    if area.get("tool_version") != EXPECTED_DC_VERSION:
         failures.append("DC version mismatch")
-    if run["area"]["macro_count"] != 0:
+    if area.get("macro_count") != 0:
         failures.append("area report contains macros")
+    try:
+        contract_cell_count = int(contract["total_cell_count"])
+    except (KeyError, ValueError):
+        failures.append("run contract total cell count is missing or invalid")
+    else:
+        if contract_cell_count != area.get("cell_count"):
+            failures.append("area report cell count differs from run contract")
+    hierarchy_top_area = run.get("hierarchy_area", {}).get("top_area_um2")
+    if hierarchy_top_area is None or not math.isfinite(hierarchy_top_area):
+        failures.append("hierarchy report lacks finite top area")
+    else:
+        total_cell_area = area.get("total_cell_area_um2")
+        if total_cell_area is None or not math.isfinite(total_cell_area):
+            failures.append("area report lacks finite total cell area")
+        elif abs(hierarchy_top_area - total_cell_area) > 1.0e-3:
+            failures.append("hierarchy top area differs from total cell area")
+    if run.get("execution_input_manifest_sha256") != run.get(
+        "input_manifest_sha256"
+    ):
+        failures.append("execution input manifest identity mismatch")
+    if contract.get("input_manifest_sha256") != run.get("input_manifest_sha256"):
+        failures.append("run contract input manifest identity mismatch")
+    expected_reports = run.get("execution_report_sha256", {})
+    actual_reports = {
+        name: record["sha256"] for name, record in run.get("artifacts", {}).items()
+    }
+    if set(expected_reports) != set(REQUIRED_REPORTS):
+        failures.append("execution metadata lacks the complete report hash set")
+    elif expected_reports != actual_reports:
+        failures.append("collected report hashes differ from execution metadata")
     return not failures, failures
 
 
@@ -411,6 +476,43 @@ def comparison_inputs(root, identity):
         "expected_stdcell_db_sha256": EXPECTED_DB_SHA256,
         "expected_dc_version": EXPECTED_DC_VERSION,
     }
+
+
+def read_json_object(path, label):
+    path = Path(path)
+    if not path.is_file():
+        raise RuntimeError("missing {}: {}".format(label, path))
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as error:
+        raise RuntimeError("cannot read {} {}: {}".format(label, path, error))
+    if not isinstance(value, dict):
+        raise RuntimeError("{} is malformed: {}".format(label, path))
+    return value
+
+
+def write_input_manifest(root, orchestration_root, inputs):
+    path = Path(orchestration_root) / INPUT_MANIFEST_NAME
+    write_json(path, {"schema_version": 1, "inputs": inputs})
+    return file_record(root, path)
+
+
+def validate_bound_inputs(root, orchestration_root, current_inputs, execution):
+    path = Path(orchestration_root) / INPUT_MANIFEST_NAME
+    manifest = read_json_object(path, "input manifest")
+    actual_record = file_record(root, path)
+    expected_hash = execution.get("input_manifest_sha256")
+    if expected_hash != actual_record["sha256"]:
+        raise RuntimeError("execution metadata and input manifest SHA256 differ")
+    if execution.get("input_manifest") != actual_record:
+        raise RuntimeError("execution metadata and input manifest record differ")
+    if manifest.get("schema_version") != 1 or not isinstance(
+        manifest.get("inputs"), dict
+    ):
+        raise RuntimeError("input manifest schema is malformed: {}".format(path))
+    if manifest["inputs"] != current_inputs:
+        raise RuntimeError("current comparison inputs differ from the as-run manifest")
+    return manifest["inputs"], actual_record
 
 
 def read_execution(path):
@@ -444,8 +546,8 @@ def update_execution_run(execution, record):
     )
 
 
-def existing_run_passes(root, point, execution):
-    run = collect_run(root, point, execution)
+def existing_run_passes(root, point, execution, input_manifest_sha256):
+    run = collect_run(root, point, execution, input_manifest_sha256)
     return gate_run(run, point)[0]
 
 
@@ -458,6 +560,9 @@ def preflight_new_run_outputs(root, orchestration_root, points):
     execution_path = Path(orchestration_root) / "execution.json"
     if execution_path.exists():
         conflicts.append(str(execution_path))
+    input_manifest_path = Path(orchestration_root) / INPUT_MANIFEST_NAME
+    if input_manifest_path.exists():
+        conflicts.append(str(input_manifest_path))
     if conflicts:
         raise RuntimeError(
             "refusing to overwrite existing paired DC output: {}".format(
@@ -483,9 +588,21 @@ def archive_retry_closure(orchestration_root, point, closure_path):
 def collect(root, orchestration_root):
     root = Path(root).resolve()
     identity = source_identity(root)
-    inputs = comparison_inputs(root, identity)
-    execution = read_execution(Path(orchestration_root) / "execution.json")
-    runs = {point["key"]: collect_run(root, point, execution) for point in POINTS}
+    current_inputs = comparison_inputs(root, identity)
+    execution_path = Path(orchestration_root) / "execution.json"
+    execution_document = read_execution_document(execution_path)
+    inputs, input_manifest = validate_bound_inputs(
+        root, orchestration_root, current_inputs, execution_document
+    )
+    execution = {
+        item["key"]: item for item in execution_document.get("runs", [])
+    }
+    runs = {
+        point["key"]: collect_run(
+            root, point, execution, input_manifest["sha256"]
+        )
+        for point in POINTS
+    }
     gates = {}
     for point in POINTS:
         passed, failures = gate_run(runs[point["key"]], point)
@@ -510,11 +627,12 @@ def collect(root, orchestration_root):
             ),
             "storage_bit_reduction_percent": percent_reduction(180224, 32768),
         }
-    return {
+    summary = {
         "schema_version": 1,
         "comparison": "mrtc_bounded_buffered_vs_direct_register_expanded_dc",
         "status": "PASS_DC_ONLY" if paired_315_pass else "NOT_RESUME_READY",
         "inputs": inputs,
+        "input_manifest": input_manifest,
         "runs": runs,
         "gates": gates,
         "dc315_comparison": comparison,
@@ -524,6 +642,34 @@ def collect(root, orchestration_root):
             "Direct retains the 277 cycles/packet > 256 cycles/block scheduling limit",
         ],
     }
+    summary["execution_status"] = final_execution_status(summary)
+    return summary
+
+
+def final_execution_status(summary):
+    mandatory_failed = any(
+        not summary["gates"][point["key"]]["pass"]
+        for point in POINTS
+        if is_mandatory_point(point)
+    )
+    if mandatory_failed:
+        return "FAILED_GATES"
+    stress_failed = any(
+        not summary["gates"][point["key"]]["pass"]
+        for point in POINTS
+        if not is_mandatory_point(point)
+    )
+    return "COMPLETE_WITH_STRESS_FAILURE" if stress_failed else "COMPLETE"
+
+
+def format_finite_float(value, precision):
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return "n/a"
+    if not math.isfinite(number):
+        return "n/a"
+    return ("{:.%df}" % precision).format(number)
 
 
 def render_markdown(summary):
@@ -543,9 +689,9 @@ def render_markdown(summary):
             lines.append("| {} | n/a | n/a | n/a | n/a | INCOMPLETE |".format(point["key"]))
             continue
         lines.append(
-            "| {key} | {wns:.6f} | {area:.3f} | {cells} | {seq} | {gate} |".format(
+            "| {key} | {wns} | {area:.3f} | {cells} | {seq} | {gate} |".format(
                 key=point["key"],
-                wns=float(run["closure"]["setup_wns"]),
+                wns=format_finite_float(run.get("closure", {}).get("setup_wns"), 6),
                 area=run["area"]["total_cell_area_um2"],
                 cells=run["area"]["cell_count"],
                 seq=run["area"]["sequential_cell_count"],
@@ -587,7 +733,7 @@ def run_all(args):
     root = Path(args.root).resolve()
     orchestration_root = Path(args.orchestration_root).resolve()
     identity = source_identity(root)
-    comparison_inputs(root, identity)
+    inputs = comparison_inputs(root, identity)
     if not identity["tracked_worktree_clean"]:
         raise RuntimeError("paired DC execution requires a tracked-clean worktree")
     if sha256_file(args.stdcell_db) != EXPECTED_DB_SHA256:
@@ -600,19 +746,29 @@ def run_all(args):
     execution_path = orchestration_root / "execution.json"
     if not args.resume:
         preflight_new_run_outputs(root, orchestration_root, selected_points)
-        execution = {"status": "RUNNING", "runs": []}
+        orchestration_root.mkdir(parents=True, exist_ok=True)
+        input_manifest = write_input_manifest(root, orchestration_root, inputs)
+        execution = {
+            "status": "RUNNING",
+            "runs": [],
+            "input_manifest": input_manifest,
+            "input_manifest_sha256": input_manifest["sha256"],
+        }
     else:
         execution = read_execution_document(execution_path)
+        _, input_manifest = validate_bound_inputs(
+            root, orchestration_root, inputs, execution
+        )
         execution["status"] = "RUNNING"
-    orchestration_root.mkdir(parents=True, exist_ok=True)
     write_json(execution_path, execution)
-    stress_failed = False
     for point in selected_points:
         build_root, dc_root = run_paths(root, point)
         execution_by_key = {
             item["key"]: item for item in execution.get("runs", []) if "key" in item
         }
-        if args.resume and existing_run_passes(root, point, execution_by_key):
+        if args.resume and existing_run_passes(
+            root, point, execution_by_key, input_manifest["sha256"]
+        ):
             record = dict(execution_by_key.get(point["key"], {}))
             record.update({"key": point["key"], "status": "SKIPPED_EXISTING"})
             update_execution_run(execution, record)
@@ -641,6 +797,7 @@ def run_all(args):
                 "RDTC_TOOL_DC": args.dc_tool,
                 "RDTC_DC_SETUP": str(Path(args.dc_setup).resolve()),
                 "RDTC_STDCELL_DB": str(Path(args.stdcell_db).resolve()),
+                "RDTC_DC_AB_INPUT_MANIFEST_SHA256": input_manifest["sha256"],
             }
         )
         started = time.monotonic()
@@ -667,21 +824,16 @@ def run_all(args):
                 "elapsed_seconds": round(time.monotonic() - started, 2),
                 "build_root": relative_path(root, build_root),
                 "log": relative_path(root, log_path),
+                "input_manifest_sha256": input_manifest["sha256"],
+                "report_sha256": available_report_hashes(root, point),
             },
         )
         write_json(execution_path, execution)
         if returncode:
             if is_mandatory_point(point):
-                execution["status"] = "FAILED"
-                write_json(execution_path, execution)
-                raise RuntimeError(
-                    "{} exited with status {}".format(point["key"], returncode)
-                )
-            stress_failed = True
+                break
     summary = collect(root, orchestration_root)
-    execution["status"] = (
-        "COMPLETE_WITH_STRESS_FAILURE" if stress_failed else "COMPLETE"
-    )
+    execution["status"] = summary["execution_status"]
     write_json(execution_path, execution)
     write_json(args.output, summary)
     Path(args.markdown_output).write_text(render_markdown(summary), encoding="utf-8")
@@ -719,6 +871,10 @@ def main():
             return 0
         if args.command == "collect":
             summary = collect(root, args.orchestration_root)
+            execution_path = Path(args.orchestration_root) / "execution.json"
+            execution = read_execution_document(execution_path)
+            execution["status"] = summary["execution_status"]
+            write_json(execution_path, execution)
             write_json(args.output, summary)
             Path(args.markdown_output).write_text(render_markdown(summary), encoding="utf-8")
             return 0 if summary["status"] == "PASS_DC_ONLY" else 1
