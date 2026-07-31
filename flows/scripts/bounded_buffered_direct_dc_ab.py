@@ -31,6 +31,9 @@ EXPECTED_MEMORY_MODE = "registers"
 EXPECTED_SOURCE_SET_SHA256 = (
     "c32e780aad70dd3414e13c0509e8cdc2969e6c4afb6ef24fc2ef1d47c3f24a8d"
 )
+EXPECTED_FILELIST_SHA256 = (
+    "b91c3c803b3a1617b7eacda31c08d4813c80d1f00e869a966c5718a58b8dcd83"
+)
 EXPECTED_SDC_SHA256 = (
     "d49d2eeb1727ff8bc682783e14db317d8616938242b8bba98b76629341f96b25"
 )
@@ -189,13 +192,15 @@ def file_record(root, path):
 
 
 def filelist_sources(root):
+    filelist_path = root / FILELIST
+    if sha256_file(filelist_path) != EXPECTED_FILELIST_SHA256:
+        raise RuntimeError("paired comparison filelist differs from the fixed contract")
     entries = []
-    for raw in (root / FILELIST).read_text(encoding="utf-8").splitlines():
+    for raw in filelist_path.read_text(encoding="utf-8").splitlines():
         line = raw.split("//", 1)[0].strip()
         if not line or line.startswith("+"):
             continue
-        if line.endswith((".sv", ".v")):
-            entries.append(line.replace("\\", "/"))
+        entries.append(line.replace("\\", "/"))
     if not entries:
         raise RuntimeError("paired comparison filelist contains no RTL")
     return entries
@@ -560,18 +565,22 @@ def comparison_inputs(root, identity):
         if spec is None or spec["family"] != point["family"]:
             raise RuntimeError("invalid paired config: {}".format(path.name))
         configs[point["key"]] = file_record(root, path)
+    filelist = file_record(root, root / FILELIST)
+    if filelist["sha256"] != EXPECTED_FILELIST_SHA256:
+        raise RuntimeError("paired comparison filelist differs from the fixed contract")
     sdc = file_record(root, root / COMMON_SDC)
     if sdc["sha256"] != EXPECTED_SDC_SHA256:
         raise RuntimeError("paired comparison SDC differs from the fixed contract")
     inputs = {
         "source": identity,
-        "filelist": file_record(root, root / FILELIST),
+        "filelist": filelist,
         "sdc": sdc,
         "dc_run_tcl": file_record(root, root / RUN_TCL),
         "flowctl": file_record(root, root / "flows/scripts/flowctl.py"),
         "paired_runner": file_record(root, Path(__file__)),
         "configs": configs,
         "expected_stdcell_db_sha256": EXPECTED_DB_SHA256,
+        "expected_filelist_sha256": EXPECTED_FILELIST_SHA256,
         "expected_source_set_sha256": EXPECTED_SOURCE_SET_SHA256,
         "expected_sdc_sha256": EXPECTED_SDC_SHA256,
         "expected_dc_version": EXPECTED_DC_VERSION,

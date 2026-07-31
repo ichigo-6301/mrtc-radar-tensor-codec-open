@@ -527,14 +527,61 @@ u_engine.u_engine                     40.0000   23.7  1.0
                     execution,
                 )
 
-    def test_comparison_inputs_pin_sdc_and_exclude_local_setup(self):
+    def test_comparison_inputs_pin_filelist_sdc_and_exclude_local_setup(self):
         inputs = AB.comparison_inputs(ROOT, {"source_head": "test"})
+        self.assertEqual(
+            AB.EXPECTED_FILELIST_SHA256,
+            inputs["filelist"]["sha256"],
+        )
+        self.assertEqual(
+            AB.EXPECTED_FILELIST_SHA256,
+            inputs["expected_filelist_sha256"],
+        )
         self.assertEqual(AB.EXPECTED_SDC_SHA256, inputs["sdc"]["sha256"])
         self.assertEqual(
             AB.EXPECTED_SOURCE_SET_SHA256,
             inputs["expected_source_set_sha256"],
         )
         self.assertNotIn("dc_setup", inputs)
+
+    def test_filelist_parser_tracks_every_analyzed_non_directive_entry(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            filelist = root / AB.FILELIST
+            filelist.parent.mkdir(parents=True)
+            filelist.write_text(
+                "+incdir+rtl\n"
+                "rtl/lower.sv\n"
+                "rtl/upper.SV\n"
+                "rtl/header.svh\n"
+                "rtl/extensionless\n",
+                encoding="utf-8",
+            )
+            with mock.patch.object(
+                AB, "sha256_file", return_value=AB.EXPECTED_FILELIST_SHA256
+            ):
+                self.assertEqual(
+                    [
+                        "rtl/lower.sv",
+                        "rtl/upper.SV",
+                        "rtl/header.svh",
+                        "rtl/extensionless",
+                    ],
+                    AB.filelist_sources(root),
+                )
+
+    def test_comparison_inputs_rejects_changed_filelist(self):
+        real_file_record = AB.file_record
+
+        def changed_filelist_record(root, path):
+            record = real_file_record(root, path)
+            if Path(path).resolve() == (ROOT / AB.FILELIST).resolve():
+                record["sha256"] = "0" * 64
+            return record
+
+        with mock.patch.object(AB, "file_record", side_effect=changed_filelist_record):
+            with self.assertRaisesRegex(RuntimeError, "filelist differs"):
+                AB.comparison_inputs(ROOT, {"source_head": "test"})
 
     def test_source_identity_rejects_changed_ordered_filelist_membership(self):
         entries = AB.filelist_sources(ROOT)

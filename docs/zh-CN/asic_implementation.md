@@ -4,7 +4,7 @@
 
 ## 同约束架构 A/B（DC-only）
 
-Buffered 与 Direct-AXIS wrapper 使用 Design Compiler `O-2018.06-SP1`、同一 SHA256 绑定的 Nangate45 typical DB、统一 315 MHz 同步边界 SDC、双 Engine、全寄存器存储、`compile_ultra`、一次 design-rule repair 且禁止 retime。Paired runner 直接由该 DB 绑定 target/link library，不执行本地 DC setup Tcl。唯一预期架构差异是 Direct 删除 DDR feeder 与 per-Engine payload commit store，使审计 bulk storage 从 `180,224` 降至 `32,768 bit`。
+Buffered 与 Direct-AXIS wrapper 使用 Design Compiler `O-2018.06-SP1`、同一 SHA256 绑定的 Nangate45 typical DB、统一 315 MHz 同步边界 SDC、双 Engine、全寄存器存储、`compile_ultra`、一次 design-rule repair 且禁止 retime。已发布四点在 `as_run_flow_commit=db2660c` 下运行，加载该版本要求的本地 `RDTC_DC_SETUP`，随后由 run script 校验实际 target DB 哈希。公开复现 runner 在证据采集后继续加固，现直接由审计 DB 绑定 target/link library，不执行本地 setup Tcl；四点未在这一新版 setup-free runner 下重跑，因此既有指标不附带 setup-free 声明。唯一预期架构差异是 Direct 删除 DDR feeder 与 per-Engine payload commit store，使审计 bulk storage 从 `180,224` 降至 `32,768 bit`。
 
 两侧均以零 setup violating path 闭合。Buffered 为 `1,529,495.20 um2 / 786,342 cells`，Direct 为 `420,208.44 um2 / 220,298 cells`，cell area 与 cell count 分别减少 `72.53%` 和 `71.98%`。Buffered 的 feeder 与 payload-commit 层次合计 `1,124,835.52 um2`，占顶层面积 `73.54%`；两侧 Engine 汇总面积仅相差 `0.34%`。这将收益归因到 wrapper 存储职责重构，而不是更换 Rice 数据通路或综合设置。该比较分类为 `PASS_DC_ONLY`，不代表 SRAM 宏面积、布线后面积、功耗、Fmax 或 foundry signoff。证据：[bounded buffered versus Direct DC A/B](../../evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml)。
 

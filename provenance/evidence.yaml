@@ -196,7 +196,7 @@ evidence:
     claims:
       - rdtc_v1_bounded_direct_dc315_area_reduction
       - rdtc_v1_bounded_direct_dc315_cell_count_reduction
-    sha256: 56c26933e2e795a8578531535cf11ab8412fde815c7c9e51eb879ba7f53bfdd8
+    sha256: aa6f4a52d56f482c6aa3938ef2549c61a8edba4e3a789ca04f656d2b90b4a4f6
     public: true
     maturity: verified
     evidence_result_status: verified

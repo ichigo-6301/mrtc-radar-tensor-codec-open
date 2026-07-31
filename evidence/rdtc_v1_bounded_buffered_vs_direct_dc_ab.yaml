@@ -11,6 +11,9 @@ tools:
   design_compiler: O-2018.06-SP1
   stdcell_db_sha256: c6da1f0e7a7f445c0476d1e6bf6860c9815fe4f50c9ce138264a581af59e4cb5
 method:
+  as_run_library_setup: local_rdtc_dc_setup_with_hash_verified_target_db
+  current_public_runner_library_setup: inline_hash_bound_register
+  current_public_runner_rerun_status: not_run
   engines: 2
   domain: bounded ZERO_RICE with prefix-128 adaptive k and four-way input rings
   memory_binding: register_expanded
