@@ -54,9 +54,6 @@ rtl/rdtc/mrtc_shallow_1rw_way.sv
 rtl/rdtc/mrtc_shallow_way_ring_slice.sv
 rtl/rdtc/mrtc_rdtc_wb_lane_adapter.sv
 rtl/rdtc/mrtc_rdtc_wb_wrapper.sv
-rtl/rdtc/mrtc_rdtc_ddr_feeder_engine.sv
-rtl/rdtc/mrtc_rdtc_ddr_feeder_engine_sync64.sv
-rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv
 rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv
 rtl/rdtc/mrtc_residual_map.sv
 rtl/rdtc/mrtc_residual_unmap.sv

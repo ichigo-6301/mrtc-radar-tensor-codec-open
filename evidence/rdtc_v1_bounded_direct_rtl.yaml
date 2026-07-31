@@ -16,11 +16,16 @@ architecture:
   removed_storage: DDR feeder FIFO, payload commit store, payload BRAM, and legacy packet buffer
 rtl_identity:
   manifest: flows/manifests/rdtc_v1_bounded_direct.f
-  manifest_sha256: 3927fa02cde5eca5c618951a238e65462a32bf9ac92b04c989a06f8819a8e574
+  manifest_sha256: af784e382394142e430dcf8b72fcc832f33566b9d0a282923f83c1bce38a44c2
   identity_table: evidence/data/rdtc_v1_bounded_direct_rtl_identity.csv
-  identity_table_sha256: 490132fc5b1ab5f291ab860ac95486aa5f09f969a27a6b811f222cb6178bcb21
-  rtl_file_count: 68
-  relationship: every published RTL file is byte-identical to the fixed evidence source
+  identity_table_sha256: 199e02231d38bc6edb00597328fa1198f918b4cb46f5ca847d109dc58b422112
+  rtl_file_count: 65
+  relationship: every RTL file in the Direct manifest is byte-identical to the fixed evidence source
+  excluded_legacy_rtl:
+    - rtl/rdtc/mrtc_rdtc_ddr_feeder_engine.sv
+    - rtl/rdtc/mrtc_rdtc_ddr_feeder_engine_sync64.sv
+    - rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv
+  exclusion_reason: these DDR-only modules are not instantiated by the Direct top and remain under separate legacy regression rather than the Direct ASIC identity claim
 model_sim:
   tool: ModelSim 2020.4
   profile: RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED
