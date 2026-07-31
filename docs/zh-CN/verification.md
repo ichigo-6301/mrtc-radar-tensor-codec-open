@@ -13,7 +13,9 @@ RDTC 使用逐层收敛的验证链，而不是只依赖单一 RTL testbench：
 | DPI-C / SystemVerilog | reference model 与 RTL 的逐 block 比较 | verified finite regression |
 | RTL protocol | AXI backpressure、`tkeep/tlast`、多 block、loopback、malformed stream | verified finite regression |
 | Multi-Engine RTL | 分发、独立 packet buffer、packet-locked arbitration、packet identity | verified finite workload |
+| Bounded Direct-AXIS RTL | 两 block packet/selected-k 等价、`II=1` ring read、decoder loopback 与 fatal 边界 | verified finite regression |
 | FPGA emulation simulation | 固定 commit 的单 active-input AXIS32 wrapper XSim | `3/3` cases verified |
+| FPGA OOC implementation | `xc7z100ffg900-2` 上的 Direct-AXIS 双 Engine 结构与内部时序门禁 | fixed 200 MHz post-route point verified |
 | 历史 Zynq build layers | trial-copy compatibility RTL elaboration 与 SDK/ELF build | 仅对应 build layer verified |
 
 公开结果适用于记录的 source/configuration/vector 身份，不是形式穷尽证明、functional coverage closure 或所有参数组合的证明。
@@ -58,13 +60,21 @@ MATLAB 页面中的 point-cloud comparison 不是 PointCloud RTL，也不是替�
 
 公开 evidence 摘要与数据：[Multi-Engine evidence](../../evidence/rdtc_v1_multiengine_rtl.yaml) · [公开 CSV](../../evidence/data/rdtc_v1_multiengine_scaling.csv)
 
+## Bounded Direct-AXIS Regression
+
+Register profile 的 ModelSim regression 将两个完整 1024-sample block 严格按 Engine 0/1 轮转，检查 packet data、`tuser/tlast`、selected `k=[0,2]`、每个 Engine 256 个有序 ring-read request/response、两拍 request-to-response latency 与每拍一个 request。两个 packet 分别为 20 和 72 beat，Decoder 对两个 block 均 bit-exact 恢复。Normalized trace SHA256 记录在 [Direct RTL evidence](../../evidence/rdtc_v1_bounded_direct_rtl.yaml)。
+
+负向测试覆盖非法 codec/Rice mode、descriptor 前数据、过早/过晚 `tlast`、129-bit Rice word、way conflict、output-credit 耗尽、sticky fatal 与 reset recovery。Direct filelist 的 68 个 RTL path 由 `make bounded-direct-rtl-identity-check` 与固定 evidence source 逐文件 byte-exact 比较。
+
+长序列零间隔测试明确记录 scheduler 边界：有序 packet service 约 277 cycles，高于 256-cycle block arrival interval；随后出现的合法 way conflict 是预期架构限制，不是持续吞吐 PASS。
+
 ## FPGA Emulation
 
 **FPGA emulation verified.** 在固定 source commit `43deb9f` 上，Vivado 2018.3 XSim 中的 AXIS32 wrapper `3/3` block-level cases 通过：ZERO_RICE、DELTA_RICE，以及 mixed two-block。检查覆盖真实 encoder path、decoder golden comparison、宽度转换、可变长 packet、`tkeep/tlast`、输入 gap 与输出 backpressure。当前公开 adaptation 另有 Icarus smoke，不构成新的 Vivado 结果。
 
-该 AXIS32 testbench 只驱动 `s0`，因此不能作为双 Engine scaling 或双输入并发验证；双 Engine / Multi-Engine claim 来自独立 RTL regression。历史 Zynq-7000 trial copy 使用经过 Vivado 2018.3 兼容处理的 copied RTL 完成 `synth_design -rtl`，并完成 SDK/ELF build。当前公开 RTL 保留 `parameter string`，不声明可直接在 Vivado 2018.3 elaboration；matching bitstream、板上 console PASS、MCDMA/DDR/cache runtime、FPGA timing 与资源结果也均未声明。
+该 AXIS32 testbench 只驱动 `s0`，不能作为双 Engine scaling 或双输入并发验证；该历史 profile 仍不声明 timing/resources。独立的 bounded Direct-AXIS top 在 `xc7z100ffg900-2` 上完成 Vivado 2022.2 OOC post-route 200 MHz，setup/hold WNS 为 `+0.001/+0.062 ns`，internal failing endpoint 为 0，资源为 `32,672 LUT / 18,519 FF / 0 BRAM`，8 个 way 内精确映射 `1024 x RAM32X1S`。这不证明 bitstream、板上运行、board IO timing、Fmax 或持续零间隔吞吐。
 
-公开 evidence 摘要与数据：[XSim evidence](../../evidence/rdtc_v1_fpga_axis32_emulation.yaml) · [Zynq trial-build evidence](../../evidence/rdtc_v1_zynq_trial_build.yaml) · [XSim case CSV](../../evidence/data/rdtc_v1_fpga_axis32_xsim_cases.csv)
+公开 evidence 摘要与数据：[XSim evidence](../../evidence/rdtc_v1_fpga_axis32_emulation.yaml) · [Direct OOC evidence](../../evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [Zynq trial-build evidence](../../evidence/rdtc_v1_zynq_trial_build.yaml) · [XSim case CSV](../../evidence/data/rdtc_v1_fpga_axis32_xsim_cases.csv)
 
 ![Zynq FPGA emulation evidence layers](../assets/zynq_emulation_path.svg)
 
@@ -79,6 +89,8 @@ make integration-smoke
 make rtl-smoke
 make multiengine-smoke
 make fpga-wrapper-smoke
+make bounded-direct-rtl-smoke
+make bounded-direct-rtl-identity-check
 make showcase-assets-check
 ```
 
@@ -87,6 +99,7 @@ make showcase-assets-check
 ```bash
 make sim
 make sim-full
+make bounded-direct-register-modelsim-regression
 ```
 
 工具存在、脚本可加载或工程可 elaboration 只证明对应层次，不自动提升为 implementation、timing、bitstream 或 board workload PASS。完整未声明项见[限制](limitations.md)。

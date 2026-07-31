@@ -1,0 +1,53 @@
+title: RDTC v1 bounded Direct-AXIS RTL and ModelSim summary
+status: verified
+source_commit: 7fa7f554246f34cc474a123cfed68d070688412d
+source_visibility: private_fixed_commit
+public_evidence_scope: curated functional summary, deterministic RTL identity table, and reproducible public register-profile regression
+top: mrtc_rdtc_bounded_axis_multiengine_wrapper
+profile: bounded-direct-axis
+architecture:
+  engines: 2
+  input: single AXIS128 stream, 256 beats per block
+  scheduler: strict Engine 0/1 block rotation with ordered packet output
+  codec: ZERO_RICE with prefix-128 adaptive k
+  bounded_word_rule: each eight-sample Rice word must be no more than 128 bits
+  input_storage: 4 ways x 32 words x 128 bits per Engine
+  output_fifo: global 16-beat AXIS128 queue
+  removed_storage: DDR feeder FIFO, payload commit store, payload BRAM, and legacy packet buffer
+rtl_identity:
+  manifest: flows/manifests/rdtc_v1_bounded_direct.f
+  manifest_sha256: 3927fa02cde5eca5c618951a238e65462a32bf9ac92b04c989a06f8819a8e574
+  identity_table: evidence/data/rdtc_v1_bounded_direct_rtl_identity.csv
+  identity_table_sha256: 490132fc5b1ab5f291ab860ac95486aa5f09f969a27a6b811f222cb6178bcb21
+  rtl_file_count: 68
+  relationship: every published RTL file is byte-identical to the fixed evidence source
+model_sim:
+  tool: ModelSim 2020.4
+  profile: RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED
+  block_count: 2
+  result: pass
+  normalized_trace_sha256: c0da722b93448cced40ad4ab602a77ce178ae0b8df41c90eb1c1a9226583f3cf
+  packet_beat_counts: [20, 72]
+  selected_k: [0, 2]
+  decoder_blocks: 2
+  decoder_samples_per_block: 1024
+  decoder_bit_exact: true
+  ring_read_requests_per_engine: 256
+  ring_read_issue_interval_cycles: 1
+  ring_request_to_response_cycles: 2
+  checks:
+    packet_data_and_sideband_match: true
+    selected_k_match: true
+    decoder_bit_exact: true
+    memory_request_order_match: true
+scheduler_boundary:
+  status: blocked
+  packet_service_cycles: approximately 277
+  zero_gap_block_arrival_cycles: 256
+  consequence: a finite four-way ring delays but does not eliminate a sustained zero-gap way conflict
+result: pass
+caveats:
+  - The verified functional result is a finite two-block regression, not exhaustive formal proof or coverage closure.
+  - The bounded profile is fail-stop outside ZERO_RICE, prefix-128 adaptive-k, and the 128-bit-per-word guard.
+  - Output-credit exhaustion may expose a partial packet; producer and receiver state both require reset.
+  - The approximately 277-cycle packet service exceeds the 256-cycle zero-gap arrival interval, so sustained zero-stall operation is not claimed.

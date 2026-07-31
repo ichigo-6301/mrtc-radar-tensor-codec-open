@@ -181,3 +181,63 @@ claims:
     status: verified
     caveat: "The current public RTL retains parameter string declarations and is not claimed to elaborate directly in Vivado 2018.3; the trial build also does not prove a matching bitstream, MCDMA/DDR runtime, board-console PASS, FPGA timing, or resource closure."
     public: true
+  - id: rdtc_v1_bounded_direct_rtl_two_block
+    profile: rdtc_v1_bounded_direct_axis
+    statement: "The bounded Direct-AXIS dual-Engine register profile passed a two-block ModelSim regression with matching packet data/sideband and selected-k, continuous one-word-per-cycle ring reads, and bit-exact decoder recovery of both 1024-sample blocks."
+    metric: two_block_packet_decoder_equivalence
+    value: pass
+    unit: result
+    benchmark: bounded Direct-AXIS two-block ZERO_RICE regression
+    configuration: "dual Engine, strict 0/1 block rotation, prefix-128 adaptive k, four 32x128 ways per Engine, 16-beat output FIFO"
+    source_ref: 7fa7f554246f34cc474a123cfed68d070688412d
+    tool: ModelSim 2020.4
+    evidence:
+      - rdtc_v1_bounded_direct_rtl_public
+    status: verified
+    caveat: "Finite bounded-domain regression only; approximately 277 cycles per ordered packet exceeds the 256-cycle zero-gap block interval, so sustained zero-stall operation is not claimed."
+    public: true
+  - id: rdtc_v1_bounded_direct_fpga_ooc200
+    profile: rdtc_v1_bounded_direct_axis
+    statement: "The bounded Direct-AXIS dual-Engine wrapper completed Vivado 2022.2 out-of-context implementation and passed internal post-route setup and hold timing at the fixed 200 MHz point on xc7z100ffg900-2."
+    metric: setup_wns
+    value: 0.001
+    unit: ns
+    benchmark: bounded Direct-AXIS FPGA OOC post-route implementation
+    configuration: "xc7z100ffg900-2, 5.000 ns clock, two Engines, eight distributed-RAM ways, 16-beat output FIFO"
+    source_ref: 7fa7f554246f34cc474a123cfed68d070688412d
+    tool: Vivado 2022.2
+    evidence:
+      - rdtc_v1_bounded_direct_fpga_ooc200_public
+    status: verified
+    caveat: "Internal OOC timing only with +0.001 ns setup WNS; no board IO timing, bitstream, board execution, Fmax, or sustained zero-stall claim."
+    public: true
+  - id: rdtc_v1_bounded_direct_register_nangate45_pnr600_pt
+    profile: rdtc_v1_bounded_direct_register_expanded
+    statement: "The register-expanded bounded Direct-AXIS wrapper completed the academic Nangate45 OpenROAD/OpenRCX flow and passed matching 600 MHz PrimeTime internal setup and hold checks."
+    metric: setup_wns
+    value: 0.03
+    unit: ns
+    benchmark: bounded Direct-AXIS register-expanded post-route STA
+    configuration: "630 MHz DC mapping, 600 MHz physical target, two Engines, 32,768 register-expanded ring bits, no memory macros"
+    source_ref: 7fa7f554246f34cc474a123cfed68d070688412d
+    tool: "Design Compiler O-2018.06-SP1, OpenROAD ORFS, OpenRCX, and PrimeTime O-2018.06-SP1"
+    evidence:
+      - rdtc_v1_bounded_direct_asic_public
+    status: verified
+    caveat: "Fixed academic internal timing closure point only; no Fmax, complete IO timing, OCV/MMMC, foundry signoff, silicon, or sustained zero-stall claim."
+    public: true
+  - id: rdtc_v1_bounded_direct_sram_nangate45_pnr300_pt
+    profile: rdtc_v1_bounded_direct_sram_macro
+    statement: "The eight-macro bounded Direct-AXIS wrapper completed academic Nangate45/OpenRAM OpenROAD P&R, same-run OpenRCX extraction, and matching 300 MHz PrimeTime internal setup and hold checks."
+    metric: setup_wns
+    value: 0.16
+    unit: ns
+    benchmark: bounded Direct-AXIS SRAM-macro post-route STA
+    configuration: "eight 32x128 1RW OpenRAM macros, 300 MHz physical target, two Engines and four ways per Engine"
+    source_ref: 7fa7f554246f34cc474a123cfed68d070688412d
+    tool: "OpenRAM e16d9eb, Design Compiler O-2018.06-SP1, OpenROAD ORFS, OpenRCX, and PrimeTime O-2018.06-SP1"
+    evidence:
+      - rdtc_v1_bounded_direct_asic_public
+    status: verified
+    caveat: "Fixed academic internal timing closure point only. The macro model is analytically characterized; macro DRC/LVS/PEX, complete IO timing, OCV/MMMC, foundry signoff, silicon, SRAM 600 MHz, and sustained zero-stall are not claimed."
+    public: true

@@ -7,9 +7,10 @@
 | Complete controlled IP with AXI4-Lite configuration and AXIS128 codec | [`mrtc_top`](../../rtl/top/mrtc_top.sv) | [`rdtc_v1.f`](../../flows/manifests/rdtc_v1.f) | `make integration-smoke` |
 | Single-Engine encoder plus decoder | [`mrtc_rdtc_codec_top`](../../rtl/rdtc/mrtc_rdtc_codec_top.sv) | [`rdtc_v1.f`](../../flows/manifests/rdtc_v1.f) | `make integration-smoke`; see [`tb_rdtc_codec_top_smoke`](../../tb/sv/tb_rdtc_codec_top_smoke.sv) |
 | Descriptor/DDR-feeder-driven N-Engine compression | [`mrtc_rdtc_ddr_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) | [`rdtc_v1_multiengine_smoke.f`](../../flows/manifests/rdtc_v1_multiengine_smoke.f) | `make multiengine-smoke` |
+| Bounded direct AXIS128 input with two Engines | [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) | [`rdtc_v1_bounded_direct.f`](../../flows/manifests/rdtc_v1_bounded_direct.f) | `make bounded-direct-rtl-smoke` and `make bounded-direct-rtl-identity-check` |
 | AXIS32 adaptation from the historical Zynq trial | [`mrtc_rdtc_axis32_wrapper`](../../rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) | [`rdtc_v1_fpga_wrapper_smoke.f`](../../flows/manifests/rdtc_v1_fpga_wrapper_smoke.f) | `make fpga-wrapper-smoke` |
 
-Start a new integration from `mrtc_top`. Use `mrtc_rdtc_codec_top` when the surrounding system supplies configuration directly and needs only the codec datapath. The Multi-Engine DDR wrapper is a throughput-oriented interface; it does not replace the AXI4-Lite control surface of `mrtc_top`.
+Start a new general integration from `mrtc_top`. Use `mrtc_rdtc_codec_top` when the surrounding system supplies configuration directly and needs only the codec datapath. The DDR and bounded Direct-AXIS wrappers are opt-in integration surfaces; neither replaces the AXI4-Lite control surface of `mrtc_top`.
 
 ## Fixed data contract
 
@@ -47,12 +48,22 @@ The decoder accepts the same packet contract on `s_axis_comp_*` and reconstructs
 | codec/engine | `PREFIX_SAMPLES=256` | Published prefix-fast observation length |
 | DDR wrapper | `NUM_ENGINES=2` | Engine count; public evidence covers the historical 2/4-Engine matrix and a 2-Engine adaptation smoke |
 | DDR wrapper | `OUTPUT_IN_ORDER=0` | The only supported value; setting it to `1` fails fast |
+| Direct wrapper | `NUM_ENGINES=2`, `ENGINE_BOUNDED_WAY_COUNT=4` | Fixed public dual-Engine, eight-way organization |
+| Direct wrapper | `PREFIX_SAMPLES=128`, `OUTPUT_FIFO_DEPTH=16` | Fixed bounded prefix and global output-credit depth |
 
 ## Multi-Engine descriptor and output ordering
 
 The DDR wrapper accepts raw address, Frame/Block ID, Range start, codec mode, and tensor shape through `s_desc_*`. Each Engine owns a feeder, codec, and packet buffer. Once the output arbiter selects a packet, it retains that Engine through `tlast`, so beats from different packets never interleave.
 
 Completion order across blocks is not guaranteed. Frame/Block metadata in the header provides the identity needed for indexed software reconstruction, but this repository does not claim a software reorder program PASS. `OUTPUT_IN_ORDER=1` is unimplemented and explicitly fails fast.
+
+## Bounded Direct-AXIS Contract
+
+The Direct wrapper accepts a descriptor separately from the single `s_axis_raw_*` stream. The descriptor carries Block ID, Range start, Frame ID, tensor dimensions, codec/Rice fields, and `last_block`; it has no raw DDR address. A descriptor reserves exactly one Engine, and the following 256 accepted AXIS128 beats belong to that descriptor. Data arriving without a reserved descriptor is fatal.
+
+The legal public configuration is `ZERO_RICE` plus block-adaptive prefix `k`. RAW, DELTA, fixed `k`, malformed early/late `tlast`, a Rice word above 128 bits, an `II=1` cadence break, or a same-way read/write collision fails closed. Descriptors rotate strictly through Engine `0 -> 1 -> 0 -> 1`; output remains job-table ordered and packet-locked to accepted `m_axis_comp_tlast`. Packet-internal `tvalid` gaps are legal, and `tlast` remains the only packet boundary.
+
+The 16-beat output FIFO provides bounded backpressure credit. If downstream stalling consumes the emergency credit, `stat_error` becomes sticky `MRTC_ERR_OUTPUT_CREDIT` (`24`) and the wrapper stops accepting or emitting work. Because this path has no speculative payload commit store, already emitted beats cannot be rolled back. Recovery requires a real `rst_n` reset of both the wrapper and downstream packet receiver. `i_clear_status` clears counters only and cannot recover a fatal state.
 
 ## AXI4-Lite control plane
 
@@ -64,5 +75,6 @@ The `mrtc_top` AXI4-Lite interface exposes enable, soft reset, status clear, cod
 - Align input `tlast` with the 1024-sample block boundary.
 - Support arbitrary `tready` backpressure and the final-beat valid-byte rule.
 - Treat `tlast` as the packet-atomic boundary; do not assume Block IDs naturally emerge in order.
+- For the Direct profile, submit a legal descriptor before data, enforce its bounded codec domain, and reset both ends after any nonzero `stat_error`.
 - Compile the tracked filelist for the selected top rather than manually omitting packages or helper modules.
 - Run the corresponding smoke before delivery and leave the worktree clean apart from ignored build output.

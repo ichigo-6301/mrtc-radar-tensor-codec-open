@@ -9,6 +9,9 @@
 | MATLAB synthetic ZERO/DELTA lossless reconstruction | Controlled synthetic study | verified for recorded cases | Not a measured radar dataset; does not imply PointCloud RTL. |
 | MATLAB/C/DPI-C/RTL legal-vector bit-exact agreement | RDTC v1 public release | verified | Finite vector and regression set; not exhaustive formal proof. |
 | Dual-AXIS128 wrapper VCS regression, 10 required cases | RDTC v1 public release | verified | Finite wrapper regression; not coverage closure. |
+| Bounded Direct-AXIS two-block packet, selected-k, and decoder equivalence | Direct dual-Engine register profile | verified | Finite bounded-domain regression; sustained zero-gap scheduling fails at `277 > 256 cycles/block`. |
+
+Direct functional source: [bounded Direct RTL evidence](../../evidence/rdtc_v1_bounded_direct_rtl.yaml)
 
 Across synthetic SNR points from `-20` to `30 dB`, the ZERO_RICE compression ratios are `1.5817 / 1.8774 / 2.3470 / 3.0979 / 4.3915 / 7.5588`, while DELTA_RICE reaches `1.4997 / 1.7871 / 2.1852 / 2.8083 / 3.9669 / 6.1779`. See [Algorithm](algorithm.md) for interpretation.
 
@@ -37,18 +40,19 @@ Sources: [Multi-Engine evidence](../../evidence/rdtc_v1_multiengine_rtl.yaml) ·
 | Scope | Result | Status | Boundary |
 |---|---|---|---|
 | Fixed-commit Vivado 2018.3 AXIS32 wrapper XSim | ZERO_RICE, DELTA_RICE, and mixed two-block; `3/3` PASS | FPGA emulation verified | Current public adaptation has a separate Icarus smoke; XSim drives only `s0` and is not dual-Engine scaling evidence |
+| Bounded Direct-AXIS Vivado 2022.2 OOC post-route | `xc7z100ffg900-2`, 200 MHz, setup/hold WNS `+0.001/+0.062 ns`, `32,672 LUT / 18,519 FF / 0 BRAM` | fixed internal timing/resource point verified | No board IO timing, Fmax, bitstream, board, or sustained zero-stall claim |
 | Historical Zynq-7000 trial copy | Compatibility-copied RTL elaboration and SDK/ELF build | verified at trial-build layer | No direct Vivado 2018.3 elaboration claim for current public RTL; no matching bitstream or board execution claim |
-| Bitstream/board/MCDMA runtime/timing/resources | No matching result published | not claimed | Not inferred from simulation or build status |
+| Bitstream/board/MCDMA runtime | No matching result published | not claimed | Not inferred from simulation, OOC implementation, or build status |
 
 FPGA XSim covers the real encoder path, decoder golden comparison, width conversion, variable-length packets, `tkeep/tlast`, input gaps, and output backpressure. Dual-Engine distribution and arbitration come from separate RTL regression and are not merged into the single-input XSim scope.
 
-Sources: [XSim evidence](../../evidence/rdtc_v1_fpga_axis32_emulation.yaml) · [Zynq trial-build evidence](../../evidence/rdtc_v1_zynq_trial_build.yaml) · [XSim case CSV](../../evidence/data/rdtc_v1_fpga_axis32_xsim_cases.csv)
+Sources: [XSim evidence](../../evidence/rdtc_v1_fpga_axis32_emulation.yaml) · [Direct OOC evidence](../../evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [Zynq trial-build evidence](../../evidence/rdtc_v1_zynq_trial_build.yaml) · [XSim case CSV](../../evidence/data/rdtc_v1_fpga_axis32_xsim_cases.csv)
 
 ## Implementation Profile Matrix
 
-All frequency results apply only to the internal single-clock reg-to-reg constraint of `mrtc_rdtc_wb_wrapper`, with 100 ps setup uncertainty and without complete top-level IO timing. The `DC-only` and `DC matrix` rows are synthesis estimates. In contrast, the 550 MHz register-expanded and 333 MHz SRAM-macro rows are setup/hold STA closure results measured by PrimeTime after placement and routing with the matching routed netlist, SDC, and same-run OpenRCX SPEF; they must not be summarized as DC results.
+Historical rows use the internal single-clock reg-to-reg constraint of `mrtc_rdtc_wb_wrapper`; Direct rows use `mrtc_rdtc_bounded_axis_multiengine_wrapper`. Neither has complete top-level IO timing. `DC-only` and `DC matrix` rows are synthesis estimates. The 550/333 MHz historical and 600/300 MHz Direct rows are PrimeTime setup/hold closure results after placement and routing with matching routed netlist, SDC, and same-run OpenRCX SPEF; they must not be summarized as DC results.
 
-Both Nangate45 physical profiles use the same floorplan configuration: a `1200 x 1200 um` die (`1.4400 mm2`) and a `1159.72 x 1155.20 um` core (`1.3397 mm2`). These are configured geometry values from public `flows/physical/openroad/config.mk`, not post-hoc measurements from an unpublished GDS. The `421,120 um2` at 550 MHz is final standard-cell design area, not core or die area.
+The two historical Nangate45 physical profiles use the same floorplan configuration: a `1200 x 1200 um` die (`1.4400 mm2`) and a `1159.72 x 1155.20 um` core (`1.3397 mm2`). Direct profiles use independent area/macro-derived floorplans. Configured geometry is not a post-hoc measurement from an unpublished GDS, and standard-cell area is not core or die area.
 
 | Memory Profile | Technology | Scope | Result | Status |
 |---|---|---|---|---|
@@ -57,6 +61,8 @@ Both Nangate45 physical profiles use the same floorplan configuration: a `1200 x
 | `register-expanded` | Nangate45/OpenROAD/OpenRCX | P&R + PT at 400 MHz | Route DRC 0, antenna net/pin 0/0, area 418,007 um2, utilization 31.2108%; PT setup/hold WNS +0.80/+0.04 ns with zero constraint violations | verified |
 | `register-expanded` | Nangate45/OpenROAD/OpenRCX | Fixed verified P&R + PT closure point at 550 MHz | Uses the 700 MHz DC mapped netlist; configured die/core `1200 x 1200 um` / `1159.72 x 1155.20 um`; route DRC 0, antenna net/pin 0/0, area 421,120 um2, utilization 31.4432%; PT setup/hold WNS +0.26/+0.04 ns with zero constraint violations | verified |
 | `sram-macro` | Nangate45/OpenRAM/OpenROAD/OpenRCX | Two `64x128 1RW1R` macros; fixed verified 333 MHz P&R, same-run SPEF, and internal PT timing closure point | Configured die/core `1200 x 1200 um` / `1159.72 x 1155.20 um`; route DRC is 0 and antenna net/pin is 0/0; PT setup/hold WNS +0.57/+0.04 ns with zero constraint violations | Chip-level implementation and internal timing verified; academic Nangate45/OpenRAM platform with no production-PDK, macro-signoff, or silicon-readiness claim |
+| `bounded-direct-register-expanded` | Nangate45/OpenROAD/OpenRCX | Fixed verified 600 MHz P&R + same-run SPEF + internal PT point; 0 memory macros | Route DRC and antenna net/pin 0/0; area 476,320 um2; PT setup/hold WNS +0.03/+0.02 ns; setup/hold coverage 50972/50972 | verified internal implementation/timing; not Fmax or sustained zero-stall |
+| `bounded-direct-sram-macro` | Nangate45/OpenRAM/OpenROAD/OpenRCX | Eight `32x128 1RW` macros; fixed verified 300 MHz P&R + same-run SPEF + internal PT point | Route DRC and antenna net/pin 0/0; PT setup/hold WNS +0.16/+0.02 ns; setup/hold coverage 18276/18276; macro period/pulse checks clean at 300 MHz | Top-level implementation/timing verified; macro DRC/LVS/PEX open; 600 MHz `MACRO_MODEL_BLOCKED` |
 
 The NanGate15 Liberty uses a `1ps` time unit, so its DC profile explicitly applies `SDC_TIME_SCALE=1000.0`. The latest 45 nm register-expanded physical run uses the setup-closed 700 MHz DC netlist at a 550 MHz implementation target. Evidence records matching SHA256 values for the handoff netlist, SDC, and SPEF. PrimeTime setup/hold coverage is 100%; 1,756 unconstrained max-delay endpoints are asynchronous reset pins under the internal-only profile.
 
@@ -70,6 +76,6 @@ The 333 MHz SRAM-macro result completed verified chip-level OpenROAD P&R, same-r
 - route-tool DRC 0 and foundry DRC/LVS/PEX are different scopes;
 - `top-level IO timing closure`, `OCV/MMMC`, and `foundry signoff` are not claimed.
 
-ASIC evidence: [register-expanded](../../evidence/rdtc_v1_register_expanded.yaml) · [SRAM macro](../../evidence/rdtc_v1_sram_macro_333m.yaml)
+ASIC evidence: [register-expanded](../../evidence/rdtc_v1_register_expanded.yaml) · [SRAM macro](../../evidence/rdtc_v1_sram_macro_333m.yaml) · [bounded Direct register/SRAM](../../evidence/rdtc_v1_bounded_direct_asic.yaml)
 
 Public evidence is under `evidence/`, with run conditions and boundaries under `provenance/`. PDKs, Liberty/DB, LEF/GDS, SPEF, and raw EDA work directories are not distributed.

@@ -49,6 +49,44 @@ The exact ORFS Liberty must also be compiled to DB for Design Compiler and
 PrimeTime; a similarly named Nangate library from another source is not an
 equivalent timing view. Generated macros and physical outputs stay ignored.
 
+## Bounded Direct-AXIS Profiles
+
+The bounded Direct-AXIS wrapper is an opt-in profile with its own manifest; it
+does not replace `mrtc_top` or change the default filelist. Public functional
+and FPGA entrypoints are:
+
+```text
+make bounded-direct-rtl-smoke
+make bounded-direct-rtl-identity-check
+make bounded-direct-register-modelsim-regression
+make bounded-direct-modelsim-regression-dry-run
+make bounded-direct-vivado-route200
+make bounded-direct-vivado-route200-check
+```
+
+`bounded-direct-register-modelsim-regression` needs only the published RTL and
+a local ModelSim installation. The register/SRAM equivalence target additionally
+requires `RDTC_BOUNDED_DIRECT_SRAM_MODEL`,
+`RDTC_BOUNDED_DIRECT_SRAM_MANIFEST`, and
+`RDTC_BOUNDED_DIRECT_SRAM_MANIFEST_SHA256` to identify a matching local OpenRAM
+behavioral model. Generated SRAM views are never fetched or published by this
+repository.
+
+The public Kconfig profiles provide register 300/600 MHz and SRAM 300 MHz
+contracts. The SRAM 600 MHz experiment is intentionally absent because its
+characterized macro candidates fail the period/pulse gate; it is recorded as
+`MACRO_MODEL_BLOCKED`, not as an executable closure configuration:
+
+```text
+make rdtc_v1_bounded_direct_register_dc315_pnr300_defconfig
+make rdtc_v1_bounded_direct_register_dc630_pnr600_defconfig
+make rdtc_v1_bounded_direct_sram_dc315_pnr300_defconfig
+```
+
+These ASIC profiles require locally authorized tools and technology. The
+published summaries do not include Liberty/DB/LEF/GDS/SPICE, SPEF, DCP, or raw
+EDA reports.
+
 ## Stage Entry Points
 
 ```text

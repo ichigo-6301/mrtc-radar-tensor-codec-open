@@ -1,6 +1,6 @@
 # ASIC 实现
 
-公开 ASIC 内容按两个独立 profile 组织：`register-expanded` 与 `sram-macro`。两者共享 RDTC v1 RTL、接口、AXI 行为、寄存器映射和码流；区别仅在 prefix buffer 的物理绑定。两个 Nangate45 physical profile 使用相同的 configured floorplan：die 为 `1200 x 1200 um`（`1.4400 mm2`），core 为 `1159.72 x 1155.20 um`（`1.3397 mm2`）。这些是公开 OpenROAD configuration 的几何约束，不是未发布 GDS 的事后测量。
+公开 ASIC 内容包括历史 wrapper 的 `register-expanded`/`sram-macro` 配对，以及独立的 bounded Direct-AXIS 配对。每一对都保持自己的 RTL 接口与 packet contract，仅替换 bulk-memory leaf binding。历史 Nangate45 profile 使用下文所述的 configured `1200 x 1200 um` die 与 `1159.72 x 1155.20 um` core；Direct profile 根据自身综合面积和宏几何使用独立 floorplan。Configured geometry 不是未发布 GDS 的事后测量。
 
 ## Register-expanded
 
@@ -17,6 +17,24 @@
 芯片级实现链和已测得的内部 post-route timing 是 verified 结果。本项目为学习和工程展示而使用 academic Nangate45/OpenRAM 平台；没有适用于生产的 foundry PDK 或 macro signoff 包，因此不声明 production PDK、macro DRC/LVS/PEX 或 silicon readiness。OpenRAM timing model 为 analytical characterization，但这不改变匹配 routed netlist、SDC 与 same-run SPEF 的 PrimeTime setup/hold 结果。minimum-capacitance waiver 是针对两个宏上共 256 个未使用 `dout0[127:0]` endpoint 的 profile-specific、exact-set 审核对象；不允许 missing 或 extra object，不是 setup/hold waiver，也不适用于功能性 read data。
 
 route-tool DRC 0 在 academic platform 与 macro abstract view 范围内验证了顶层 routed implementation；它不验证 OpenRAM macro 的晶体管级内部。完整 IO timing、OCV/MMMC、foundry signoff 和 silicon readiness 均不声明，因为它们不属于本项目可获得的 academic PDK 环境。该频率由 macro-integrated implementation 与现有 analytical timing model 共同约束；不声明 400 MHz 因果失败，也不提出 400 MHz macro-profile claim。
+
+## Bounded Direct-AXIS Profiles
+
+Direct physical top 为 [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv)。两种 binding 都使用双 Engine、每 Engine 四个 `32x128` 1RW way、总计 `32,768 bit` bulk ring，以及一个小型 16-beat registered output queue；均不包含 DDR feeder 或 payload commit store。
+
+### Register-Expanded 600 MHz
+
+全寄存器 profile 将 8 个 way 全部展开为标准单元，SRAM macro count 为 0。Design Compiler 在禁止 retime 的条件下闭合 630 MHz mapping target，随后 mapped netlist 在固定 600 MHz physical target 完成 OpenROAD route 与 same-run OpenRCX。Route DRC、antenna net/pin 与 unrouted count 均为 0。PrimeTime 读取匹配 routed netlist、SDC 和 SPEF，setup/hold WNS 为 `+0.03/+0.02 ns`，constraint violation 为 0，setup/hold coverage 均为 `50972/50972`。Final standard-cell area 为 `476,320 um2`。这是 fixed academic internal closure point，不是 Fmax。
+
+### Eight-Macro SRAM 300 MHz
+
+全 SRAM profile 精确绑定 8 个 `32x128 1RW` OpenRAM 宏，每 Engine 四个；控制与 output queue 仍使用寄存器。300 MHz 下 OpenROAD route 完成，DRC、antenna 与 unrouted count 均为 0；same-run OpenRCX 与匹配 PrimeTime 的 setup/hold WNS 为 `+0.16/+0.02 ns`，minimum-period、pulse-width、max-transition 和 max-capacitance violation 均为 0，setup/hold coverage 均为 `18276/18276`。
+
+完整表征的 WPR2 宏 governing period 为 `2.656 ns`，minimum high/low pulse 为 `1.328 ns`；WPR1 为 `2.500/1.250 ns`，WPR4 不受 pinned OpenRAM generator 支持。它们都不满足 600 MHz 的 `1.666667 ns` period 与 `0.833333 ns` pulse 门禁，因此 SRAM 600 MHz 为 `MACRO_MODEL_BLOCKED`，不作为可执行公开闭合配置。
+
+300 MHz SRAM point 的顶层 P&R 与内部 post-route timing 均为 verified；overall macro maturity 仍为 partial，因为 timing model 属于 academic analytical characterization，晶体管级 macro DRC/LVS/PEX 未闭合。物理结果也不会消除 `277 > 256 cycles/block` scheduler 限制。
+
+证据：[bounded Direct ASIC summary](../../evidence/rdtc_v1_bounded_direct_asic.yaml)。
 
 ## Flow Contract
 

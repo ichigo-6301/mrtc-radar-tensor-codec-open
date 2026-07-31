@@ -1,0 +1,66 @@
+title: RDTC v1 bounded Direct-AXIS FPGA OOC 200 MHz summary
+status: verified
+source_commit: 7fa7f554246f34cc474a123cfed68d070688412d
+source_visibility: private_fixed_commit_with_fresh_public_source_rerun
+public_evidence_scope: curated Vivado summary and hash-bound public parser/constraint/source entrypoints; no DCP or raw reports
+top: mrtc_rdtc_bounded_axis_multiengine_wrapper
+profile: bounded-direct-axis
+tool: Vivado 2022.2
+device: xc7z100ffg900-2
+context: out-of-context post-route internal timing
+clock:
+  frequency_mhz: 200
+  period_ns: 5.000
+timing:
+  setup_wns_ns: 0.001
+  setup_tns_ns: 0.0
+  setup_failing_endpoints: 0
+  hold_wns_ns: 0.062
+  hold_tns_ns: 0.0
+  hold_failing_endpoints: 0
+  pulse_width_wns_ns: 1.732
+  pulse_width_tns_ns: 0.0
+  pulse_width_failing_endpoints: 0
+  no_clock_internal_endpoints: 0
+  unconstrained_internal_endpoints: 0
+route:
+  failed_or_unrouted_nets: 0
+  blackboxes: 0
+  latches: 0
+structure:
+  engines: 2
+  rings: 2
+  ways: 8
+  ring_ram32x1s: 1024
+  slice_lut: 32672
+  slice_registers: 18519
+  ramb18: 0
+  ramb36: 0
+  ddr_feeder_instances: 0
+  payload_commit_instances: 0
+  payload_bram_instances: 0
+  legacy_packet_buffer_instances: 0
+  output_fifo_storage: 2155 flip-flop primitives
+path_audit:
+  old_ddr_or_payload_paths: 0
+  old_abort_commit_ready_to_p0_paths: 0
+  worst_path_delay_ns: 4.957
+  worst_path_routing_delay_ns: 4.225
+  worst_path_routing_percent: 85.2
+fpga_maturity:
+  fpga_source_ready: verified
+  fpga_rtl_simulation: verified
+  fpga_synthesis: verified
+  fpga_implementation: verified
+  fpga_timing: verified
+  fpga_bitstream: not_claimed
+  fpga_board_smoke: not_claimed
+  fpga_workload_validation: verified
+  workload_validation_scope: two-block RTL simulation
+  overall_fpga_maturity: partial
+result: MRTC_BOUNDED_DIRECT_AXIS_ROUTE200_CLOSED
+caveats:
+  - The 1 ps setup margin establishes only this fixed OOC closure point; it is not an Fmax claim.
+  - OOC timing covers internal endpoints and intentionally omits board-level IO delays.
+  - No bitstream, board execution, DDR runtime, or measured throughput is claimed.
+  - Functional architecture maturity remains limited by approximately 277 cycles per ordered packet versus a 256-cycle zero-gap block arrival interval.

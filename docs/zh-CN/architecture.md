@@ -23,6 +23,7 @@ RDTC 位于感知数据生成与片外存储或传输之间。Encoder 将连续 
 | 完整控制面 | [`mrtc_top`](../../rtl/top/mrtc_top.sv) + [`mrtc_axi_lite_reg_block`](../../rtl/top/mrtc_axi_lite_reg_block.sv) |
 | 单 Engine codec | [`mrtc_rdtc_codec_top`](../../rtl/rdtc/mrtc_rdtc_codec_top.sv) |
 | DDR Multi-Engine | [`mrtc_rdtc_ddr_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) |
+| Bounded Direct-AXIS 双 Engine（opt-in） | [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) |
 | AXIS32 FPGA adaptation | [`mrtc_rdtc_axis32_wrapper`](../../rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) |
 
 ## 单 Engine Pipeline
@@ -64,6 +65,22 @@ Multi-Engine wrapper 解决单 Engine 数据相关延迟与输入供给之间的
 
 该选择避免硬件 Reorder Buffer 的缓存开销、控制复杂度与 head-of-line blocking，同时把顺序恢复策略显式留在系统集成层。
 
+## Bounded Direct-AXIS Profile
+
+opt-in Direct profile 面向受约束信号域，以更少存储完成双 Engine 调度。单路 AXIS128 每个 block 输入 256 拍；两项 job table 将完整 block 严格按 Engine 0、Engine 1 轮转，输出按输入 job 顺序选择 Engine，并锁定 packet 直到 `tlast`。
+
+每个 Engine 包含四个 `32x128` true-1RW way、两项 registered ingress queue、prefix-128 estimator 与固定速率 bounded bitpacker。Estimator 直接观察已接收输入，不占用 RAM 读端口。Wrapper 删除 DDR feeder 和每 Engine payload commit store，仅使用全局 16-beat FIFO 吸收短输出 stall。双 Engine bulk ring 共 `32,768 bit`，而之前 payload-backed 实验的 bulk storage 为 `180,224 bit`。
+
+该简化结构采用明确的 fail-stop 语义：
+
+- 只接受 `ZERO_RICE` 与 block-adaptive prefix `k`；
+- 每个 8-sample Rice word 必须不超过 `128 bit`；
+- `k` 可用后，一个 Engine 以 `II=1` 连续发出 256 个 ring read；
+- 同 way 读写冲突、cadence 中断、block 格式错误或 output credit 耗尽均产生 sticky fatal；
+- 因为没有 speculative payload storage，fatal 可能让外部看到半包，producer 与 receiver 必须一起 reset。
+
+固定回归测得有序 packet service 约 `277 cycles`，而连续 block 每 `256 cycles` 到达；该差额会累计并最终触发合法 way conflict。因此该 profile 验证 bounded datapath 与实现闭合，但不验证持续零间隔调度。
+
 ## 吞吐扩展
 
 历史 fixed-commit 256-block workload 使用 simulated DDR feeder，1/2/4 Engine 分别达到 `785 / 397.52 / 197.41 cycles/block`。2/4 Engine efficiency 为 `0.987368 / 0.994115`；一个 beam 在该记录中定义为 256 个 block。
@@ -76,6 +93,6 @@ Multi-Engine wrapper 解决单 Engine 数据相关延迟与输入供给之间的
 
 ## 存储实现边界
 
-`register-expanded` 与 `sram-macro` profile 保持相同外部 AXI、packet 和功能合同，只改变 prefix/sample buffer 的物理 binding。同步 SRAM 的一拍读延迟由 wrapper 适配；存储实现差异不表示删除 buffer 功能或改变码流。
+历史 `register-expanded` 与 `sram-macro` profile 保持相同外部 AXI、packet 和功能合同，只改变 prefix/sample buffer 的 binding。Direct profile 对 8 个 `32x128` way 使用同一原则：要么全部展开为标准单元，要么全部绑定 1RW OpenRAM 宏；16-beat output queue 与控制状态仍是寄存器。Memory binding 的变化不删除 buffer 功能，也不改变 packet bytes。
 
 [查看 ASIC 实现与 profile maturity](asic_implementation.md)

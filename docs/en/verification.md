@@ -13,7 +13,9 @@ RDTC uses a layered convergence chain instead of relying on one RTL testbench:
 | DPI-C / SystemVerilog | Block-by-block comparison between the reference model and RTL | verified finite regression |
 | RTL protocol | AXI backpressure, `tkeep/tlast`, multiple blocks, loopback, and malformed streams | verified finite regression |
 | Multi-Engine RTL | Distribution, independent packet buffers, packet-locked arbitration, and packet identity | verified finite workload |
+| Bounded Direct-AXIS RTL | Two-block packet/selected-k equivalence, `II=1` ring reads, decoder loopback, and fatal boundaries | verified finite regression |
 | FPGA emulation simulation | Fixed-commit AXIS32 wrapper XSim with one active external input | `3/3` cases verified |
+| FPGA OOC implementation | Direct-AXIS dual Engine on `xc7z100ffg900-2` with structure and internal timing gates | fixed 200 MHz post-route point verified |
 | Historical Zynq build layers | Trial-copy compatibility-RTL elaboration and SDK/ELF build | verified at those build layers only |
 
 Published results apply to recorded source, configuration, and vector identities. They are not exhaustive formal proof, functional coverage closure, or proof of every parameter combination.
@@ -58,13 +60,21 @@ These values are RTL simulation projections with a simulated DDR model, not FPGA
 
 Public evidence summary and data: [Multi-Engine evidence](../../evidence/rdtc_v1_multiengine_rtl.yaml) · [public CSV](../../evidence/data/rdtc_v1_multiengine_scaling.csv)
 
+## Bounded Direct-AXIS Regression
+
+The register-profile ModelSim regression sends two complete 1024-sample blocks through strict Engine 0/1 rotation. It checks packet data, `tuser/tlast`, selected `k=[0,2]`, 256 ordered ring-read requests and responses per Engine, two-cycle request-to-response latency, and one request per cycle. Packets contain 20 and 72 beats, and the Decoder reconstructs both blocks bit-exactly. The normalized trace SHA256 is recorded in the [Direct RTL evidence](../../evidence/rdtc_v1_bounded_direct_rtl.yaml).
+
+Negative tests cover illegal codec/Rice mode, data before descriptor, early/late `tlast`, a 129-bit Rice word, way conflict, output-credit exhaustion, sticky fatal behavior, and reset recovery. The 68 RTL paths in the Direct filelist are independently checked byte for byte against the fixed evidence source by `make bounded-direct-rtl-identity-check`.
+
+Long zero-gap testing intentionally records the scheduler boundary: ordered packet service is approximately 277 cycles, above the 256-cycle block arrival interval. The resulting legal way conflict is an expected architecture limitation, not a passing sustained-throughput test.
+
 ## FPGA Emulation
 
 **FPGA emulation verified.** At fixed source commit `43deb9f`, the Vivado 2018.3 AXIS32 wrapper passes `3/3` block-level XSim cases: ZERO_RICE, DELTA_RICE, and mixed two-block. Checks cover the real encoder path, decoder golden comparison, width conversion, variable-length packets, `tkeep/tlast`, input gaps, and output backpressure. The current published adaptation has a separate Icarus smoke and is not a new Vivado result.
 
-The AXIS32 testbench drives only `s0`, so it is not evidence of dual-Engine scaling or concurrent dual-input behavior; the dual-Engine and Multi-Engine claims come from separate RTL regression. A historical Zynq-7000 trial copy completed `synth_design -rtl` with a Vivado-2018.3-compatible copied RTL set and completed its SDK/ELF build. The current public RTL retains `parameter string` and is not claimed to elaborate directly in Vivado 2018.3. No matching bitstream, board-console PASS, MCDMA/DDR/cache runtime, FPGA timing, or resource result is claimed.
+The AXIS32 testbench drives only `s0`, so it is not evidence of dual-Engine scaling or concurrent dual-input behavior. Its historical profile still makes no timing/resource claim. Separately, the bounded Direct-AXIS top completes Vivado 2022.2 OOC post-route on `xc7z100ffg900-2` at 200 MHz with setup/hold WNS `+0.001/+0.062 ns`, zero failing internal endpoints, `32,672 LUT / 18,519 FF / 0 BRAM`, and exactly `1024 x RAM32X1S` in eight ways. This does not establish a bitstream, board execution, board IO timing, Fmax, or sustained zero-gap throughput.
 
-Public evidence summary and data: [XSim evidence](../../evidence/rdtc_v1_fpga_axis32_emulation.yaml) · [Zynq trial-build evidence](../../evidence/rdtc_v1_zynq_trial_build.yaml) · [XSim case CSV](../../evidence/data/rdtc_v1_fpga_axis32_xsim_cases.csv)
+Public evidence summary and data: [XSim evidence](../../evidence/rdtc_v1_fpga_axis32_emulation.yaml) · [Direct OOC evidence](../../evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [Zynq trial-build evidence](../../evidence/rdtc_v1_zynq_trial_build.yaml) · [XSim case CSV](../../evidence/data/rdtc_v1_fpga_axis32_xsim_cases.csv)
 
 ![Zynq FPGA emulation evidence layers](../assets/zynq_emulation_path.svg)
 
@@ -79,6 +89,8 @@ make integration-smoke
 make rtl-smoke
 make multiengine-smoke
 make fpga-wrapper-smoke
+make bounded-direct-rtl-smoke
+make bounded-direct-rtl-identity-check
 make showcase-assets-check
 ```
 
@@ -87,6 +99,7 @@ With a configured Questa/ModelSim environment:
 ```bash
 make sim
 make sim-full
+make bounded-direct-register-modelsim-regression
 ```
 
 Tool availability, a loadable script, or successful elaboration proves only that layer. It does not automatically promote a result to implementation, timing, bitstream, or board-workload PASS. See [Limitations](limitations.md) for all explicit nonclaims.

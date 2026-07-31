@@ -140,3 +140,51 @@ evidence:
     trial_copy_rtl_elaboration_status: verified_with_compatibility_copy
     sdk_application_elf_build_status: verified
     direct_current_public_rtl_elaboration_status: not_claimed
+  - id: rdtc_v1_bounded_direct_rtl_public
+    path: evidence/rdtc_v1_bounded_direct_rtl.yaml
+    type: bounded_direct_rtl_functional_and_identity_summary
+    source_ref: 7fa7f554246f34cc474a123cfed68d070688412d
+    tool: ModelSim 2020.4 and deterministic SHA256 identity checker
+    claims:
+      - rdtc_v1_bounded_direct_rtl_two_block
+    sha256: 3ca1d131c1641968e795761adbd1275856cb87f7d7f357c751a842036cea9eaa
+    public: true
+    maturity: verified
+  - id: rdtc_v1_bounded_direct_fpga_ooc200_public
+    path: evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml
+    type: fpga_ooc_postroute_timing_and_structure_summary
+    source_ref: 7fa7f554246f34cc474a123cfed68d070688412d
+    tool: Vivado 2022.2
+    claims:
+      - rdtc_v1_bounded_direct_fpga_ooc200
+    sha256: 4278009bf6a63026d4bce2e1fc04c9e7d7e92cce192f4c0c5c0e384fe57b4771
+    public: true
+    maturity: partial
+    evidence_result_status: verified
+    fpga_source_ready: verified
+    fpga_rtl_simulation: verified
+    fpga_synthesis: verified
+    fpga_implementation: verified
+    fpga_timing: verified
+    fpga_bitstream: not_claimed
+    fpga_board_smoke: not_claimed
+    fpga_workload_validation: verified
+    workload_validation_scope: rtl_simulation
+    overall_fpga_maturity: partial
+  - id: rdtc_v1_bounded_direct_asic_public
+    path: evidence/rdtc_v1_bounded_direct_asic.yaml
+    type: bounded_direct_register_and_sram_physical_summary
+    source_ref: 7fa7f554246f34cc474a123cfed68d070688412d
+    tool: "Design Compiler O-2018.06-SP1, OpenRAM e16d9eb, OpenROAD ORFS, OpenRCX, and PrimeTime O-2018.06-SP1"
+    claims:
+      - rdtc_v1_bounded_direct_register_nangate45_pnr600_pt
+      - rdtc_v1_bounded_direct_sram_nangate45_pnr300_pt
+    sha256: 9c57f86246ba0894d5a2a268c9b7c7784ffdfdaa97cac7239342a506e20ded1d
+    public: true
+    maturity: partial
+    register_implementation_chain_status: verified
+    register_postroute_timing_status: verified
+    sram_implementation_chain_status: verified
+    sram_postroute_timing_status: verified
+    macro_model_status: partial
+    macro_signoff_status: not_closed

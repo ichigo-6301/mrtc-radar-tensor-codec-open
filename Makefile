@@ -7,6 +7,7 @@ RELEASE_REF ?= rdtc-v1-register550-rc3
 KCONFIG_MCONF ?= mconf
 FLOWCTL := $(PYTHON) flows/scripts/flowctl.py --root "$(ROOT)" --config "$(CONFIG)"
 PROFILE_VALIDATOR := $(PYTHON) flows/scripts/validate_profile.py --root "$(ROOT)" --config "$(CONFIG)"
+DIRECT_RTL_IDENTITY := $(PYTHON) flows/scripts/bounded_direct_rtl_identity.py --root "$(ROOT)"
 CHECKSUM_GENERATOR := $(PYTHON) provenance/generate_checksums.py --root "$(ROOT)"
 RELEASE_VERIFIER := $(PYTHON) provenance/verify_release.py --root "$(ROOT)"
 SHOWCASE_SMOKE = $(PYTHON) flows/scripts/iverilog_run.py --root "$(ROOT)" \
@@ -156,7 +157,7 @@ endif
         icc2-libs icc2-libs-dry-run \
         rtl-smoke integration-smoke codec-demo multiengine-smoke fpga-wrapper-smoke showcase-assets-check verify-current-checksums sim sim-dry-run sim-full selected selected-dry-run \
         bounded-direct-register-modelsim-regression bounded-direct-modelsim-regression bounded-direct-modelsim-regression-dry-run \
-        bounded-direct-rtl-smoke bounded-direct-vivado-route200 bounded-direct-vivado-route200-check \
+        bounded-direct-rtl-smoke bounded-direct-rtl-identity-check bounded-direct-vivado-route200 bounded-direct-vivado-route200-check \
         lint lint-dry-run cdc cdc-dry-run \
         dc-baseline dc-baseline-dry-run dc-gated dc-gated-dry-run \
         dft dft-dry-run lec lec-dry-run pnr pnr-full pnr-floorplan pnr-dry-run sta sta-dry-run timing-audit
@@ -202,6 +203,7 @@ help:
 	  '  make bounded-direct-modelsim-regression  Compare Direct-AXIS register and local OpenRAM profiles' \
 	  '  make bounded-direct-modelsim-regression-dry-run  Validate the Direct-AXIS ModelSim plan' \
 	  '  make bounded-direct-rtl-smoke  Elaborate the Direct-AXIS top with Icarus' \
+	  '  make bounded-direct-rtl-identity-check  Verify Direct RTL against fixed evidence' \
 	  '  make bounded-direct-vivado-route200  Run the 200 MHz Vivado OOC post-route gate' \
 	  '  make <stage>-dry-run           Show one tool invocation without running it' \
 	  '  make <stage>                   Run an enabled stage using flows/local setup' \
@@ -317,6 +319,7 @@ public-preflight:
 	@$(MAKE) multiengine-smoke
 	@$(MAKE) fpga-wrapper-smoke
 	@$(MAKE) bounded-direct-rtl-smoke
+	@$(MAKE) bounded-direct-rtl-identity-check
 	@$(MAKE) showcase-assets-check
 	@$(PROFILE_VALIDATOR)
 	@$(CHECKSUM_GENERATOR) --ref HEAD --check
@@ -441,6 +444,9 @@ bounded-direct-rtl-smoke:
 	@$(PYTHON) flows/scripts/rtl_smoke.py --root "$(ROOT)" \
 	  --filelist flows/manifests/rdtc_v1_bounded_direct.f \
 	  --top mrtc_rdtc_bounded_axis_multiengine_wrapper
+
+bounded-direct-rtl-identity-check:
+	@$(DIRECT_RTL_IDENTITY) --check
 
 bounded-direct-vivado-route200:
 	@$(PYTHON) scripts/vivado/mrtc_bounded_direct_axis_route_parser.py \

@@ -7,9 +7,10 @@
 | 完整受控 IP，AXI4-Lite 配置 + AXIS128 codec | [`mrtc_top`](../../rtl/top/mrtc_top.sv) | [`rdtc_v1.f`](../../flows/manifests/rdtc_v1.f) | `make integration-smoke` |
 | 单 Engine 编码器 + 解码器 | [`mrtc_rdtc_codec_top`](../../rtl/rdtc/mrtc_rdtc_codec_top.sv) | [`rdtc_v1.f`](../../flows/manifests/rdtc_v1.f) | `make integration-smoke`；实例参考 [`tb_rdtc_codec_top_smoke`](../../tb/sv/tb_rdtc_codec_top_smoke.sv) |
 | Descriptor/DDR feeder 驱动的 N Engine 压缩 | [`mrtc_rdtc_ddr_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) | [`rdtc_v1_multiengine_smoke.f`](../../flows/manifests/rdtc_v1_multiengine_smoke.f) | `make multiengine-smoke` |
+| 单路 AXIS128 输入的 bounded 双 Engine | [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) | [`rdtc_v1_bounded_direct.f`](../../flows/manifests/rdtc_v1_bounded_direct.f) | `make bounded-direct-rtl-smoke` 与 `make bounded-direct-rtl-identity-check` |
 | 历史 Zynq trial 的 AXIS32 adaptation | [`mrtc_rdtc_axis32_wrapper`](../../rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) | [`rdtc_v1_fpga_wrapper_smoke.f`](../../flows/manifests/rdtc_v1_fpga_wrapper_smoke.f) | `make fpga-wrapper-smoke` |
 
-新集成默认从 `mrtc_top` 开始；只需要 codec datapath、并由外部逻辑直接提供配置时使用 `mrtc_rdtc_codec_top`。Multi-Engine DDR wrapper 是吞吐扩展接口，并不替代带 AXI4-Lite 控制面的 `mrtc_top`。
+通用新集成默认从 `mrtc_top` 开始；只需要 codec datapath、并由外部逻辑直接提供配置时使用 `mrtc_rdtc_codec_top`。DDR 与 bounded Direct-AXIS wrapper 都是 opt-in 集成面，并不替代带 AXI4-Lite 控制面的 `mrtc_top`。
 
 ## 固定数据合同
 
@@ -47,12 +48,22 @@ Decoder 在 `s_axis_comp_*` 接收同一 packet 合同，并在 `m_axis_raw_*` �
 | codec/engine | `PREFIX_SAMPLES=256` | prefix-fast 的公开默认观察长度 |
 | DDR wrapper | `NUM_ENGINES=2` | Engine 数量；公开回归覆盖 2/4 Engine 历史矩阵与 2 Engine adaptation smoke |
 | DDR wrapper | `OUTPUT_IN_ORDER=0` | 唯一支持值；设为 `1` 会 fail-fast |
+| Direct wrapper | `NUM_ENGINES=2`, `ENGINE_BOUNDED_WAY_COUNT=4` | 公开配置固定为双 Engine、共 8 个 way |
+| Direct wrapper | `PREFIX_SAMPLES=128`, `OUTPUT_FIFO_DEPTH=16` | 固定 bounded prefix 与全局 output credit 深度 |
 
 ## Multi-Engine descriptor 与输出顺序
 
 DDR wrapper 通过 `s_desc_*` 接收 raw address、Frame/Block ID、Range 起点、codec mode 和 tensor shape。每个 Engine 拥有独立 feeder、codec 和 packet buffer；输出 arbiter 一旦选中 packet，就保持该 Engine 直到 `tlast`，因此 packet 内不会 beat interleaving。
 
 不同 block 的完成顺序不保证。Header 中的 Frame/Block metadata 提供 indexed software reconstruction 所需身份，但本仓库不声明软件 reorder 程序 PASS。`OUTPUT_IN_ORDER=1` 未实现并显式 fail-fast。
+
+## Bounded Direct-AXIS 合同
+
+Direct wrapper 分别接收 descriptor 与单路 `s_axis_raw_*`。Descriptor 包含 Block ID、Range 起点、Frame ID、tensor dimensions、codec/Rice 字段和 `last_block`，不包含 raw DDR 地址。每个 descriptor 精确预约一个 Engine，随后 256 个已握手 AXIS128 beat 全部属于该 descriptor；没有预约 descriptor 就发送数据属于 fatal。
+
+公开合法配置为 `ZERO_RICE` 加 block-adaptive prefix `k`。RAW、DELTA、fixed `k`、过早/过晚 `tlast`、超过 128 bit 的 Rice word、`II=1` cadence 中断或同 way 读写冲突都会 fail closed。Descriptor 严格按 Engine `0 -> 1 -> 0 -> 1` 轮转；输出保持 job-table 顺序，并锁定到已握手的 `m_axis_comp_tlast`。Packet 内允许 `tvalid` 空拍，`tlast` 仍是唯一 packet boundary。
+
+16-beat output FIFO 提供有限 backpressure credit。下游 stall 耗尽 emergency credit 后，`stat_error` sticky 为 `MRTC_ERR_OUTPUT_CREDIT`（`24`），wrapper 停止接收和输出。该路径没有 speculative payload commit store，已发送 beat 不能回滚；恢复必须用真实 `rst_n` 同时复位 wrapper 与下游 packet receiver。`i_clear_status` 只清 counter，不能恢复 fatal 状态。
 
 ## AXI4-Lite 控制面
 
@@ -64,5 +75,6 @@ DDR wrapper 通过 `s_desc_*` 接收 raw address、Frame/Block ID、Range 起点
 - 输入 `tlast` 与 1024-sample block 边界一致。
 - 下游完整支持 `tready` backpressure 和尾拍有效字节规则。
 - Packet 以 `tlast` 为原子边界，不按 block ID 假设天然有序。
+- Direct profile 必须先提交合法 descriptor、满足 bounded codec 域，并在任意非零 `stat_error` 后复位两端。
 - 使用所选 top 对应的 tracked filelist，不手工遗漏 package 或 helper module。
 - 在交付前运行对应 smoke，并确认工作树在 ignored build 产物之外保持干净。

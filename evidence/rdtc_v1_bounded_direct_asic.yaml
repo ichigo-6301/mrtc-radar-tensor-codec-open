@@ -1,0 +1,100 @@
+title: RDTC v1 bounded Direct-AXIS register and SRAM ASIC closure summary
+status: verified
+source_commit: 7fa7f554246f34cc474a123cfed68d070688412d
+source_visibility: private_fixed_commit
+public_evidence_scope: curated closure metrics and same-run artifact hashes; no macro views, SPEF, DCP, or raw EDA reports
+top: mrtc_rdtc_bounded_axis_multiengine_wrapper
+technology: academic Nangate45/OpenRAM TT/1.1 V/25 C
+tools:
+  design_compiler: O-2018.06-SP1
+  openram_commit: e16d9eb0b4495e8beee441ced3fcad68391155e6
+  orfs_commit: bea7dcd7be7f26d1328f6058b01cf42bf4352aa2
+  openrcx: same-run extraction from final routed database
+  primetime: O-2018.06-SP1
+physical_policy:
+  cap_margin_percent: 60
+  slew_margin_percent: 65
+  cts_hold_margin_ns: 0.060
+  grt_hold_margin_ns: 0.000
+  retiming: disabled
+architecture:
+  engines: 2
+  bulk_storage_bits: 32768
+  input_ring: 4 ways x 32 words x 128 bits per Engine
+  output_fifo_beats: 16
+register_expanded_600mhz:
+  status: verified
+  classification: MRTC_BOUNDED_DIRECT_REGISTER_PNR600_PT_CLOSED
+  memory_macro_count: 0
+  dc_target_mhz: 630
+  physical_target_mhz: 600
+  route_drc_violations: 0
+  antenna_net_violations: 0
+  antenna_pin_violations: 0
+  unrouted_nets: 0
+  final_standard_cell_area_um2: 476320
+  setup_wns_ns: 0.03
+  hold_wns_ns: 0.02
+  setup_coverage: 50972/50972
+  hold_coverage: 50972/50972
+  no_clock_registers: 0
+  unconstrained_endpoints: 0
+  constraint_violations: 0
+  handoff_sha256:
+    dc_mapped_netlist: 8bf8a29fdf737c426462eee3cc976d35d861b2d45fa507505ef6745eb3a30a1f
+    routed_netlist: cc0598195df6ed27ab6fb49b2305b8a23a50d9ed058b2415f441b327c0425fdc
+    primetime_sdc: ee83e95204fa25aaad604013a9375c91aedd388e2362c2646ed518483a9886c6
+    openrcx_spef: e002af99163250942e1f697eda4d6487f3d8a94ad859092b148dffc5ebfd451d
+sram_macro_300mhz:
+  status: verified
+  classification: MRTC_BOUNDED_DIRECT_SRAM_PNR300_PT_CLOSED
+  memory_macro_count: 8
+  macro_organization: 32x128 1RW, words_per_row=2
+  physical_target_mhz: 300
+  governing_period_ns: 2.656
+  minimum_high_pulse_ns: 1.328
+  minimum_low_pulse_ns: 1.328
+  route_drc_violations: 0
+  antenna_net_violations: 0
+  antenna_pin_violations: 0
+  unrouted_nets: 0
+  setup_wns_ns: 0.16
+  hold_wns_ns: 0.02
+  setup_coverage: 18276/18276
+  hold_coverage: 18276/18276
+  no_clock_registers: 0
+  unconstrained_endpoints: 0
+  minimum_period_violations: 0
+  minimum_pulse_width_violations: 0
+  max_transition_violations: 0
+  max_capacitance_violations: 0
+  handoff_sha256:
+    dc_mapped_netlist: fcbe02bbd597682fabb6aaed1d0751f6eb283ac07cbd024ce94ca36148f7e134
+    routed_netlist: fa282e8868bfe80eee505d0e90bd87656dd75ebf70caf3384df918bac835bfc7
+    primetime_sdc: e5818d35d4cd852bcc9bc6d0156597182c7d4ed52894b66c901d40b482e6e252
+    openrcx_spef: f21e478e866f544a846e860639c5363f01ff7b6cbeccd5ec2065823674a8dc2d
+sram_600mhz:
+  status: blocked
+  classification: MACRO_MODEL_BLOCKED
+  wpr2_governing_period_ns: 2.656
+  wpr2_minimum_pulse_ns: 1.328
+  wpr1_governing_period_ns: 2.500
+  wpr1_minimum_pulse_ns: 1.250
+  wpr4_status: unsupported_by_pinned_openram
+  conclusion: no characterized legal macro candidate satisfies the 1.666667 ns period and 0.833333 ns pulse gates
+result_maturity:
+  register_600_implementation_chain: verified
+  register_600_postroute_timing: verified
+  sram_300_implementation_chain: verified
+  sram_300_postroute_timing: verified
+  sram_macro_model: analytical_characterization
+  sram_macro_physical_signoff: not_closed
+  full_io_timing: not_claimed
+  ocv_mmmc: not_claimed
+  foundry_signoff: not_claimed
+  silicon: not_claimed
+caveats:
+  - Both frequencies are fixed academic internal timing closure points, not Fmax.
+  - SRAM 600 MHz is blocked by the characterized macro period and pulse-width gates and is not a published executable closure profile.
+  - Route-tool DRC 0 does not establish transistor-level macro DRC/LVS/PEX or foundry signoff.
+  - The approximately 277-cycle packet service limitation remains; physical timing closure does not prove sustained zero-gap scheduling.

@@ -16,10 +16,10 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 |---|---|
 | 无损算法 | `RAW_BYPASS`、`ZERO_RICE`、`DELTA_RICE`；I/Q bit-exact reconstruction |
 | 单 Engine | `1024` 个 I16Q16 sample/block，`4096` byte raw，64-byte header，128-bit AXI-Stream |
-| Multi-Engine | Round-Robin block dispatch、独立 feeder/codec/packet buffer、packet-locked arbitration |
+| Multi-Engine | 既有 DDR/packet-buffer wrapper；另有 opt-in Direct-AXIS 双 Engine、严格 0/1 block 轮转与有序 packet output |
 | RTL 吞吐 | 1/2/4 Engine：`785 / 397.52 / 197.41 cycles/block`，固定 256-block simulation workload |
-| FPGA | 固定 commit、single-`s0` 的 Vivado 2018.3 AXIS32 XSim `3/3` PASS；Zynq trial 仅 compatibility-copied RTL elaboration + SDK/ELF build |
-| ASIC | Nangate45 register-expanded 550 MHz 与双 OpenRAM SRAM-macro 333 MHz 均完成 OpenROAD P&R，并以 matching routed netlist/SDC、same-run OpenRCX SPEF 通过 PrimeTime post-route setup/hold STA；共用 `1200 x 1200 um` configured die，属于 academic PDK/OpenRAM 实现范围 |
+| FPGA | 历史 single-`s0` AXIS32 XSim `3/3`；Direct-AXIS 在 `xc7z100ffg900-2` 上完成 Vivado 2022.2 OOC post-route 200 MHz，setup/hold WNS `+0.001/+0.062 ns`，`32,672 LUT / 18,519 FF / 0 BRAM` |
+| ASIC | 既有 register 550 MHz / 双宏 SRAM 333 MHz；Direct-AXIS register-expanded 600 MHz 与 8 宏 SRAM 300 MHz 均完成 academic Nangate45/OpenRAM P&R、OpenRCX 与 PT，setup/hold WNS 分别 `+0.03/+0.02 ns`、`+0.16/+0.02 ns` |
 
 ### 选择集成入口
 
@@ -28,6 +28,7 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 | 完整 AXI4-Lite + AXIS128 IP | [`mrtc_top`](rtl/top/mrtc_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
 | 单 Engine codec datapath | [`mrtc_rdtc_codec_top`](rtl/rdtc/mrtc_rdtc_codec_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
 | Descriptor/DDR Multi-Engine | [`mrtc_rdtc_ddr_multiengine_wrapper`](rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) | [`rdtc_v1_multiengine_smoke.f`](flows/manifests/rdtc_v1_multiengine_smoke.f) · `make multiengine-smoke` |
+| Bounded Direct-AXIS 双 Engine（opt-in） | [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) | [`rdtc_v1_bounded_direct.f`](flows/manifests/rdtc_v1_bounded_direct.f) · `make bounded-direct-rtl-smoke` |
 | 历史 Zynq AXIS32 adaptation | [`mrtc_rdtc_axis32_wrapper`](rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) | [`rdtc_v1_fpga_wrapper_smoke.f`](flows/manifests/rdtc_v1_fpga_wrapper_smoke.f) · `make fpga-wrapper-smoke` |
 
 [查看参数、端口、transaction 和 ordering contract](docs/zh-CN/interfaces.md)
@@ -51,6 +52,8 @@ MATLAB synthetic study 在受控 Range-Doppler-like 场景中比较 ZERO_RICE �
 
 参数化 Multi-Engine wrapper 按 block Round-Robin 分发任务，并锁定一个输出 packet 直到 `tlast`，因此 packet 内不会发生 beat interleaving。完成顺序由数据相关压缩延迟决定且不保证；Frame/Block metadata 只提供 indexed software reconstruction 接口，本仓库不声明软件 reorder 程序 PASS，也没有把未直接观察到的乱序事件写成验证结果。
 
+新的 opt-in Direct-AXIS profile 去掉 DDR feeder 与每 Engine payload commit store，只保留双 Engine 的 `4 x 32x128` 1RW way-ring、两项 job table 与全局 16-beat output FIFO。它固定为 `ZERO_RICE + prefix-128 adaptive-k`，每个 Rice word 必须 `<=128 bit`；output credit 耗尽会 sticky fatal，可能留下外部半包。记录的有序 packet service 约 `277 cycles/block`，大于零间隔输入的 `256 cycles/block`，因此不声明持续零停顿。
+
 [查看单 Engine pipeline、Multi-Engine wrapper 与 ordering contract](docs/zh-CN/architecture.md)
 
 ## 3. 验证：同一个码流合同贯穿各层
@@ -64,7 +67,7 @@ MATLAB synthetic study
         -> ASIC P&R / same-run SPEF / PrimeTime
 ```
 
-公开 smoke 覆盖 C reference、RTL loopback、packet 边界、`tkeep/tlast`、随机 backpressure、Multi-Engine 仲裁以及 AXIS32 wrapper。有限向量与 regression PASS 不等于形式穷尽或 coverage closure。
+公开 smoke 覆盖 C reference、RTL loopback、packet 边界、`tkeep/tlast`、随机 backpressure、Multi-Engine 仲裁以及 AXIS32 wrapper。公开 Icarus-compatible 检查是 portability/elaboration 门禁，不能替代 ModelSim 或 Vivado evidence。有限向量与 regression PASS 不等于形式穷尽或 coverage closure。
 
 固定可见 demo 真实调用公开 C encoder/decoder：1024-sample `delta_smooth` 输入选择 `DELTA_RICE` 与 `k=0`，从 4096 raw bytes 生成 360-byte self-describing packet，再逐字节恢复原始 I/Q，结果为 `RDTC_CODEC_DEMO_PASS`。输入、packet 和解码输出哈希见 [codec demo evidence](evidence/rdtc_v1_codec_demo.yaml)。
 
@@ -72,20 +75,22 @@ MATLAB synthetic study
 
 ## 4. FPGA：分层陈述成熟度
 
-**FPGA emulation verified.** 固定 source commit `43deb9f` 上的 Vivado 2018.3 AXIS32 wrapper XSim 用例 `3/3` 通过，覆盖真实 encoder/decoder 路径、宽度转换、变长 packet、`tkeep/tlast`、输入 gap 与输出 backpressure。该 testbench 只驱动 `s0`；双 Engine 扩展由独立 RTL regression 支撑。公开 Icarus-compatible wrapper/testbench 是历史 source 的 adaptation，不构成新的 Vivado 结果，也不声明当前公开 RTL 可直接在 Vivado 2018.3 elaboration。Zynq-7000 trial 只声明 compatibility-copied RTL elaboration 与 SDK/ELF build，不声明 matching bitstream、板上 console PASS、MCDMA/DDR runtime、FPGA timing 或资源结果。
+**FPGA emulation verified** 仍专指固定 source commit `43deb9f` 的 Vivado 2018.3 AXIS32 XSim `3/3`，且 testbench 只驱动 `s0`。独立的 Direct-AXIS profile 已在 `xc7z100ffg900-2` 上完成 Vivado 2022.2 OOC post-route 200 MHz：setup/hold WNS 为 `+0.001/+0.062 ns`，结构为 2 Engine、8 way、`1024 x RAM32X1S`，资源为 `32,672 LUT / 18,519 FF / 0 BRAM`。这是内部 OOC fixed closure point，不是 Fmax，也不声明 bitstream、板上 console PASS、MCDMA/DDR runtime 或实测吞吐。
 
 [查看 FPGA emulation 与 Zynq 集成边界](docs/zh-CN/fpga_implementation.md)
 
 ## 5. ASIC：布局布线后 STA 闭合点，不是 DC 结果或 Fmax
 
-**以下 550/333 MHz 结果均来自 route 后的 PrimeTime setup/hold STA，不是 DC synthesis timing estimate。** STA 使用 matching routed netlist、SDC 与同次 OpenRCX SPEF；DC 只提供进入物理实现的 mapped netlist。
+**以下结果均来自 route 后的 PrimeTime setup/hold STA，不是 DC synthesis timing estimate。** STA 使用 matching routed netlist、SDC 与同次 OpenRCX SPEF；DC 只提供进入物理实现的 mapped netlist。
 
 | Profile | Verified implementation result | Maturity boundary |
 |---|---|---|
 | `rdtc_v1_register_nangate45_550` | 550 MHz OpenROAD P&R + same-run OpenRCX SPEF + PrimeTime；configured die/core 为 `1200 x 1200 um` / `1159.72 x 1155.20 um`；core area `421,120 um2`；route DRC `0`；antenna net/pin `0/0`；setup/hold WNS `+0.26/+0.04 ns` | internal reg-to-reg implementation/timing verified |
 | `rdtc_v1_sram_nangate45_333` | 双 `64x128 1RW1R` OpenRAM macro；333 MHz 芯片级 P&R + same-run SPEF + internal PT；configured die/core 为 `1200 x 1200 um` / `1159.72 x 1155.20 um`；route DRC `0`；antenna net/pin `0/0`；setup/hold WNS `+0.57/+0.04 ns` | 芯片级 P&R 与内部时序 verified；academic Nangate45/OpenRAM 平台不声明生产 PDK、macro signoff 或 silicon readiness；256-endpoint exact-set waiver 单独披露 |
+| `rdtc_v1_bounded_direct_register_expanded` | Direct-AXIS、双 Engine、`32,768 bit` ring 展开为寄存器、0 宏；600 MHz P&R + OpenRCX + PT；route DRC/antenna `0/0`；setup/hold WNS `+0.03/+0.02 ns` | fixed academic internal closure point；不是 Fmax 或持续零停顿证据 |
+| `rdtc_v1_bounded_direct_sram_macro` | Direct-AXIS、8 个 `32x128 1RW` OpenRAM 宏；300 MHz P&R + OpenRCX + PT；route DRC/antenna `0/0`；setup/hold WNS `+0.16/+0.02 ns` | 顶层实现与内部时序 verified；macro DRC/LVS/PEX 未闭合；600 MHz 为 `MACRO_MODEL_BLOCKED` |
 
-这些频率是对应 profile 的 fixed verified closure point，不是 maximum frequency。结果属于 academic implementation evidence，不声明完整 top-level IO timing、OCV/MMMC、foundry signoff 或 silicon readiness。
+这些频率是对应 profile 的 fixed verified closure point，不是 maximum frequency。结果处于 academic PDK/OpenRAM 实现范围，不声明完整 top-level IO timing、OCV/MMMC、foundry signoff 或 silicon readiness。
 
 [查看 ASIC flow contract](docs/zh-CN/asic_implementation.md) · [完整结果矩阵](docs/zh-CN/results.md) · [限制与未声明项](docs/zh-CN/limitations.md)
 
@@ -99,6 +104,8 @@ make rtl-smoke
 make integration-smoke
 make multiengine-smoke
 make fpga-wrapper-smoke
+make bounded-direct-rtl-identity-check
+make bounded-direct-register-modelsim-regression
 make showcase-assets-check
 ```
 

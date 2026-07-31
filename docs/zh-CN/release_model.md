@@ -6,6 +6,8 @@
 
 `rdtc-v1-register550-rc3` 是不可变 annotated public release tag，固定 RC3 的源码、公开 evidence、provenance 与 checksum 身份。当前 `main` 是 post-RC3 开发线，可以增加展示、说明和后续受审内容，但不得移动、删除、重建或让 RC3 tag 指向新的 main。
 
+bounded Direct 发布使用 annotated checkpoint tag `rdtc-v1-pre-bounded-direct-20260731` 保存变更前的 `main@0fcad2d`。这个 checkpoint 只是分支切换保护，不是新的正式产品 release；本次更新不移动 RC2/RC3 tag，也不创建新的正式 release tag。
+
 因此应区分：
 
 - **RC3 release**：不可变、可独立 checkout 和验证的历史发行；
@@ -35,7 +37,9 @@ Manifest 不在同一 commit 内嵌自指的最终 public commit SHA；tag 提�
 
 SRAM 333 MHz 是典型例子：chip-level P&R、routed handoff、same-run OpenRCX SPEF 与内部 PT setup/hold result 均为 verified。结构化 metadata 会单独记录 analytical macro model 与 macro-verification boundary；本项目采用 academic Nangate45/OpenRAM 平台，不声明 production PDK 或 silicon readiness，这些边界不会把芯片级 P&R 或时序结果降级。精确审核的 256-endpoint minimum-capacitance waiver 必须披露，但它不是 setup/hold waiver，也不影响已验证的 timing result。
 
-FPGA 同样按 simulation、elaboration、software build、implementation、timing、bitstream、board smoke 和 workload validation 分层。当前公开 claim 是 AXIS32 XSim `3/3`，以及历史 Zynq trial copy 使用 compatibility-copied RTL 的 elaboration 与 SDK/ELF build。当前公开 RTL 的直接 Vivado 2018.3 elaboration、bitstream、board execution、MCDMA runtime、timing 和 resources 为 `not_claimed`。
+FPGA 同样按 simulation、elaboration、software build、implementation、timing、bitstream、board smoke 和 workload validation 分层。公开 claim 包括 AXIS32 XSim `3/3`、历史 Zynq trial copy 使用 compatibility-copied RTL 的 elaboration 与 SDK/ELF build，以及独立的 bounded Direct Vivado 2022.2 OOC post-route 200 MHz internal timing/resource 固定点。Direct 的 bitstream 与 board smoke 仍为 `not_claimed`；历史 AXIS32/Zynq profile 仍不声明 timing/resource。这些层次不能合并成 board 或 Fmax claim。
+
+Direct ASIC 摘要同样属于 post-RC3 受审内容，不构成新的正式 release：register-expanded 600 MHz 与 8 宏 SRAM 300 MHz 是固定 academic internal closure point，SRAM 600 MHz 为 `MACRO_MODEL_BLOCKED`。约 `277 cycles/block > 256 cycles/block` 的 scheduler 边界独立于物理时序闭合。
 
 ## 完整性
 

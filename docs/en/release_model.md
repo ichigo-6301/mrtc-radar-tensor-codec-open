@@ -6,6 +6,8 @@
 
 `rdtc-v1-register550-rc3` is the immutable annotated public release tag. It fixes the RC3 source, public evidence, provenance, and checksum identity. Current `main` is the post-RC3 development line: it may add presentation, clarification, and later reviewed content, but it must not move, delete, recreate, or retarget the RC3 tag to the new main.
 
+The bounded Direct publication preserves the pre-Direct `main@0fcad2d` state under the annotated checkpoint tag `rdtc-v1-pre-bounded-direct-20260731`. That checkpoint is a branch-transition safeguard, not a new formal product release. No RC2/RC3 tag is moved and no new formal release tag is created by this update.
+
 The distinction is:
 
 - **RC3 release**: an immutable historical release that can be checked out and verified independently;
@@ -35,7 +37,9 @@ Maturity must be interpreted by dimension:
 
 The SRAM 333 MHz profile is the canonical example: chip-level P&R, routed handoff, same-run OpenRCX SPEF, and internal PT setup/hold results are verified. Its structured metadata separately records the analytical macro model and macro-verification boundary. This learning project uses an academic Nangate45/OpenRAM platform and makes no production-PDK or silicon-readiness claim; those boundaries do not downgrade the chip-level P&R or timing result. The exact reviewed 256-endpoint minimum-capacitance waiver must stay disclosed, but it is not a setup/hold waiver and does not affect the verified timing result.
 
-FPGA maturity is likewise separated into simulation, elaboration, software build, implementation, timing, bitstream, board smoke, and workload validation. Current public claims cover AXIS32 XSim `3/3`, plus historical Zynq trial-copy elaboration with compatibility-copied RTL and its SDK/ELF build. Direct Vivado 2018.3 elaboration of the current public RTL, bitstream, board execution, MCDMA runtime, timing, and resources are `not_claimed`.
+FPGA maturity is likewise separated into simulation, elaboration, software build, implementation, timing, bitstream, board smoke, and workload validation. Public claims cover AXIS32 XSim `3/3`, historical Zynq trial-copy elaboration with compatibility-copied RTL and its SDK/ELF build, and a separate bounded Direct Vivado 2022.2 OOC post-route internal timing/resource point at 200 MHz. The Direct point still leaves bitstream and board smoke `not_claimed`; the historical AXIS32/Zynq profile still has no timing/resource claim. These layers cannot be combined into a board or Fmax claim.
+
+The Direct ASIC summaries are also post-RC3 reviewed content rather than a new formal release: register-expanded 600 MHz and eight-macro SRAM 300 MHz are fixed academic internal closure points, while SRAM 600 MHz is `MACRO_MODEL_BLOCKED`. The approximately `277 cycles/block > 256 cycles/block` scheduler boundary remains independent of physical timing closure.
 
 ## Integrity
 

@@ -35,6 +35,15 @@
       "smoke_command": "make fpga-wrapper-smoke",
       "top_module": "mrtc_rdtc_axis32_wrapper",
       "top_path": "rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv"
+    },
+    {
+      "filelist": "flows/manifests/rdtc_v1_bounded_direct.f",
+      "id": "bounded_direct_axis_dual_engine",
+      "interface": "Descriptor plus one AXIS128 raw stream, strict dual-Engine block rotation, and ordered AXIS128 packet output",
+      "pass_marker": "rtl-smoke: PASS",
+      "smoke_command": "make bounded-direct-rtl-smoke",
+      "top_module": "mrtc_rdtc_bounded_axis_multiengine_wrapper",
+      "top_path": "rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv"
     }
   ],
   "interface_document": "docs/en/interfaces.md",

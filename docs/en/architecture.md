@@ -23,6 +23,7 @@ See [Interfaces](interfaces.md) and [Bitstream Format](bitstream_format.md) for 
 | Complete control surface | [`mrtc_top`](../../rtl/top/mrtc_top.sv) plus [`mrtc_axi_lite_reg_block`](../../rtl/top/mrtc_axi_lite_reg_block.sv) |
 | Single-Engine codec | [`mrtc_rdtc_codec_top`](../../rtl/rdtc/mrtc_rdtc_codec_top.sv) |
 | DDR Multi-Engine | [`mrtc_rdtc_ddr_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) |
+| Bounded Direct-AXIS dual Engine (opt-in) | [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) |
 | AXIS32 FPGA adaptation | [`mrtc_rdtc_axis32_wrapper`](../../rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) |
 
 ## Single-Engine Pipeline
@@ -64,6 +65,22 @@ The Multi-Engine wrapper addresses system throughput when Single-Engine latency 
 
 This choice avoids the buffering, control complexity, and head-of-line blocking of a hardware reorder buffer while leaving ordering policy explicit at the system-integration layer.
 
+## Bounded Direct-AXIS Profile
+
+The opt-in Direct profile targets a lower-storage path for a bounded signal domain. One AXIS128 source sends 256 beats per block. A two-entry job table assigns complete blocks strictly to Engine 0, then Engine 1, while output remains input-job ordered and packet-locked through `tlast`.
+
+Each Engine contains four `32x128` true-1RW ways, a two-entry registered ingress queue, a prefix-128 estimator, and the fixed-rate bounded bitpacker. The estimator observes accepted input directly and does not consume the RAM read port. The wrapper removes the DDR feeder and per-Engine payload commit stores; a global 16-beat FIFO absorbs short output stalls. The two Engines therefore contain `32,768` bulk ring bits, versus the prior payload-backed experiment's `180,224` bulk bits.
+
+This simplification is deliberately fail-stop:
+
+- only `ZERO_RICE` with block-adaptive prefix `k` is accepted;
+- every eight-sample Rice word must fit in `128` bits;
+- one Engine issues all 256 ring reads at `II=1` after `k` becomes available;
+- a same-way read/write collision, cadence failure, malformed block, or exhausted output credit raises sticky fatal status;
+- without speculative payload storage, a fatal event can leave a partial packet externally visible, so producer and receiver state must be reset together.
+
+The fixed regression observes about `277 cycles` of ordered packet service for a block arriving every `256 cycles`. That deficit accumulates and eventually creates a legal way conflict. The profile verifies bounded datapath behavior and implementation closure, but does not verify sustained zero-gap scheduling.
+
 ## Throughput Scaling
 
 The historical fixed-commit 256-block workload uses a simulated DDR feeder. The 1/2/4-Engine configurations achieve `785 / 397.52 / 197.41 cycles/block`, with 2/4-Engine efficiencies of `0.987368 / 0.994115`. One beam is defined as 256 blocks in this record.
@@ -76,6 +93,6 @@ Sources: [Multi-Engine evidence](../../evidence/rdtc_v1_multiengine_rtl.yaml) ·
 
 ## Memory-Implementation Boundary
 
-The `register-expanded` and `sram-macro` profiles preserve the same external AXI, packet, and functional contract while changing only the physical binding of prefix/sample buffers. A wrapper adapts the synchronous SRAM read latency; the memory implementation does not remove buffering behavior or change the bitstream.
+The historical `register-expanded` and `sram-macro` profiles preserve the same external AXI, packet, and functional contract while changing the prefix/sample-buffer binding. The Direct profile applies the same principle specifically to its eight `32x128` way memories: either all eight are expanded into standard cells or all eight bind to 1RW OpenRAM macros. The 16-beat output queue and control state remain registers. A memory-binding change does not remove buffering behavior or change packet bytes.
 
 [See ASIC implementation and profile maturity](asic_implementation.md)

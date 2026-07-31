@@ -38,6 +38,9 @@ README_MARKERS = {
         "synthetic",
         "academic PDK/OpenRAM 实现范围",
         "fixed verified closure point",
+        "mrtc_rdtc_bounded_axis_multiengine_wrapper",
+        "277 cycles/block",
+        "fixed closure point",
     ),
     "README.en.md": (
         "rdtc_overview.svg",
@@ -50,8 +53,51 @@ README_MARKERS = {
         "synthetic",
         "academic PDK/OpenRAM implementation scope",
         "fixed verified closure point",
+        "mrtc_rdtc_bounded_axis_multiengine_wrapper",
+        "277 cycles/block",
+        "fixed closure point",
     ),
 }
+
+DIRECT_DOC_MARKERS = {
+    "docs/en/limitations.md": (
+        "277 cycles/block",
+        "MRTC_ERR_OUTPUT_CREDIT",
+        "MACRO_MODEL_BLOCKED",
+        "1 ps setup margin",
+    ),
+    "docs/zh-CN/limitations.md": (
+        "277 cycles/block",
+        "MRTC_ERR_OUTPUT_CREDIT",
+        "MACRO_MODEL_BLOCKED",
+        "1 ps setup",
+    ),
+    "docs/en/release_model.md": (
+        "rdtc-v1-pre-bounded-direct-20260731",
+        "277 cycles/block > 256 cycles/block",
+    ),
+    "docs/zh-CN/release_model.md": (
+        "rdtc-v1-pre-bounded-direct-20260731",
+        "277 cycles/block > 256 cycles/block",
+    ),
+    "docs/en/results.md": (
+        "rdtc_v1_bounded_direct_rtl.yaml",
+        "rdtc_v1_bounded_direct_fpga_ooc200.yaml",
+        "rdtc_v1_bounded_direct_asic.yaml",
+    ),
+    "docs/zh-CN/results.md": (
+        "rdtc_v1_bounded_direct_rtl.yaml",
+        "rdtc_v1_bounded_direct_fpga_ooc200.yaml",
+        "rdtc_v1_bounded_direct_asic.yaml",
+    ),
+}
+
+DIRECT_EVIDENCE = (
+    "evidence/rdtc_v1_bounded_direct_rtl.yaml",
+    "evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml",
+    "evidence/rdtc_v1_bounded_direct_asic.yaml",
+    "evidence/data/rdtc_v1_bounded_direct_rtl_identity.csv",
+)
 
 
 def tracked_markdown(root):
@@ -82,6 +128,14 @@ def check(root):
         for marker in README_MARKERS[name]:
             if marker not in text:
                 errors.append("{} missing showcase boundary {}".format(name, marker))
+    for name, markers in DIRECT_DOC_MARKERS.items():
+        text = (root / name).read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                errors.append("{} missing bounded Direct boundary {}".format(name, marker))
+    for name in DIRECT_EVIDENCE:
+        if not (root / name).is_file():
+            errors.append("missing bounded Direct evidence: {}".format(name))
     for name in PRIMARY_SHOWCASE_DOCS:
         text = (root / name).read_text(encoding="utf-8")
         if re.search(r"ICS55|ICsprout55|ECOS", text, flags=re.IGNORECASE):
@@ -107,7 +161,15 @@ def check(root):
         errors.append("cannot load integration manifest: {}".format(exc))
         integration = {"entries": []}
     readmes = (root / "README.md").read_text(encoding="utf-8") + (root / "README.en.md").read_text(encoding="utf-8")
-    for entry in integration.get("entries", []):
+    entries = integration.get("entries", [])
+    if not entries or entries[0].get("top_module") != "mrtc_top":
+        errors.append("mrtc_top is not the first canonical integration entry")
+    direct_entries = [entry for entry in entries if entry.get("id") == "bounded_direct_axis_dual_engine"]
+    if len(direct_entries) != 1:
+        errors.append("expected exactly one bounded Direct integration entry")
+    elif direct_entries[0].get("top_module") != "mrtc_rdtc_bounded_axis_multiengine_wrapper":
+        errors.append("bounded Direct integration top mismatch")
+    for entry in entries:
         for field in ("id", "top_module", "top_path", "filelist", "smoke_command", "pass_marker"):
             if not entry.get(field):
                 errors.append("integration entry missing {}: {}".format(field, entry.get("id", "<unknown>")))
