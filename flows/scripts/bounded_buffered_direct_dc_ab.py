@@ -26,6 +26,8 @@ import flowctl  # noqa: E402
 FIXED_PUBLIC_RTL_COMMIT = "4bb56f543d75bb91c9ddeb26cdeef5201560c669"
 EXPECTED_DC_VERSION = "O-2018.06-SP1"
 EXPECTED_DB_SHA256 = flowctl.BOUNDED_DC_AB_STDCELL_DB_SHA256
+EXPECTED_TECHNOLOGY = "nangate45_registers"
+EXPECTED_MEMORY_MODE = "registers"
 FILELIST = flowctl.BOUNDED_DC_AB_FILELIST
 COMMON_SDC = flowctl.BOUNDED_DC_AB_SDC
 RUN_TCL = "flows/synthesis/dc/baseline/run.tcl"
@@ -36,6 +38,7 @@ POINTS = (
         "frequency_mhz": 315,
         "period_ns": 3.174603,
         "storage_bits": 180224,
+        "product_profile": "bounded-register-expanded",
         "config": "rdtc_v1_bounded_ab_buffered_dc315_defconfig",
         "build_tag": "rdtc_v1_bounded_ab_buffered_dc315",
     },
@@ -45,6 +48,7 @@ POINTS = (
         "frequency_mhz": 315,
         "period_ns": 3.174603,
         "storage_bits": 32768,
+        "product_profile": "bounded-direct-register-expanded",
         "config": "rdtc_v1_bounded_ab_direct_dc315_defconfig",
         "build_tag": "rdtc_v1_bounded_ab_direct_dc315",
     },
@@ -54,6 +58,7 @@ POINTS = (
         "frequency_mhz": 630,
         "period_ns": 1.587302,
         "storage_bits": 180224,
+        "product_profile": "bounded-register-expanded",
         "config": "rdtc_v1_bounded_ab_buffered_dc630_defconfig",
         "build_tag": "rdtc_v1_bounded_ab_buffered_dc630",
     },
@@ -63,6 +68,7 @@ POINTS = (
         "frequency_mhz": 630,
         "period_ns": 1.587302,
         "storage_bits": 32768,
+        "product_profile": "bounded-direct-register-expanded",
         "config": "rdtc_v1_bounded_ab_direct_dc630_defconfig",
         "build_tag": "rdtc_v1_bounded_ab_direct_dc630",
     },
@@ -90,6 +96,7 @@ PUBLIC_CLOSURE_FIELDS = (
 )
 
 PUBLIC_CONTRACT_FIELDS = (
+    "status",
     "product_profile",
     "technology",
     "top",
@@ -100,6 +107,7 @@ PUBLIC_CONTRACT_FIELDS = (
     "bounded_dc_ab",
     "bounded_asic_family",
     "bounded_bulk_storage_bits",
+    "bounded_register_storage_bits",
     "setup_wns",
     "setup_tns",
     "setup_violating_paths",
@@ -110,6 +118,7 @@ PUBLIC_CONTRACT_FIELDS = (
     "designware_cell_count",
     "unmapped_cell_count",
     "memory_macro_count",
+    "retiming",
     "total_cell_count",
     "stdcell_db_sha256",
     "dc_max_cores",
@@ -230,6 +239,23 @@ def parse_key_values(path):
     return values
 
 
+def validate_standalone_dc_setup(path):
+    path = Path(path)
+    try:
+        text = path.read_text(encoding="utf-8", errors="replace")
+    except OSError as error:
+        raise RuntimeError("cannot read DC setup {}: {}".format(path, error))
+    code_lines = []
+    for raw_line in text.splitlines():
+        if raw_line.lstrip().startswith("#"):
+            continue
+        code_lines.append(raw_line.split("#", 1)[0])
+    code = "\n".join(code_lines)
+    if re.search(r"(?i)(?<![A-Za-z0-9_])(?:::)?source(?=\s|[;{}]|$)", code):
+        raise RuntimeError("paired comparison DC setup must be standalone")
+    return path
+
+
 def select_public_fields(values, fields):
     return {key: values[key] for key in fields if key in values}
 
@@ -316,47 +342,65 @@ def collect_run(root, point, execution, input_manifest_sha256):
             "missing": missing,
             "build_root": relative_path(root, build_root),
         }
-    closure = parse_key_values(required["closure"])
-    contract = parse_key_values(required["contract"])
-    execution_record = execution.get(point["key"], {})
-    expected_top = (
-        flowctl.BOUNDED_BUFFERED_TOP
-        if point["family"] == "buffered"
-        else flowctl.BOUNDED_DIRECT_TOP
-    )
-    return {
-        "status": closure.get("status", "UNKNOWN"),
-        "family": point["family"],
-        "frequency_mhz": point["frequency_mhz"],
-        "period_ns": point["period_ns"],
-        "storage_bits": point["storage_bits"],
-        "build_root": relative_path(root, build_root),
-        "closure": select_public_fields(closure, PUBLIC_CLOSURE_FIELDS),
-        "contract": select_public_fields(contract, PUBLIC_CONTRACT_FIELDS),
-        "area": parse_area_report(required["area"]),
-        "hierarchy_area": parse_hierarchy_area(required["hierarchy"], expected_top),
-        "elapsed_seconds": execution_record.get("elapsed_seconds"),
-        "input_manifest_sha256": input_manifest_sha256,
-        "execution_input_manifest_sha256": execution_record.get(
-            "input_manifest_sha256"
-        ),
-        "execution_report_sha256": execution_record.get("report_sha256", {}),
-        "artifacts": {
-            name: file_record(root, path) for name, path in required.items()
-        },
-    }
+    try:
+        closure = parse_key_values(required["closure"])
+        contract = parse_key_values(required["contract"])
+        execution_record = execution.get(point["key"], {})
+        expected_top = (
+            flowctl.BOUNDED_BUFFERED_TOP
+            if point["family"] == "buffered"
+            else flowctl.BOUNDED_DIRECT_TOP
+        )
+        return {
+            "status": closure.get("status", "UNKNOWN"),
+            "family": point["family"],
+            "frequency_mhz": point["frequency_mhz"],
+            "period_ns": point["period_ns"],
+            "storage_bits": point["storage_bits"],
+            "build_root": relative_path(root, build_root),
+            "closure": select_public_fields(closure, PUBLIC_CLOSURE_FIELDS),
+            "contract": select_public_fields(contract, PUBLIC_CONTRACT_FIELDS),
+            "area": parse_area_report(required["area"]),
+            "hierarchy_area": parse_hierarchy_area(
+                required["hierarchy"], expected_top
+            ),
+            "elapsed_seconds": execution_record.get("elapsed_seconds"),
+            "input_manifest_sha256": input_manifest_sha256,
+            "execution_input_manifest_sha256": execution_record.get(
+                "input_manifest_sha256"
+            ),
+            "execution_report_sha256": execution_record.get("report_sha256", {}),
+            "artifacts": {
+                name: file_record(root, path) for name, path in required.items()
+            },
+        }
+    except (OSError, UnicodeError, ValueError, RuntimeError) as error:
+        return {
+            "status": "REJECTED",
+            "family": point["family"],
+            "frequency_mhz": point["frequency_mhz"],
+            "period_ns": point["period_ns"],
+            "storage_bits": point["storage_bits"],
+            "build_root": relative_path(root, build_root),
+            "rejection_reason": "required DC report parse failed ({})".format(
+                type(error).__name__
+            ),
+        }
 
 
 def gate_run(run, point):
     if run.get("status") == "INCOMPLETE":
         return False, ["incomplete reports"]
-    closure = run["closure"]
-    contract = run["contract"]
+    if run.get("status") == "REJECTED":
+        return False, [run.get("rejection_reason", "rejected reports")]
+    closure = run.get("closure", {})
+    contract = run.get("contract", {})
     failures = []
     expected = {
         "status": "PASS",
         "setup_violating_paths": "0",
         "constraint_violating_checks": "0",
+        "bounded_design_rule_repair_passes": "1",
         "seqgen_cell_count": "0",
         "gtech_cell_count": "0",
         "designware_cell_count": "0",
@@ -392,6 +436,52 @@ def gate_run(run, point):
     )
     if contract.get("top") != expected_top:
         failures.append("top identity mismatch")
+    expected_contract = {
+        "status": "PASS",
+        "product_profile": point["product_profile"],
+        "technology": EXPECTED_TECHNOLOGY,
+        "memory_mode": EXPECTED_MEMORY_MODE,
+        "bounded_dc_ab": "1",
+        "bounded_asic_family": point["family"],
+        "bounded_bulk_storage_bits": str(point["storage_bits"]),
+        "bounded_register_storage_bits": str(point["storage_bits"]),
+        "setup_violating_paths": "0",
+        "constraint_violating_checks": "0",
+        "bounded_design_rule_repair_passes": "1",
+        "seqgen_cell_count": "0",
+        "gtech_cell_count": "0",
+        "designware_cell_count": "0",
+        "unmapped_cell_count": "0",
+        "memory_macro_count": "0",
+        "retiming": "disabled",
+        "stdcell_db_sha256": EXPECTED_DB_SHA256,
+        "dc_max_cores": "4",
+        "input_manifest_sha256": run.get("input_manifest_sha256"),
+    }
+    for key, value in expected_contract.items():
+        if contract.get(key) != value:
+            failures.append(
+                "run contract {} expected {} got {}".format(
+                    key, value, contract.get(key)
+                )
+            )
+    for key in (
+        "setup_wns",
+        "setup_tns",
+        "setup_violating_paths",
+        "constraint_violating_checks",
+        "bounded_design_rule_repair_passes",
+        "seqgen_cell_count",
+        "gtech_cell_count",
+        "designware_cell_count",
+        "unmapped_cell_count",
+        "memory_macro_count",
+        "stdcell_db_sha256",
+        "dc_max_cores",
+        "input_manifest_sha256",
+    ):
+        if contract.get(key) != closure.get(key):
+            failures.append("closure and run contract differ for {}".format(key))
     numeric_contract = (
         ("documented_clock_period_ns", "documented clock period", point["period_ns"], 1.0e-6),
         ("clock_period_library_units", "library-unit clock period", point["period_ns"], 1.0e-6),
@@ -477,7 +567,9 @@ def comparison_inputs(root, identity, dc_setup=None):
         "expected_dc_version": EXPECTED_DC_VERSION,
     }
     if dc_setup is not None:
-        inputs["dc_setup"] = file_record(root, dc_setup)
+        inputs["dc_setup"] = file_record(
+            root, validate_standalone_dc_setup(dc_setup)
+        )
     return inputs
 
 
@@ -516,6 +608,23 @@ def validate_bound_inputs(root, orchestration_root, current_inputs, execution):
     if manifest["inputs"] != current_inputs:
         raise RuntimeError("current comparison inputs differ from the as-run manifest")
     return manifest["inputs"], actual_record
+
+
+def validate_live_inputs(
+    root, orchestration_root, dc_setup, stdcell_db, execution
+):
+    identity = source_identity(root)
+    if not identity["tracked_worktree_clean"]:
+        raise RuntimeError("paired DC execution requires a tracked-clean worktree")
+    current_inputs = comparison_inputs(root, identity, dc_setup)
+    inputs, input_manifest = validate_bound_inputs(
+        root, orchestration_root, current_inputs, execution
+    )
+    if sha256_file(stdcell_db) != EXPECTED_DB_SHA256:
+        raise RuntimeError(
+            "standard-cell DB SHA256 differs from the comparison contract"
+        )
+    return inputs, input_manifest
 
 
 def read_execution(path):
@@ -688,8 +797,12 @@ def render_markdown(summary):
     for point in POINTS:
         run = summary["runs"][point["key"]]
         gate = summary["gates"][point["key"]]
-        if run.get("status") == "INCOMPLETE":
-            lines.append("| {} | n/a | n/a | n/a | n/a | INCOMPLETE |".format(point["key"]))
+        if run.get("status") in ("INCOMPLETE", "REJECTED"):
+            lines.append(
+                "| {} | n/a | n/a | n/a | n/a | {} |".format(
+                    point["key"], run.get("status")
+                )
+            )
             continue
         lines.append(
             "| {key} | {wns} | {area:.3f} | {cells} | {seq} | {gate} |".format(
@@ -785,6 +898,13 @@ def run_all(args):
             update_execution_run(execution, record)
             write_json(execution_path, execution)
             continue
+        validate_live_inputs(
+            root,
+            orchestration_root,
+            args.dc_setup,
+            args.stdcell_db,
+            execution,
+        )
         if args.resume:
             archive_retry_closure(
                 orchestration_root, point, dc_root / "dc_closure_summary.txt"
@@ -827,18 +947,30 @@ def run_all(args):
                 flush=True,
             )
             returncode = process.wait()
-        update_execution_run(
-            execution,
-            {
-                "key": point["key"],
-                "returncode": returncode,
-                "elapsed_seconds": round(time.monotonic() - started, 2),
-                "build_root": relative_path(root, build_root),
-                "log": relative_path(root, log_path),
-                "input_manifest_sha256": input_manifest["sha256"],
-                "report_sha256": available_report_hashes(root, point),
-            },
-        )
+        record = {
+            "key": point["key"],
+            "returncode": returncode,
+            "elapsed_seconds": round(time.monotonic() - started, 2),
+            "build_root": relative_path(root, build_root),
+            "log": relative_path(root, log_path),
+            "input_manifest_sha256": input_manifest["sha256"],
+            "report_sha256": available_report_hashes(root, point),
+        }
+        try:
+            validate_live_inputs(
+                root,
+                orchestration_root,
+                args.dc_setup,
+                args.stdcell_db,
+                execution,
+            )
+        except RuntimeError as error:
+            record["status"] = "REJECTED_INPUT_DRIFT"
+            record["input_validation_error"] = str(error)
+            update_execution_run(execution, record)
+            write_json(execution_path, execution)
+            raise
+        update_execution_run(execution, record)
         write_json(execution_path, execution)
         if returncode:
             if is_mandatory_point(point):

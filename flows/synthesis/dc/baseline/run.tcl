@@ -53,7 +53,7 @@ set forbid_retime [expr {
   [info exists ::env(RDTC_DC_FORBID_RETIME)] &&
   $::env(RDTC_DC_FORBID_RETIME) eq "y"
 }]
-if {$forbid_retime} {
+if {$forbid_retime || $bounded_dc_ab} {
   set dc_setup_fh [open $dc_setup r]
   set dc_setup_text [read $dc_setup_fh]
   close $dc_setup_fh
@@ -68,8 +68,26 @@ if {$forbid_retime} {
       $dc_setup_code]} {
     fail "RDTC DC setup enables register retiming, which this profile forbids"
   }
+  if {$bounded_dc_ab && [regexp -nocase \
+      {(^|[[:space:];{}])(::)?source([[:space:];{}]|$)} \
+      $dc_setup_code]} {
+    fail "bounded DC A/B setup must be standalone and cannot source other Tcl"
+  }
 }
-source $dc_setup
+if {$bounded_dc_ab} {
+  rename source __rdtc_entry_source
+  proc source {args} {
+    error "nested source is disabled while loading bounded DC A/B setup"
+  }
+  set dc_setup_status [catch {__rdtc_entry_source $dc_setup} dc_setup_message]
+  rename source {}
+  rename __rdtc_entry_source source
+  if {$dc_setup_status} {
+    fail "bounded DC A/B setup load failed: $dc_setup_message"
+  }
+} else {
+  source $dc_setup
+}
 
 set approved_stdcell_db ""
 set approved_stdcell_db_sha256 ""
@@ -537,6 +555,7 @@ set dc_closure_pass [expr {
 }]
 set dc_closure_status [expr {$dc_closure_pass ? "PASS" : "FAIL"}]
 redirect -file "$output_dir/run_contract.txt" {
+  echo "status=$dc_closure_status"
   echo "product_profile=[require_env RDTC_PRODUCT_PROFILE]"
   echo "technology=[require_env RDTC_TECHNOLOGY]"
   echo "top=$top"
@@ -547,6 +566,9 @@ redirect -file "$output_dir/run_contract.txt" {
   echo "bounded_dc_ab=$bounded_dc_ab"
   echo "bounded_asic_family=$bounded_ab_family"
   echo "bounded_bulk_storage_bits=$bounded_expected_bulk_bits"
+  if {$bounded_dc_ab} {
+    echo "bounded_register_storage_bits=$bounded_mapped_register_bits"
+  }
   echo "setup_wns=$setup_wns"
   echo "setup_tns=$setup_tns"
   echo "setup_violating_paths=$setup_violating_paths"
@@ -557,6 +579,7 @@ redirect -file "$output_dir/run_contract.txt" {
     echo "gtech_cell_count=$gtech_cell_count"
     echo "designware_cell_count=$designware_cell_count"
     echo "unmapped_cell_count=$unmapped_cell_count"
+    echo "retiming=disabled"
   }
   if {$use_sram_macro} {
     echo "memory_macro_count=$mapped_sram_count"

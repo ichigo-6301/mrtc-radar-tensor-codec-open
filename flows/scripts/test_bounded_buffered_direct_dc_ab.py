@@ -30,9 +30,68 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
     def bind_run_integrity(self, run):
         run["input_manifest_sha256"] = MANIFEST_SHA256
         run["execution_input_manifest_sha256"] = MANIFEST_SHA256
-        run.setdefault("closure", {})["input_manifest_sha256"] = MANIFEST_SHA256
+        closure = run.setdefault("closure", {})
+        family = closure.get("bounded_asic_family", "buffered")
+        point = next(item for item in AB.POINTS if item["family"] == family)
+        closure_defaults = {
+            "status": "PASS",
+            "setup_wns": "0.01",
+            "setup_tns": "0.0",
+            "setup_violating_paths": "0",
+            "constraint_violating_checks": "0",
+            "bounded_design_rule_repair_passes": "1",
+            "seqgen_cell_count": "0",
+            "gtech_cell_count": "0",
+            "designware_cell_count": "0",
+            "unmapped_cell_count": "0",
+            "memory_macro_count": "0",
+            "retiming": "disabled",
+            "bounded_asic_family": family,
+            "bounded_bulk_storage_bits": str(point["storage_bits"]),
+            "bounded_register_storage_bits": str(point["storage_bits"]),
+            "stdcell_db_sha256": AB.EXPECTED_DB_SHA256,
+            "dc_max_cores": "4",
+            "input_manifest_sha256": MANIFEST_SHA256,
+        }
+        for key, value in closure_defaults.items():
+            closure.setdefault(key, value)
         contract = run.setdefault("contract", {})
-        contract["input_manifest_sha256"] = MANIFEST_SHA256
+        contract_defaults = {
+            "status": "PASS",
+            "product_profile": point["product_profile"],
+            "technology": AB.EXPECTED_TECHNOLOGY,
+            "top": (
+                AB.flowctl.BOUNDED_BUFFERED_TOP
+                if family == "buffered"
+                else AB.flowctl.BOUNDED_DIRECT_TOP
+            ),
+            "documented_clock_period_ns": str(point["period_ns"]),
+            "clock_period_library_units": str(point["period_ns"]),
+            "sdc_time_scale": "1.0",
+            "memory_mode": AB.EXPECTED_MEMORY_MODE,
+            "bounded_dc_ab": "1",
+            "bounded_asic_family": family,
+            "bounded_bulk_storage_bits": str(point["storage_bits"]),
+            "bounded_register_storage_bits": str(point["storage_bits"]),
+            "setup_wns": closure["setup_wns"],
+            "setup_tns": closure["setup_tns"],
+            "setup_violating_paths": closure["setup_violating_paths"],
+            "constraint_violating_checks": closure["constraint_violating_checks"],
+            "bounded_design_rule_repair_passes": closure[
+                "bounded_design_rule_repair_passes"
+            ],
+            "seqgen_cell_count": closure["seqgen_cell_count"],
+            "gtech_cell_count": closure["gtech_cell_count"],
+            "designware_cell_count": closure["designware_cell_count"],
+            "unmapped_cell_count": closure["unmapped_cell_count"],
+            "memory_macro_count": closure["memory_macro_count"],
+            "retiming": closure["retiming"],
+            "stdcell_db_sha256": closure["stdcell_db_sha256"],
+            "dc_max_cores": closure["dc_max_cores"],
+            "input_manifest_sha256": MANIFEST_SHA256,
+        }
+        for key, value in contract_defaults.items():
+            contract.setdefault(key, value)
         area = run.setdefault("area", {})
         area.setdefault("cell_count", 100)
         area.setdefault("sequential_cell_count", 40)
@@ -474,6 +533,166 @@ u_engine.u_engine                     40.0000   23.7  1.0
                     ROOT, orchestration, second, execution
                 )
 
+    def test_comparison_inputs_reject_nested_dc_setup_source(self):
+        with tempfile.TemporaryDirectory() as temp:
+            setup = Path(temp) / "dc_setup_registers.tcl"
+            setup.write_text(
+                "set_app_var test_mode false\nsource ./extra_setup.tcl\n",
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(RuntimeError, "must be standalone"):
+                AB.comparison_inputs(ROOT, {"source_head": "test"}, setup)
+
+    def test_collect_run_rejects_truncated_area_report(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            dc_root = root / "dc"
+            dc_root.mkdir()
+            reports = {
+                name: dc_root / filename
+                for name, filename in AB.REQUIRED_REPORTS.items()
+            }
+            reports["closure"].write_text("status=PASS\n", encoding="utf-8")
+            reports["contract"].write_text("status=PASS\n", encoding="utf-8")
+            reports["area"].write_text(
+                "Version: {}\nNumber of cells: 100\n".format(
+                    AB.EXPECTED_DC_VERSION
+                ),
+                encoding="utf-8",
+            )
+            reports["hierarchy"].write_text("truncated\n", encoding="utf-8")
+            reports["timing"].write_text("timing\n", encoding="utf-8")
+            with mock.patch.object(
+                AB, "run_paths", return_value=(root / "build", dc_root)
+            ), mock.patch.object(
+                AB, "required_report_paths", return_value=reports
+            ):
+                run = AB.collect_run(
+                    root, AB.POINTS[0], {}, MANIFEST_SHA256
+                )
+            self.assertEqual("REJECTED", run["status"])
+            self.assertFalse(AB.gate_run(run, AB.POINTS[0])[0])
+
+    def test_gate_requires_exactly_one_design_rule_repair(self):
+        point = AB.POINTS[0]
+        for report in ("closure", "contract"):
+            run = self.bind_run_integrity(
+                {
+                    "status": "PASS",
+                    "closure": {},
+                    "contract": {},
+                    "area": {
+                        "tool_version": AB.EXPECTED_DC_VERSION,
+                        "macro_count": 0,
+                    },
+                }
+            )
+            run[report]["bounded_design_rule_repair_passes"] = "0"
+            with self.subTest(report=report):
+                passed, failures = AB.gate_run(run, point)
+                self.assertFalse(passed)
+                self.assertTrue(
+                    any("repair" in failure for failure in failures)
+                )
+
+    def test_validate_live_inputs_rechecks_bound_source_setup_and_db(self):
+        with tempfile.TemporaryDirectory() as temp:
+            orchestration = Path(temp) / "orchestration"
+            setup = Path(temp) / "setup.tcl"
+            setup.write_text("set_app_var test_mode false\n", encoding="utf-8")
+            database = Path(temp) / "Nangate45.db"
+            database.write_bytes(b"test-db")
+            identity = {"tracked_worktree_clean": True, "source_head": "test"}
+            inputs = {"source": identity, "dc_setup": {"sha256": "test"}}
+            manifest = AB.write_input_manifest(ROOT, orchestration, inputs)
+            execution = {
+                "input_manifest": manifest,
+                "input_manifest_sha256": manifest["sha256"],
+                "runs": [],
+            }
+            real_sha256 = AB.sha256_file
+
+            def hash_file(path):
+                if Path(path) == database:
+                    return AB.EXPECTED_DB_SHA256
+                return real_sha256(path)
+
+            with mock.patch.object(
+                AB, "source_identity", return_value=identity
+            ), mock.patch.object(
+                AB, "comparison_inputs", return_value=inputs
+            ), mock.patch.object(AB, "sha256_file", side_effect=hash_file):
+                bound, checked = AB.validate_live_inputs(
+                    ROOT, orchestration, setup, database, execution
+                )
+            self.assertEqual(inputs, bound)
+            self.assertEqual(manifest, checked)
+
+    def test_run_all_rechecks_live_inputs_before_and_after_each_child(self):
+        class FinishedProcess(object):
+            pid = 12345
+
+            @staticmethod
+            def wait():
+                return 0
+
+        with tempfile.TemporaryDirectory() as temp:
+            temp_root = Path(temp)
+            orchestration = temp_root / "orchestration"
+            database = temp_root / "Nangate45.db"
+            database.write_bytes(b"test-db")
+            setup = temp_root / "setup.tcl"
+            setup.write_text("set_app_var test_mode false\n", encoding="utf-8")
+            args = SimpleNamespace(
+                root=ROOT,
+                orchestration_root=orchestration,
+                stdcell_db=database,
+                point=["buffered315"],
+                resume=False,
+                dc_tool="dc_shell",
+                dc_setup=setup,
+                output=temp_root / "summary.json",
+                markdown_output=temp_root / "summary.md",
+            )
+            input_manifest = {
+                "path": "input_manifest.json",
+                "bytes": 1,
+                "sha256": MANIFEST_SHA256,
+            }
+            summary = {
+                "status": "PASS_DC_ONLY",
+                "execution_status": "COMPLETE",
+            }
+            with mock.patch.object(
+                AB,
+                "source_identity",
+                return_value={"tracked_worktree_clean": True},
+            ), mock.patch.object(
+                AB, "comparison_inputs", return_value={"source": {}}
+            ), mock.patch.object(
+                AB, "sha256_file", return_value=AB.EXPECTED_DB_SHA256
+            ), mock.patch.object(
+                AB, "preflight_new_run_outputs"
+            ), mock.patch.object(
+                AB, "write_input_manifest", return_value=input_manifest
+            ), mock.patch.object(
+                AB, "validate_live_inputs", return_value=({}, input_manifest)
+            ) as live_inputs, mock.patch.object(
+                AB, "run_paths", return_value=(temp_root / "build", temp_root / "dc")
+            ), mock.patch.object(
+                AB.subprocess, "Popen", return_value=FinishedProcess()
+            ), mock.patch.object(
+                AB, "available_report_hashes", return_value={}
+            ), mock.patch.object(
+                AB, "collect", return_value=summary
+            ), mock.patch.object(
+                AB, "write_json"
+            ), mock.patch.object(
+                AB, "write_markdown"
+            ):
+                self.assertEqual(0, AB.run_all(args))
+            self.assertEqual(2, live_inputs.call_count)
+
     def test_gate_binds_area_hierarchy_and_report_hashes(self):
         point = AB.POINTS[0]
         run = self.bind_run_integrity(
@@ -660,6 +879,8 @@ u_engine.u_engine                     40.0000   23.7  1.0
             "dc_closure_summary.txt",
             "RDTC_DC_AB_INPUT_MANIFEST_SHA256",
             "input_manifest_sha256",
+            "nested source is disabled",
+            "bounded_register_storage_bits",
         ):
             self.assertIn(marker, tcl)
         self.assertIn("bounded-dc-ab-run:", makefile)
