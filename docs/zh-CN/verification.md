@@ -64,7 +64,7 @@ MATLAB 页面中的 point-cloud comparison 不是 PointCloud RTL，也不是替�
 
 Register profile 的 ModelSim regression 将两个完整 1024-sample block 严格按 Engine 0/1 轮转，检查 packet data、`tuser/tlast`、selected `k=[0,2]`、每个 Engine 256 个有序 ring-read request/response、两拍 request-to-response latency 与每拍一个 request。两个 packet 分别为 20 和 72 beat，Decoder 对两个 block 均 bit-exact 恢复。Normalized trace SHA256 记录在 [Direct RTL evidence](../../evidence/rdtc_v1_bounded_direct_rtl.yaml)。
 
-负向测试覆盖非法 codec/Rice mode、descriptor 前数据、过早/过晚 `tlast`、129-bit Rice word、way conflict、output-credit 耗尽、sticky fatal 与 reset recovery。Direct filelist 的 68 个 RTL path 由 `make bounded-direct-rtl-identity-check` 与固定 evidence source 逐文件 byte-exact 比较。
+负向测试覆盖非法 codec/Rice mode、descriptor 前数据、过早/过晚 `tlast`、129-bit Rice word、way conflict、output-credit 耗尽、sticky fatal 与 reset recovery。Direct filelist 的 64 个 RTL path 由 `make bounded-direct-rtl-identity-check` 与固定 evidence source 逐文件 byte-exact 比较。
 
 长序列零间隔测试明确记录 scheduler 边界：有序 packet service 约 277 cycles，高于 256-cycle block arrival interval；随后出现的合法 way conflict 是预期架构限制，不是持续吞吐 PASS。
 

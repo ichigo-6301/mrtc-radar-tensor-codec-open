@@ -130,6 +130,15 @@ module mrtc_rdtc_ddr_multiengine_wrapper #(
   localparam int META_PTR_W = (META_FIFO_DEPTH <= 1) ? 1 : $clog2(META_FIFO_DEPTH);
   localparam int META_COUNT_W = $clog2(META_FIFO_DEPTH + 1);
 
+  generate
+    if (OUTPUT_IN_ORDER) begin : g_unsupported_output_in_order
+      initial $fatal(
+        1,
+        "mrtc_rdtc_ddr_multiengine_wrapper: OUTPUT_IN_ORDER is not implemented; use packet metadata for software reassembly"
+      );
+    end
+  endgenerate
+
   logic [NUM_ENGINES-1:0][AXIS_DATA_W-1:0] feeder_axis_raw_tdata;
   logic [NUM_ENGINES-1:0]                  feeder_axis_raw_tvalid;
   logic [NUM_ENGINES-1:0]                  feeder_axis_raw_tready;

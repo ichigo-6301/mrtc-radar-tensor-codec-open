@@ -64,7 +64,7 @@ Public evidence summary and data: [Multi-Engine evidence](../../evidence/rdtc_v1
 
 The register-profile ModelSim regression sends two complete 1024-sample blocks through strict Engine 0/1 rotation. It checks packet data, `tuser/tlast`, selected `k=[0,2]`, 256 ordered ring-read requests and responses per Engine, two-cycle request-to-response latency, and one request per cycle. Packets contain 20 and 72 beats, and the Decoder reconstructs both blocks bit-exactly. The normalized trace SHA256 is recorded in the [Direct RTL evidence](../../evidence/rdtc_v1_bounded_direct_rtl.yaml).
 
-Negative tests cover illegal codec/Rice mode, data before descriptor, early/late `tlast`, a 129-bit Rice word, way conflict, output-credit exhaustion, sticky fatal behavior, and reset recovery. The 68 RTL paths in the Direct filelist are independently checked byte for byte against the fixed evidence source by `make bounded-direct-rtl-identity-check`.
+Negative tests cover illegal codec/Rice mode, data before descriptor, early/late `tlast`, a 129-bit Rice word, way conflict, output-credit exhaustion, sticky fatal behavior, and reset recovery. The 64 RTL paths in the Direct filelist are independently checked byte for byte against the fixed evidence source by `make bounded-direct-rtl-identity-check`.
 
 Long zero-gap testing intentionally records the scheduler boundary: ordered packet service is approximately 277 cycles, above the 256-cycle block arrival interval. The resulting legal way conflict is an expected architecture limitation, not a passing sustained-throughput test.
 

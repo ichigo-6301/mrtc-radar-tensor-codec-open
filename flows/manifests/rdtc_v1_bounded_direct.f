@@ -46,7 +46,6 @@ rtl/rdtc/mrtc_raw_output_packer.sv
 rtl/rdtc/mrtc_rdtc_codec_top.sv
 rtl/rdtc/mrtc_rdtc_decoder_top.sv
 rtl/rdtc/mrtc_rdtc_dual_core.sv
-rtl/rdtc/mrtc_rdtc_encoder_top.sv
 rtl/rdtc/mrtc_rdtc_encoder_bounded_ht.sv
 rtl/rdtc/mrtc_rdtc_encoder_top_axis_bp_smallbuf.sv
 rtl/rdtc/mrtc_rdtc_engine_lane.sv
