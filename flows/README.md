@@ -62,6 +62,9 @@ make bounded-direct-register-modelsim-regression
 make bounded-direct-modelsim-regression-dry-run
 make bounded-direct-vivado-route200
 make bounded-direct-vivado-route200-check
+make bounded-dc-ab-validate
+make bounded-dc-ab-run
+make bounded-dc-ab-collect
 ```
 
 `bounded-direct-register-modelsim-regression` needs only the published RTL and
@@ -86,6 +89,15 @@ make rdtc_v1_bounded_direct_sram_dc315_pnr300_defconfig
 These ASIC profiles require locally authorized tools and technology. The
 published summaries do not include Liberty/DB/LEF/GDS/SPICE, SPEF, DCP, or raw
 EDA reports.
+
+The bounded DC A/B uses one shared RTL manifest, synchronous-boundary SDC,
+Nangate45 DB identity, and synthesis script for the buffered and Direct tops.
+Both 315 MHz points must close before an area percentage is published. The 630
+MHz points are stress runs: their true slack is retained, and one stress failure
+does not prevent execution of the other architecture. `bounded-dc-ab-validate`
+checks the public contract without invoking Design Compiler; `run` requires a
+hash-matching local DB and ignored DC setup, while `collect` rebuilds only the
+sanitized summary from existing ignored reports.
 
 ## Stage Entry Points
 

@@ -8,6 +8,8 @@ import tempfile
 import unittest
 from unittest import mock
 
+import yaml
+
 
 SCRIPT_DIR = Path(__file__).resolve().parent
 ROOT = SCRIPT_DIR.parents[1]
@@ -154,6 +156,27 @@ Total cell area: 168.750
         self.assertAlmostEqual(75.0, AB.percent_reduction(100.0, 25.0))
         with self.assertRaises(RuntimeError):
             AB.percent_reduction(0.0, 0.0)
+
+    def test_public_evidence_recomputes_published_reductions(self):
+        path = ROOT / "evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml"
+        evidence = yaml.safe_load(path.read_text(encoding="utf-8"))
+        dc315 = evidence["dc315"]
+        comparison = dc315["comparison"]
+        self.assertAlmostEqual(
+            AB.percent_reduction(
+                dc315["buffered"]["total_cell_area_um2"],
+                dc315["direct"]["total_cell_area_um2"],
+            ),
+            comparison["total_cell_area_reduction_percent"],
+        )
+        self.assertAlmostEqual(
+            AB.percent_reduction(
+                dc315["buffered"]["cell_count"],
+                dc315["direct"]["cell_count"],
+            ),
+            comparison["cell_count_reduction_percent"],
+        )
+        self.assertEqual("PASS_DC_ONLY", evidence["classification"])
 
     def test_public_surface_contains_fail_closed_guards(self):
         tcl = (ROOT / AB.RUN_TCL).read_text(encoding="utf-8")

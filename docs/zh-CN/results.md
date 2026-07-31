@@ -56,6 +56,7 @@ FPGA XSim 覆盖真实 encoder path、decoder golden comparison、width conversi
 
 | Memory profile | Technology | Scope | Result | Status |
 |---|---|---|---|---|
+| `bounded-buffered-vs-direct` | Nangate45 TT/1.1 V/25 C | 同库同 315 MHz、全寄存器 DC A/B | Buffered `1,529,495.20 um2 / 786,342 cells`；Direct `420,208.44 um2 / 220,298 cells`；分别减少 `72.53% / 71.98%` | verified `PASS_DC_ONLY`；不是 SRAM 或 post-route 面积 |
 | `register-expanded` | NanGate15 TT/0.8 V/25 C | DC-only | 400/600/800 MHz 均闭合；800 MHz WNS +0.22945 ns，cell area 99,064.13 um2 | verified |
 | `register-expanded` | Nangate45 TT/1.1 V/25 C | DC matrix | 400/600/700 MHz 闭合；700 MHz WNS/TNS 0.00/0.00 ns；800 MHz WNS/TNS -0.14/-858.86 ns | verified |
 | `register-expanded` | Nangate45/OpenROAD/OpenRCX | P&R + PT at 400 MHz | route DRC 0，antenna net/pin 0/0，area 418,007 um2，utilization 31.2108%；PT setup/hold WNS +0.80/+0.04 ns，constraint violation 0 | verified |
@@ -76,6 +77,6 @@ SRAM-macro 的 333 MHz 结果已完成并验证芯片级 OpenROAD P&R、OpenRCX 
 - route-tool DRC 0 与 foundry DRC/LVS/PEX 是不同 scope；
 - `top-level IO timing closure`、`OCV/MMMC` 与 `foundry signoff` 均未声明。
 
-ASIC evidence：[register-expanded](../../evidence/rdtc_v1_register_expanded.yaml) · [SRAM macro](../../evidence/rdtc_v1_sram_macro_333m.yaml) · [bounded Direct register/SRAM](../../evidence/rdtc_v1_bounded_direct_asic.yaml)
+ASIC evidence：[buffered versus Direct DC A/B](../../evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) · [register-expanded](../../evidence/rdtc_v1_register_expanded.yaml) · [SRAM macro](../../evidence/rdtc_v1_sram_macro_333m.yaml) · [bounded Direct register/SRAM](../../evidence/rdtc_v1_bounded_direct_asic.yaml)
 
 公开 evidence 位于 `evidence/`，运行条件和边界位于 `provenance/`。PDK、Liberty/DB、LEF/GDS、SPEF 和原始 EDA 工作目录不随仓库发布。

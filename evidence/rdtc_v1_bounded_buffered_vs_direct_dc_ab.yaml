@@ -1,0 +1,161 @@
+title: RDTC v1 bounded buffered versus Direct-AXIS Design Compiler architecture A/B
+status: verified
+classification: PASS_DC_ONLY
+as_run_flow_commit: db2660c60795182b647bd3c31010b0be6aef6374
+fixed_public_rtl_commit: 4bb56f543d75bb91c9ddeb26cdeef5201560c669
+source_set_sha256: c32e780aad70dd3414e13c0509e8cdc2969e6c4afb6ef24fc2ef1d47c3f24a8d
+source_count: 69
+public_evidence_scope: curated DC metrics and report hashes; no library payload, mapped netlist, DDC, raw report, or absolute run path
+technology: academic Nangate45 TT/1.1 V/25 C
+tools:
+  design_compiler: O-2018.06-SP1
+  stdcell_db_sha256: c6da1f0e7a7f445c0476d1e6bf6860c9815fe4f50c9ce138264a581af59e4cb5
+method:
+  engines: 2
+  domain: bounded ZERO_RICE with prefix-128 adaptive k and four-way input rings
+  memory_binding: register_expanded
+  memory_macro_count: 0
+  compile: compile_ultra
+  design_rule_repair: compile_ultra -incremental -only_design_rule
+  design_rule_repair_passes: 1
+  retiming: disabled
+  dc_max_cores: 4
+  setup_uncertainty_ns: 0.100
+  hold_uncertainty_ns: 0.000
+  input_output_max_delay_fraction: 0.10
+  input_output_min_delay_ns: 0.000
+  common_sdc_sha256: d49d2eeb1727ff8bc682783e14db317d8616938242b8bba98b76629341f96b25
+  filelist_sha256: b91c3c803b3a1617b7eacda31c08d4813c80d1f00e869a966c5718a58b8dcd83
+  dc_run_tcl_sha256: d16e3b0155df37bc28db7edf5a8cdf839414cee427fa377079c38ac976b7eb38
+  flowctl_sha256: b678c99ba10269e65c027447a33fa0d2fc8dbf10128ffd7b930a175467132bc5
+  paired_runner_sha256: 89b32e9846ad8df8b46a306fc96cd776363dfcfdc0f0765d0a100d82babd81ca
+architecture:
+  buffered:
+    top: mrtc_rdtc_ddr_multiengine_wrapper
+    bulk_storage_bits: 180224
+    feeder_storage_bits: 16384
+    ring_storage_bits: 32768
+    payload_storage_bits: 131072
+    retained_structures:
+      - ddr_feeder
+      - per_engine_payload_commit
+      - four_way_input_ring
+  direct:
+    top: mrtc_rdtc_bounded_axis_multiengine_wrapper
+    bulk_storage_bits: 32768
+    removed_structures:
+      - ddr_feeder
+      - per_engine_payload_commit
+    retained_structures:
+      - four_way_input_ring
+      - global_16_beat_output_fifo
+dc315:
+  frequency_mhz: 315
+  period_ns: 3.174603
+  buffered:
+    status: PASS
+    setup_wns_ns: 0.00793719
+    setup_tns_ns: 0.0
+    setup_violating_paths: 0
+    constraint_violating_checks: 0
+    total_cell_area_um2: 1529495.195420
+    combinational_area_um2: 620022.075238
+    sequential_area_um2: 909473.120183
+    cell_count: 786342
+    combinational_cell_count: 585744
+    sequential_cell_count: 200572
+    buf_inv_cell_count: 210159
+    elapsed_seconds: 1729.53
+    report_sha256:
+      closure: 775c96272c9f9753e3111a5f8adf41a988b199f1672236e1ad416011c3e07fb0
+      area: 581d5a9b7bc451708a9b764a2efb362855d4222d31f13031d40fb39dc4a7a070
+      hierarchy: 7282d471818fb47d9d316ae38b2b202ccd94dbc83b0d6c684b2533749dccd083
+      timing: ccb537f37d01f244fcf5841ec30d9ee20cf3cac2d4db5e7ae43f2a3d908ae9fd
+      run_contract: 3c2cf5d5f6b75c1200fe2bf39f14b1a4ce4649a6cea4c684b5dbc90574b8a44f
+  direct:
+    status: PASS
+    setup_wns_ns: 0.093015
+    setup_tns_ns: 0.0
+    setup_violating_paths: 0
+    constraint_violating_checks: 0
+    total_cell_area_um2: 420208.442440
+    combinational_area_um2: 187611.665954
+    sequential_area_um2: 232596.776487
+    cell_count: 220298
+    combinational_cell_count: 169282
+    sequential_cell_count: 50999
+    buf_inv_cell_count: 48249
+    elapsed_seconds: 428.31
+    report_sha256:
+      closure: a50580bb3bc1701d5a9227715ece2e76063e3db6df1e0af4462ecead4f56adc2
+      area: 4212a01f875bd509d3b74a873f41e401c783bb553701d76530b1f8678e49f99a
+      hierarchy: 52f82addb35698503fcc47b01735b1e6b43e3d1314c9b19b5bbeec23d7b2b9be
+      timing: f3c7273548cb85ae849636011be6f35d74dcf0c9ca7338ccad070a7c0f89d3b3
+      run_contract: 2cced4e2a2471c770851f7d020ba72579fdf3739ba6e27ede352cb638485c613
+  comparison:
+    total_cell_area_reduction_percent: 72.52633132171358
+    cell_count_reduction_percent: 71.98445460117863
+    sequential_cell_reduction_percent: 74.57322058911512
+    bulk_storage_bit_reduction_percent: 81.81818181818181
+    removed_total_cell_area_um2: 1109286.752980
+    buffered_feeder_payload_area_um2: 1124835.5166
+    buffered_feeder_payload_area_share_percent: 73.5429257946194
+    engine_hierarchy_area_delta_percent: 0.342946629229519
+dc630_stress:
+  frequency_mhz: 630
+  period_ns: 1.587302
+  interpretation: DC stress only; not an equal-performance area comparison, post-route closure point, or Fmax claim
+  buffered:
+    status: PASS
+    setup_wns_ns: 0.000323415
+    setup_tns_ns: 0.0
+    setup_violating_paths: 0
+    constraint_violating_checks: 0
+    total_cell_area_um2: 1538375.605060
+    combinational_area_um2: 628783.316858
+    sequential_area_um2: 909592.288202
+    cell_count: 796699
+    combinational_cell_count: 596107
+    sequential_cell_count: 200568
+    buf_inv_cell_count: 212037
+    elapsed_seconds: 1941.11
+    report_sha256:
+      closure: 22cd7ff38866e073a49be5a609bef31583ae5059cada7ac127025f2660465eb3
+      area: 0fc71d632dd87d5a20faa50c6fffe01975d330053b3fd23c714d112a805c6319
+      hierarchy: c83477d5f196b839032c5576645d99d6612a2ae1f33ad66be0ebbd49c77dd7a7
+      timing: 751d3a1d94069f5691d14c8c0f39facd13feb7cb6121f8a8e7932e734dfc22bb
+      run_contract: 6c41165eb7e79518ddf2db646ae9b36cf163e67457bf11022d2244b44b122941
+  direct:
+    status: PASS
+    setup_wns_ns: 0.000018239
+    setup_tns_ns: 0.0
+    setup_violating_paths: 0
+    constraint_violating_checks: 0
+    total_cell_area_um2: 427042.514146
+    combinational_area_um2: 194353.435639
+    sequential_area_um2: 232689.078507
+    cell_count: 227279
+    combinational_cell_count: 176276
+    sequential_cell_count: 50987
+    buf_inv_cell_count: 49826
+    elapsed_seconds: 493.75
+    report_sha256:
+      closure: 42fe68e09320519040a38415fcb2dd90226f9fd7bdcdf7dc45c8119e470c272d
+      area: 9b60d7f8ce3d7228779e4140b8e97a2ba7e4ca7dd3328c756b983cc2a71e5fda
+      hierarchy: ccee35d1629a2cabe3224241d91fcec4b2d1d7813e55b03bff5629a17f840051
+      timing: d40c73f77ee4cdc82fdb71f378c9e87205a1945e2b1a2a924d826060dc76e00a
+      run_contract: 2cc212db245c5a89a4fe87c63086cea1482f004af2ce69ac0b80f7ecfd551647
+validation:
+  buffered_gate: PASS
+  direct_gate: PASS
+  stdcell_identity: PASS
+  source_identity: PASS
+  storage_audit: PASS
+  memory_macro_audit: PASS
+  retiming_audit: PASS
+  windows_register_modelsim: PASS
+  dc630_stress_gate: PASS
+limitations:
+  - This is a register-expanded DC-only architecture comparison.
+  - It is not SRAM-macro area, post-route area, power, Fmax, or foundry signoff.
+  - Direct retains the approximately 277 cycles/packet versus 256 cycles/block sustained-scheduling limitation.

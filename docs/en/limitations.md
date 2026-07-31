@@ -35,6 +35,7 @@
 
 - Complete top-level IO timing closure and silicon readiness are not claimed;
 - no CDC/RDC, clock-gating, DFT/ATPG, LEC, GLS/SDF, or foundry-signoff closure is claimed;
+- the `72.53%` cell-area and `71.98%` cell-count reductions are a same-library, same-315 MHz, register-expanded Design Compiler A/B. They are not SRAM-macro area, post-route area, power, Fmax, or signoff results;
 - the historical `register-expanded` profile maps its prefix buffer to standard-cell registers. The Direct register profile similarly expands `32,768` way-ring bits. Neither result is an SRAM-macro PPA result;
 - the 15 nm DC-only profile provides an ideal-clock internal reg-to-reg synthesis boundary. DC closure does not imply P&R closure, so this result does not establish post-route Fmax;
 - the latest 45 nm register-expanded 550 MHz result is a fixed verified internal reg-to-reg academic closure point, not a maximum-frequency result. It uses a 700 MHz setup-closed DC mapped netlist, OpenRCX SPEF, and PrimeTime. Setup/hold coverage is 100%, but 1,756 asynchronous-reset pins remain outside max-delay coverage; complete IO, reset recovery/removal, OCV/MMMC, macro DRC/LVS/PEX, and foundry signoff are not covered;

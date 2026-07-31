@@ -19,7 +19,7 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 | Multi-Engine | 既有 DDR/packet-buffer wrapper；另有 opt-in Direct-AXIS 双 Engine、严格 0/1 block 轮转与有序 packet output |
 | RTL 吞吐 | 1/2/4 Engine：`785 / 397.52 / 197.41 cycles/block`，固定 256-block simulation workload |
 | FPGA | 历史 single-`s0` AXIS32 XSim `3/3`；Direct-AXIS 在 `xc7z100ffg900-2` 上完成 Vivado 2022.2 OOC post-route 200 MHz，setup/hold WNS `+0.001/+0.062 ns`，`32,672 LUT / 18,519 FF / 0 BRAM` |
-| ASIC | 既有 register 550 MHz / 双宏 SRAM 333 MHz；Direct-AXIS register-expanded 600 MHz 与 8 宏 SRAM 300 MHz 均完成 academic Nangate45/OpenRAM P&R、OpenRCX 与 PT，setup/hold WNS 分别 `+0.03/+0.02 ns`、`+0.16/+0.02 ns` |
+| ASIC | 同库 315 MHz 全寄存器 DC A/B：Direct-AXIS 的 cell area 减少 `72.53%`、cell count 减少 `71.98%`；Direct 寄存器 600 MHz / 8 宏 SRAM 300 MHz 完成 academic post-route PT 闭合 |
 
 ### 选择集成入口
 
@@ -79,9 +79,15 @@ MATLAB synthetic study
 
 [查看 FPGA emulation 与 Zynq 集成边界](docs/zh-CN/fpga_implementation.md)
 
-## 5. ASIC：布局布线后 STA 闭合点，不是 DC 结果或 Fmax
+## 5. ASIC：架构 DC A/B 与布局布线后 STA
 
-**以下结果均来自 route 后的 PrimeTime setup/hold STA，不是 DC synthesis timing estimate。** STA 使用 matching routed netlist、SDC 与同次 OpenRCX SPEF；DC 只提供进入物理实现的 mapped netlist。
+### 同约束架构 A/B（DC-only）
+
+在同一 Nangate45 typical library、315 MHz 同步边界 SDC、双 Engine、全寄存器存储、`compile_ultra` 且禁止 retime 的条件下，buffered wrapper 为 `1,529,495.20 um2 / 786,342 cells`，Direct-AXIS 为 `420,208.44 um2 / 220,298 cells`。移除 DDR feeder 与 per-Engine payload commit 后，DC cell area 减少 `72.53%`、cell count 减少 `71.98%`。这是架构级综合对比，不代表 SRAM 宏面积、post-route 面积、功耗或 Fmax。
+
+### 布局布线后闭合点
+
+**以下频率闭合点来自 route 后的 PrimeTime setup/hold STA，不是上述 DC A/B 估计。** STA 使用 matching routed netlist、SDC 与同次 OpenRCX SPEF；DC 只提供进入物理实现的 mapped netlist。
 
 | Profile | Verified implementation result | Maturity boundary |
 |---|---|---|
@@ -92,7 +98,7 @@ MATLAB synthetic study
 
 这些频率是对应 profile 的 fixed verified closure point，不是 maximum frequency。结果处于 academic PDK/OpenRAM 实现范围，不声明完整 top-level IO timing、OCV/MMMC、foundry signoff 或 silicon readiness。
 
-[查看 ASIC flow contract](docs/zh-CN/asic_implementation.md) · [完整结果矩阵](docs/zh-CN/results.md) · [限制与未声明项](docs/zh-CN/limitations.md)
+[查看 ASIC flow contract](docs/zh-CN/asic_implementation.md) · [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) · [完整结果矩阵](docs/zh-CN/results.md) · [限制与未声明项](docs/zh-CN/limitations.md)
 
 ## 快速复现
 
@@ -106,6 +112,7 @@ make multiengine-smoke
 make fpga-wrapper-smoke
 make bounded-direct-rtl-identity-check
 make bounded-direct-register-modelsim-regression
+make bounded-dc-ab-validate
 make showcase-assets-check
 ```
 

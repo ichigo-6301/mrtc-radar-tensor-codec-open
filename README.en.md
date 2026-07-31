@@ -19,7 +19,7 @@ RDTC compresses I16Q16 samples block by block while preserving bit-exact reconst
 | Multi-Engine | Existing DDR/packet-buffer wrapper plus an opt-in Direct-AXIS dual-Engine path with strict 0/1 block rotation and ordered packet output |
 | RTL throughput | 1/2/4 Engines: `785 / 397.52 / 197.41 cycles/block` on the fixed 256-block simulation workload |
 | FPGA | Historical single-`s0` AXIS32 XSim `3/3`; Direct-AXIS completes Vivado 2022.2 OOC post-route at 200 MHz on `xc7z100ffg900-2`, with setup/hold WNS `+0.001/+0.062 ns` and `32,672 LUT / 18,519 FF / 0 BRAM` |
-| ASIC | Existing register 550 MHz / dual-macro SRAM 333 MHz; Direct-AXIS register-expanded 600 MHz and eight-macro SRAM 300 MHz complete academic Nangate45/OpenRAM P&R, OpenRCX, and PT with setup/hold WNS `+0.03/+0.02 ns` and `+0.16/+0.02 ns` |
+| ASIC | Same-library 315 MHz register-expanded DC A/B: Direct-AXIS reduces cell area `72.53%` and cell count `71.98%`; Direct register 600 MHz / eight-macro SRAM 300 MHz complete academic post-route PT closure |
 
 ### Choose an integration entrypoint
 
@@ -79,9 +79,15 @@ A fixed visible demo invokes the published C encoder and decoder: a 1024-sample 
 
 [See FPGA emulation and Zynq integration boundaries](docs/en/fpga_implementation.md)
 
-## 5. ASIC: Post-Route STA Closure, Not a DC Result or Fmax
+## 5. ASIC: Architecture DC A/B and Post-Route STA
 
-**All results below come from PrimeTime setup/hold STA after routing, not from a DC synthesis timing estimate.** STA uses the matching routed netlist, SDC, and same-run OpenRCX SPEF; DC supplies only the mapped netlist handed to physical implementation.
+### Same-Constraint Architecture A/B (DC-only)
+
+Under one Nangate45 typical library, one 315 MHz synchronous-boundary SDC, two Engines, register-expanded storage, `compile_ultra`, and disabled retiming, the buffered wrapper reports `1,529,495.20 um2 / 786,342 cells`; Direct-AXIS reports `420,208.44 um2 / 220,298 cells`. Removing the DDR feeder and per-Engine payload commit stores therefore reduces DC cell area by `72.53%` and cell count by `71.98%`. This is an architecture-level synthesis comparison, not SRAM-macro area, post-route area, power, or Fmax.
+
+### Post-Route Closure Points
+
+**The frequency closure points below come from PrimeTime setup/hold STA after routing, not from the DC A/B estimate.** STA uses the matching routed netlist, SDC, and same-run OpenRCX SPEF; DC supplies only the mapped netlist handed to physical implementation.
 
 | Profile | Verified implementation result | Maturity boundary |
 |---|---|---|
@@ -92,7 +98,7 @@ A fixed visible demo invokes the published C encoder and decoder: a 1024-sample 
 
 These frequencies are fixed verified closure points for the stated profiles, not maximum frequencies. They remain inside the academic PDK/OpenRAM implementation scope and do not claim complete top-level IO timing, OCV/MMMC, foundry signoff, or silicon readiness.
 
-[See the ASIC flow contract](docs/en/asic_implementation.md) · [complete result matrix](docs/en/results.md) · [limitations and nonclaims](docs/en/limitations.md)
+[See the ASIC flow contract](docs/en/asic_implementation.md) · [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) · [complete result matrix](docs/en/results.md) · [limitations and nonclaims](docs/en/limitations.md)
 
 ## Quick Reproduction
 
@@ -106,6 +112,7 @@ make multiengine-smoke
 make fpga-wrapper-smoke
 make bounded-direct-rtl-identity-check
 make bounded-direct-register-modelsim-regression
+make bounded-dc-ab-validate
 make showcase-assets-check
 ```
 

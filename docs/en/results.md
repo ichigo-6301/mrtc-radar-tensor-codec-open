@@ -56,6 +56,7 @@ The two historical Nangate45 physical profiles use the same floorplan configurat
 
 | Memory Profile | Technology | Scope | Result | Status |
 |---|---|---|---|---|
+| `bounded-buffered-vs-direct` | Nangate45 TT/1.1 V/25 C | Same-library, same-315 MHz, register-expanded DC A/B | Buffered `1,529,495.20 um2 / 786,342 cells`; Direct `420,208.44 um2 / 220,298 cells`; reductions `72.53% / 71.98%` | verified `PASS_DC_ONLY`; not SRAM or post-route area |
 | `register-expanded` | NanGate15 TT/0.8 V/25 C | DC-only | 400/600/800 MHz close; 800 MHz WNS +0.22945 ns and cell area 99,064.13 um2 | verified |
 | `register-expanded` | Nangate45 TT/1.1 V/25 C | DC matrix | 400/600/700 MHz close; 700 MHz WNS/TNS is 0.00/0.00 ns; 800 MHz WNS/TNS is -0.14/-858.86 ns | verified |
 | `register-expanded` | Nangate45/OpenROAD/OpenRCX | P&R + PT at 400 MHz | Route DRC 0, antenna net/pin 0/0, area 418,007 um2, utilization 31.2108%; PT setup/hold WNS +0.80/+0.04 ns with zero constraint violations | verified |
@@ -76,6 +77,6 @@ The 333 MHz SRAM-macro result completed verified chip-level OpenROAD P&R, same-r
 - route-tool DRC 0 and foundry DRC/LVS/PEX are different scopes;
 - `top-level IO timing closure`, `OCV/MMMC`, and `foundry signoff` are not claimed.
 
-ASIC evidence: [register-expanded](../../evidence/rdtc_v1_register_expanded.yaml) · [SRAM macro](../../evidence/rdtc_v1_sram_macro_333m.yaml) · [bounded Direct register/SRAM](../../evidence/rdtc_v1_bounded_direct_asic.yaml)
+ASIC evidence: [buffered versus Direct DC A/B](../../evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) · [register-expanded](../../evidence/rdtc_v1_register_expanded.yaml) · [SRAM macro](../../evidence/rdtc_v1_sram_macro_333m.yaml) · [bounded Direct register/SRAM](../../evidence/rdtc_v1_bounded_direct_asic.yaml)
 
 Public evidence is under `evidence/`, with run conditions and boundaries under `provenance/`. PDKs, Liberty/DB, LEF/GDS, SPEF, and raw EDA work directories are not distributed.

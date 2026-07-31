@@ -241,3 +241,33 @@ claims:
     status: verified
     caveat: "Fixed academic internal timing closure point only. The macro model is analytically characterized; macro DRC/LVS/PEX, complete IO timing, OCV/MMMC, foundry signoff, silicon, SRAM 600 MHz, and sustained zero-stall are not claimed."
     public: true
+  - id: rdtc_v1_bounded_direct_dc315_area_reduction
+    profile: rdtc_v1_bounded_architecture_dc_ab
+    statement: "Under one Nangate45 library and one 315 MHz register-expanded DC contract, removing the DDR feeder and per-Engine payload commit stores reduced total cell area by 72.5263%."
+    metric: total_cell_area_reduction_percent
+    value: 72.52633132171358
+    unit: percent
+    benchmark: bounded buffered versus Direct-AXIS architecture synthesis A/B
+    configuration: "two Engines, bounded ZERO_RICE, prefix-128, four-way ring, common synchronous-boundary SDC, compile_ultra, retiming disabled, zero SRAM macros"
+    source_ref: db2660c60795182b647bd3c31010b0be6aef6374
+    tool: Design Compiler O-2018.06-SP1
+    evidence:
+      - rdtc_v1_bounded_buffered_vs_direct_dc_ab_public
+    status: verified
+    caveat: "Register-expanded DC-only architecture comparison; not SRAM-macro area, post-route area, power, Fmax, or foundry signoff."
+    public: true
+  - id: rdtc_v1_bounded_direct_dc315_cell_count_reduction
+    profile: rdtc_v1_bounded_architecture_dc_ab
+    statement: "Under the same 315 MHz register-expanded DC contract, the Direct-AXIS architecture reduced total cell count by 71.9845% versus the buffered wrapper."
+    metric: total_cell_count_reduction_percent
+    value: 71.98445460117863
+    unit: percent
+    benchmark: bounded buffered versus Direct-AXIS architecture synthesis A/B
+    configuration: "two Engines, bounded ZERO_RICE, prefix-128, four-way ring, common synchronous-boundary SDC, compile_ultra, retiming disabled, zero SRAM macros"
+    source_ref: db2660c60795182b647bd3c31010b0be6aef6374
+    tool: Design Compiler O-2018.06-SP1
+    evidence:
+      - rdtc_v1_bounded_buffered_vs_direct_dc_ab_public
+    status: verified
+    caveat: "Register-expanded DC-only architecture comparison; not SRAM-macro area, post-route area, power, Fmax, or foundry signoff."
+    public: true

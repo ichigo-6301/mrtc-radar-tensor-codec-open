@@ -2,6 +2,12 @@
 
 公开 ASIC 内容包括历史 wrapper 的 `register-expanded`/`sram-macro` 配对，以及独立的 bounded Direct-AXIS 配对。每一对都保持自己的 RTL 接口与 packet contract，仅替换 bulk-memory leaf binding。历史 Nangate45 profile 使用下文所述的 configured `1200 x 1200 um` die 与 `1159.72 x 1155.20 um` core；Direct profile 根据自身综合面积和宏几何使用独立 floorplan。Configured geometry 不是未发布 GDS 的事后测量。
 
+## 同约束架构 A/B（DC-only）
+
+Buffered 与 Direct-AXIS wrapper 使用 Design Compiler `O-2018.06-SP1`、同一 SHA256 绑定的 Nangate45 typical DB、统一 315 MHz 同步边界 SDC、双 Engine、全寄存器存储、`compile_ultra`、一次 design-rule repair 且禁止 retime。唯一预期架构差异是 Direct 删除 DDR feeder 与 per-Engine payload commit store，使审计 bulk storage 从 `180,224` 降至 `32,768 bit`。
+
+两侧均以零 setup violating path 闭合。Buffered 为 `1,529,495.20 um2 / 786,342 cells`，Direct 为 `420,208.44 um2 / 220,298 cells`，cell area 与 cell count 分别减少 `72.53%` 和 `71.98%`。Buffered 的 feeder 与 payload-commit 层次合计 `1,124,835.52 um2`，占顶层面积 `73.54%`；两侧 Engine 汇总面积仅相差 `0.34%`。这将收益归因到 wrapper 存储职责重构，而不是更换 Rice 数据通路或综合设置。该比较分类为 `PASS_DC_ONLY`，不代表 SRAM 宏面积、布线后面积、功耗、Fmax 或 foundry signoff。证据：[bounded buffered versus Direct DC A/B](../../evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml)。
+
 ## Register-expanded
 
 `register-expanded` 不绑定 SRAM leaf，prefix buffer 由标准单元寄存器实现，因此 SRAM macro count 为 0。公开主结果使用 NanGate15 与 Nangate45 DC 矩阵；Nangate45 另增加 700 MHz 点。NanGate15 的 Liberty 时间单位为 1 ps，flow 通过 `SDC_TIME_SCALE=1000.0` 转换到 ns；45 nm 700 MHz 闭合而 800 MHz 未闭合，所以 700 MHz mapped netlist 被选作最新 physical handoff。

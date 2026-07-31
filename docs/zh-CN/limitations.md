@@ -35,6 +35,7 @@
 
 - 不声明完整 top-level IO timing closure 或 silicon readiness；
 - 不声明 CDC/RDC、clock-gating、DFT/ATPG、LEC、GLS/SDF 或 foundry-signoff closure；
+- `72.53%` cell area 与 `71.98%` cell count 降幅来自同库、同 315 MHz、全寄存器 Design Compiler A/B，不代表 SRAM 宏面积、post-route 面积、功耗、Fmax 或 signoff；
 - 历史 `register-expanded` profile 将 prefix buffer 映射为标准单元寄存器；Direct register profile 同样展开 `32,768 bit` way-ring。两者都不代表 SRAM macro PPA；
 - 15 nm DC-only profile 只提供 ideal-clock internal reg-to-reg 综合边界。DC closure 不等于 P&R closure，因此不从该结果推导 post-route Fmax；
 - 45 nm register-expanded 的最新 550 MHz 结果是 fixed verified internal reg-to-reg academic closure point，而不是 maximum frequency。它使用 700 MHz setup-closed DC mapped netlist、OpenRCX SPEF 和 PrimeTime；setup/hold coverage 为 100%，但 1756 个异步 reset pin 不在 max-delay coverage 内，也不覆盖完整 IO、reset recovery/removal、OCV/MMMC、macro DRC/LVS/PEX 或 foundry signoff；

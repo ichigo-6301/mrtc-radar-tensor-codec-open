@@ -188,3 +188,16 @@ evidence:
     sram_postroute_timing_status: verified
     macro_model_status: partial
     macro_signoff_status: not_closed
+  - id: rdtc_v1_bounded_buffered_vs_direct_dc_ab_public
+    path: evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml
+    type: bounded_buffered_vs_direct_register_expanded_dc_area_summary
+    source_ref: db2660c60795182b647bd3c31010b0be6aef6374
+    tool: Design Compiler O-2018.06-SP1
+    claims:
+      - rdtc_v1_bounded_direct_dc315_area_reduction
+      - rdtc_v1_bounded_direct_dc315_cell_count_reduction
+    sha256: 56c26933e2e795a8578531535cf11ab8412fde815c7c9e51eb879ba7f53bfdd8
+    public: true
+    maturity: verified
+    evidence_result_status: verified
+    comparison_scope: register_expanded_dc_only
