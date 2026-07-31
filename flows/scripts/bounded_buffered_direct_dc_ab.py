@@ -6,6 +6,7 @@ from __future__ import print_function
 import argparse
 import hashlib
 import json
+import math
 import os
 import re
 import subprocess
@@ -64,6 +65,52 @@ POINTS = (
         "config": "rdtc_v1_bounded_ab_direct_dc630_defconfig",
         "build_tag": "rdtc_v1_bounded_ab_direct_dc630",
     },
+)
+
+PUBLIC_CLOSURE_FIELDS = (
+    "status",
+    "setup_wns",
+    "setup_tns",
+    "setup_violating_paths",
+    "constraint_violating_checks",
+    "bounded_design_rule_repair_passes",
+    "seqgen_cell_count",
+    "gtech_cell_count",
+    "designware_cell_count",
+    "unmapped_cell_count",
+    "retiming",
+    "bounded_asic_family",
+    "bounded_bulk_storage_bits",
+    "bounded_register_storage_bits",
+    "memory_macro_count",
+    "stdcell_db_sha256",
+    "dc_max_cores",
+)
+
+PUBLIC_CONTRACT_FIELDS = (
+    "product_profile",
+    "technology",
+    "top",
+    "clock_period_library_units",
+    "documented_clock_period_ns",
+    "sdc_time_scale",
+    "memory_mode",
+    "bounded_dc_ab",
+    "bounded_asic_family",
+    "bounded_bulk_storage_bits",
+    "setup_wns",
+    "setup_tns",
+    "setup_violating_paths",
+    "constraint_violating_checks",
+    "bounded_design_rule_repair_passes",
+    "seqgen_cell_count",
+    "gtech_cell_count",
+    "designware_cell_count",
+    "unmapped_cell_count",
+    "memory_macro_count",
+    "total_cell_count",
+    "stdcell_db_sha256",
+    "dc_max_cores",
 )
 
 
@@ -171,6 +218,10 @@ def parse_key_values(path):
     return values
 
 
+def select_public_fields(values, fields):
+    return {key: values[key] for key in fields if key in values}
+
+
 def required_match(text, pattern, label, cast):
     match = re.search(pattern, text, flags=re.MULTILINE)
     if match is None:
@@ -242,15 +293,17 @@ def collect_run(root, point, execution):
             "missing": missing,
             "build_root": relative_path(root, build_root),
         }
+    closure = parse_key_values(required["closure"])
+    contract = parse_key_values(required["contract"])
     return {
-        "status": parse_key_values(required["closure"]).get("status", "UNKNOWN"),
+        "status": closure.get("status", "UNKNOWN"),
         "family": point["family"],
         "frequency_mhz": point["frequency_mhz"],
         "period_ns": point["period_ns"],
         "storage_bits": point["storage_bits"],
         "build_root": relative_path(root, build_root),
-        "closure": parse_key_values(required["closure"]),
-        "contract": parse_key_values(required["contract"]),
+        "closure": select_public_fields(closure, PUBLIC_CLOSURE_FIELDS),
+        "contract": select_public_fields(contract, PUBLIC_CONTRACT_FIELDS),
         "area": parse_area_report(required["area"]),
         "hierarchy_area": parse_hierarchy_area(required["hierarchy"]),
         "elapsed_seconds": execution.get(point["key"], {}).get("elapsed_seconds"),
@@ -290,7 +343,12 @@ def gate_run(run, point):
         tns = float(closure["setup_tns"])
     except (KeyError, ValueError):
         wns, tns = -1.0, -1.0
-    if wns < 0.0 or abs(tns) > 1.0e-12:
+    if (
+        not math.isfinite(wns)
+        or not math.isfinite(tns)
+        or wns < 0.0
+        or abs(tns) > 1.0e-12
+    ):
         failures.append("setup timing did not close")
     expected_top = (
         flowctl.BOUNDED_BUFFERED_TOP
@@ -299,6 +357,20 @@ def gate_run(run, point):
     )
     if contract.get("top") != expected_top:
         failures.append("top identity mismatch")
+    try:
+        documented_period = float(contract["documented_clock_period_ns"])
+    except (KeyError, ValueError):
+        failures.append("documented clock period is missing or invalid")
+    else:
+        if (
+            not math.isfinite(documented_period)
+            or abs(documented_period - float(point["period_ns"])) > 1.0e-9
+        ):
+            failures.append(
+                "clock period expected {:.6f} got {}".format(
+                    point["period_ns"], contract.get("documented_clock_period_ns")
+                )
+            )
     if run["area"]["tool_version"] != EXPECTED_DC_VERSION:
         failures.append("DC version mismatch")
     if run["area"]["macro_count"] != 0:

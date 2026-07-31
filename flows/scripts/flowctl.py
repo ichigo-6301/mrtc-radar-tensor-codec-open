@@ -455,6 +455,8 @@ def stage_environment(
     if ab_spec is not None:
         environment.update(
             {
+                "RDTC_BUILD_ROOT": str(root / "build" / build_tag),
+                "RDTC_DC_HANDOFF_ROOT": str(root / "build" / dc_handoff_tag),
                 "RDTC_FILELIST": str(root / BOUNDED_DC_AB_FILELIST),
                 "RDTC_SDC": str(root / BOUNDED_DC_AB_SDC),
                 "RDTC_TOP": config["CONFIG_RDTC_TOP"],

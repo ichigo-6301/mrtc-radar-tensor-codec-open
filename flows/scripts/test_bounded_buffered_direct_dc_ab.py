@@ -64,10 +64,17 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
         name = "rdtc_v1_bounded_ab_direct_dc315_defconfig"
         path = ROOT / "configs" / name
         config = self.config(name)
-        with mock.patch.dict(os.environ, {}, clear=True):
+        inherited = {
+            "RDTC_BUILD_ROOT": str(ROOT / "build" / "wrong_parent"),
+            "RDTC_DC_HANDOFF_ROOT": str(ROOT / "build" / "wrong_handoff"),
+        }
+        with mock.patch.dict(os.environ, inherited, clear=True):
             environment = AB.flowctl.stage_environment(
                 ROOT, path, config, "dc-baseline"
             )
+        expected_build = str(ROOT / "build" / "rdtc_v1_bounded_ab_direct_dc315")
+        self.assertEqual(expected_build, environment["RDTC_BUILD_ROOT"])
+        self.assertEqual(expected_build, environment["RDTC_DC_HANDOFF_ROOT"])
         self.assertEqual(str(ROOT / AB.FILELIST), environment["RDTC_FILELIST"])
         self.assertEqual(str(ROOT / AB.COMMON_SDC), environment["RDTC_SDC"])
         self.assertEqual("y", environment["RDTC_BOUNDED_DC_AB"])
@@ -75,6 +82,23 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
         self.assertEqual("32768", environment["RDTC_EXPECTED_BOUNDED_BULK_STORAGE_BITS"])
         self.assertEqual(AB.EXPECTED_DB_SHA256, environment["RDTC_EXPECTED_STDCELL_DB_SHA256"])
         self.assertEqual("4", environment["RDTC_DC_MAX_CORES"])
+
+    def test_every_ab_point_overrides_inherited_build_roots(self):
+        inherited = {
+            "RDTC_BUILD_ROOT": str(ROOT / "build" / "parent_profile"),
+            "RDTC_DC_HANDOFF_ROOT": str(ROOT / "build" / "parent_handoff"),
+        }
+        for point in AB.POINTS:
+            path = ROOT / "configs" / point["config"]
+            with self.subTest(point=point["key"]), mock.patch.dict(
+                os.environ, inherited, clear=True
+            ):
+                environment = AB.flowctl.stage_environment(
+                    ROOT, path, self.config(point["config"]), "dc-baseline"
+                )
+                expected = str(ROOT / "build" / point["build_tag"])
+                self.assertEqual(expected, environment["RDTC_BUILD_ROOT"])
+                self.assertEqual(expected, environment["RDTC_DC_HANDOFF_ROOT"])
 
     def test_stage_command_uses_no_init(self):
         config = self.config("rdtc_v1_bounded_ab_buffered_dc315_defconfig")
@@ -135,10 +159,113 @@ Total cell area: 168.750
         run = {
             "status": "PASS",
             "closure": expected,
-            "contract": {"top": AB.flowctl.BOUNDED_BUFFERED_TOP},
+            "contract": {
+                "top": AB.flowctl.BOUNDED_BUFFERED_TOP,
+                "documented_clock_period_ns": "3.174603",
+            },
             "area": {"tool_version": AB.EXPECTED_DC_VERSION, "macro_count": 0},
         }
         self.assertEqual((True, []), AB.gate_run(run, point))
+
+    def test_gate_rejects_mismatched_report_period(self):
+        point = AB.POINTS[0]
+        closure = {
+            "status": "PASS",
+            "setup_wns": "0.01",
+            "setup_tns": "0.0",
+            "setup_violating_paths": "0",
+            "constraint_violating_checks": "0",
+            "seqgen_cell_count": "0",
+            "gtech_cell_count": "0",
+            "designware_cell_count": "0",
+            "unmapped_cell_count": "0",
+            "memory_macro_count": "0",
+            "retiming": "disabled",
+            "bounded_asic_family": "buffered",
+            "bounded_bulk_storage_bits": "180224",
+            "bounded_register_storage_bits": "180224",
+            "stdcell_db_sha256": AB.EXPECTED_DB_SHA256,
+            "dc_max_cores": "4",
+        }
+        run = {
+            "status": "PASS",
+            "closure": closure,
+            "contract": {
+                "top": AB.flowctl.BOUNDED_BUFFERED_TOP,
+                "documented_clock_period_ns": "1.587302",
+            },
+            "area": {"tool_version": AB.EXPECTED_DC_VERSION, "macro_count": 0},
+        }
+        passed, failures = AB.gate_run(run, point)
+        self.assertFalse(passed)
+        self.assertTrue(any("clock period" in failure for failure in failures))
+
+    def test_gate_rejects_nonfinite_timing_values(self):
+        point = AB.POINTS[0]
+        for field, value in (
+            ("setup_wns", "nan"),
+            ("setup_tns", "nan"),
+            ("documented_clock_period_ns", "nan"),
+        ):
+            closure = {
+                "status": "PASS",
+                "setup_wns": "0.01",
+                "setup_tns": "0.0",
+                "setup_violating_paths": "0",
+                "constraint_violating_checks": "0",
+                "seqgen_cell_count": "0",
+                "gtech_cell_count": "0",
+                "designware_cell_count": "0",
+                "unmapped_cell_count": "0",
+                "memory_macro_count": "0",
+                "retiming": "disabled",
+                "bounded_asic_family": "buffered",
+                "bounded_bulk_storage_bits": "180224",
+                "bounded_register_storage_bits": "180224",
+                "stdcell_db_sha256": AB.EXPECTED_DB_SHA256,
+                "dc_max_cores": "4",
+            }
+            contract = {
+                "top": AB.flowctl.BOUNDED_BUFFERED_TOP,
+                "documented_clock_period_ns": "3.174603",
+            }
+            if field in closure:
+                closure[field] = value
+            else:
+                contract[field] = value
+            run = {
+                "status": "PASS",
+                "closure": closure,
+                "contract": contract,
+                "area": {
+                    "tool_version": AB.EXPECTED_DC_VERSION,
+                    "macro_count": 0,
+                },
+            }
+            with self.subTest(field=field):
+                self.assertFalse(AB.gate_run(run, point)[0])
+
+    def test_public_summary_field_allowlists_drop_local_db_path(self):
+        local_db = "/licensed/local/path/Nangate45.db"
+        closure = AB.select_public_fields(
+            {"status": "PASS", "stdcell_db": local_db}, AB.PUBLIC_CLOSURE_FIELDS
+        )
+        contract = AB.select_public_fields(
+            {
+                "top": AB.flowctl.BOUNDED_BUFFERED_TOP,
+                "documented_clock_period_ns": "3.174603",
+                "stdcell_db": local_db,
+            },
+            AB.PUBLIC_CONTRACT_FIELDS,
+        )
+        self.assertEqual({"status": "PASS"}, closure)
+        self.assertNotIn("stdcell_db", contract)
+        self.assertNotIn(local_db, str({"closure": closure, "contract": contract}))
+
+    def test_legacy_contract_does_not_claim_unmeasured_ab_audits(self):
+        tcl = (ROOT / AB.RUN_TCL).read_text(encoding="utf-8")
+        marker = 'if {$bounded_dc_ab} {\n    echo "constraint_violating_checks='
+        self.assertIn(marker, tcl)
 
     def test_gate_rejects_negative_slack(self):
         point = AB.POINTS[0]

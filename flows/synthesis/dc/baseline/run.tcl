@@ -542,12 +542,14 @@ redirect -file "$output_dir/run_contract.txt" {
   echo "setup_wns=$setup_wns"
   echo "setup_tns=$setup_tns"
   echo "setup_violating_paths=$setup_violating_paths"
-  echo "constraint_violating_checks=$constraint_violating_checks"
-  echo "bounded_design_rule_repair_passes=$bounded_design_rule_repair_passes"
-  echo "seqgen_cell_count=$seqgen_cell_count"
-  echo "gtech_cell_count=$gtech_cell_count"
-  echo "designware_cell_count=$designware_cell_count"
-  echo "unmapped_cell_count=$unmapped_cell_count"
+  if {$bounded_dc_ab} {
+    echo "constraint_violating_checks=$constraint_violating_checks"
+    echo "bounded_design_rule_repair_passes=$bounded_design_rule_repair_passes"
+    echo "seqgen_cell_count=$seqgen_cell_count"
+    echo "gtech_cell_count=$gtech_cell_count"
+    echo "designware_cell_count=$designware_cell_count"
+    echo "unmapped_cell_count=$unmapped_cell_count"
+  }
   if {$use_sram_macro} {
     echo "memory_macro_count=$mapped_sram_count"
   } else {
