@@ -28,6 +28,10 @@ class BoundedBufferedDirectDcAbTest(unittest.TestCase):
         self.assertEqual(4, len({point["key"] for point in AB.POINTS}))
         self.assertEqual({315, 630}, {point["frequency_mhz"] for point in AB.POINTS})
 
+    def test_only_315mhz_points_are_mandatory(self):
+        mandatory = {point["key"] for point in AB.POINTS if AB.is_mandatory_point(point)}
+        self.assertEqual({"buffered315", "direct315"}, mandatory)
+
     def test_all_configs_pass_fixed_contract(self):
         for point in AB.POINTS:
             spec = AB.flowctl.bounded_dc_ab_spec(self.config(point["config"]))

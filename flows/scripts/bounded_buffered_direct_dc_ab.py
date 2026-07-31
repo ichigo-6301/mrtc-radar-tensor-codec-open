@@ -440,6 +440,10 @@ def write_json(path, value):
     os.replace(str(temporary), str(path))
 
 
+def is_mandatory_point(point):
+    return point["frequency_mhz"] == 315
+
+
 def run_all(args):
     root = Path(args.root).resolve()
     orchestration_root = Path(args.orchestration_root).resolve()
@@ -457,6 +461,7 @@ def run_all(args):
     unknown = selected - {point["key"] for point in POINTS}
     if unknown:
         raise RuntimeError("unknown comparison point(s): {}".format(", ".join(sorted(unknown))))
+    stress_failed = False
     for point in POINTS:
         if point["key"] not in selected:
             continue
@@ -515,11 +520,17 @@ def run_all(args):
         )
         write_json(execution_path, execution)
         if returncode:
-            execution["status"] = "FAILED"
-            write_json(execution_path, execution)
-            raise RuntimeError("{} exited with status {}".format(point["key"], returncode))
+            if is_mandatory_point(point):
+                execution["status"] = "FAILED"
+                write_json(execution_path, execution)
+                raise RuntimeError(
+                    "{} exited with status {}".format(point["key"], returncode)
+                )
+            stress_failed = True
     summary = collect(root, orchestration_root)
-    execution["status"] = "COMPLETE"
+    execution["status"] = (
+        "COMPLETE_WITH_STRESS_FAILURE" if stress_failed else "COMPLETE"
+    )
     write_json(execution_path, execution)
     write_json(args.output, summary)
     Path(args.markdown_output).write_text(render_markdown(summary), encoding="utf-8")
