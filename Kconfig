@@ -163,6 +163,15 @@ config FLOW_MEMORY_MODE
 		Use macro for a technology memory leaf or registers for the
 		standard-cell-expanded comparison profile.
 
+config FLOW_BOUNDED_ASIC_REGISTER_EXPANDED
+	bool "Bounded buffered profile with all bulk storage expanded"
+	depends on FLOW_MEMORY_MODE = "registers"
+	default n
+	help
+		Select the historical bounded DDR-feeder and per-Engine payload
+		commit architecture for a controlled register-expanded DC A/B.
+		This profile is opt-in and is not the canonical public top.
+
 config FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED
 	bool "Bounded Direct-AXIS profile with register-expanded way rings"
 	depends on FLOW_MEMORY_MODE = "registers"
@@ -187,6 +196,20 @@ config FLOW_DC_FORBID_RETIME
 		Fail before RTL analysis when the selected setup uses compile_ultra
 		-retime, set_optimize_registers, or optimize_registers. Direct-AXIS
 		ASIC profiles require this guard.
+
+config FLOW_EXPECTED_STDCELL_DB_SHA256
+	string "Expected standard-cell DB SHA256"
+	default ""
+	help
+		When non-empty, Design Compiler hashes its sole target library and
+		fails before RTL analysis if the value differs.
+
+config FLOW_DC_MAX_CORES
+	string "Maximum Design Compiler cores"
+	default ""
+	help
+		Optional integer core limit applied with set_host_options. The
+		paired architecture comparison fixes this value at four.
 
 config FLOW_TSMC90_MEMORY_VARIANT
 	string "TSMC90 prefix-memory variant"

@@ -24,6 +24,15 @@ EVIDENCE_FIELDS = {
     "public", "maturity",
 }
 PHYSICAL_KEYWORDS = ("pnr", "post-route", "postroute", "primeTime", "physical")
+BOUNDED_DC_AB_DB_SHA256 = (
+    "c6da1f0e7a7f445c0476d1e6bf6860c9815fe4f50c9ce138264a581af59e4cb5"
+)
+BOUNDED_DC_AB_POINTS = {
+    "rdtc_v1_bounded_ab_buffered_dc315": ("buffered", 3.174603),
+    "rdtc_v1_bounded_ab_direct_dc315": ("direct", 3.174603),
+    "rdtc_v1_bounded_ab_buffered_dc630": ("buffered", 1.587302),
+    "rdtc_v1_bounded_ab_direct_dc630": ("direct", 1.587302),
+}
 
 
 def load_yaml(path):
@@ -69,6 +78,7 @@ def validate_selected_config(root, config, stage=None):
     policy = config_value(config, "FLOW_STA_WAIVER_POLICY")
     backend = config_value(config, "FLOW_PNR_BACKEND", "openroad")
     platform = config_value(config, "FLOW_OPENROAD_PLATFORM")
+    build_tag = config_value(config, "FLOW_BUILD_TAG")
 
     if not product:
         product = "register-expanded" if memory == "registers" else "sram-macro"
@@ -97,6 +107,55 @@ def validate_selected_config(root, config, stage=None):
         errors.append("PrimeTime stage is not enabled")
     if stage == "pnr" and config_value(config, "FLOW_PNR", "n") != "y":
         errors.append("P&R stage is not enabled")
+
+    ab_point = BOUNDED_DC_AB_POINTS.get(build_tag)
+    if ab_point:
+        family, period_ns = ab_point
+        buffered = config_value(
+            config, "FLOW_BOUNDED_ASIC_REGISTER_EXPANDED", "n"
+        ) == "y"
+        direct = config_value(
+            config, "FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED", "n"
+        ) == "y"
+        if buffered == direct or (family == "buffered") != buffered:
+            errors.append("bounded DC A/B family selection does not match its build tag")
+        expected_top = (
+            "mrtc_rdtc_ddr_multiengine_wrapper"
+            if buffered
+            else "mrtc_rdtc_bounded_axis_multiengine_wrapper"
+        )
+        exact_values = {
+            "RDTC_TOP": expected_top,
+            "FLOW_MEMORY_MODE": "registers",
+            "FLOW_TECHNOLOGY": "nangate45_registers",
+            "FLOW_SDC_FILE": "flows/constraints/rdtc_v1_bounded_sync_boundary_10pct.sdc",
+            "FLOW_EXPECTED_STDCELL_DB_SHA256": BOUNDED_DC_AB_DB_SHA256,
+            "FLOW_DC_MAX_CORES": "4",
+            "FLOW_DC_FORBID_RETIME": "y",
+            "FLOW_DC_BASELINE": "y",
+            "FLOW_PNR": "n",
+            "FLOW_STA": "n",
+        }
+        for key, expected in exact_values.items():
+            if config_value(config, key, "n") != expected:
+                errors.append("bounded DC A/B requires CONFIG_{}={}".format(key, expected))
+        for key in (
+            "FLOW_CLOCK_PERIOD_NS",
+            "FLOW_DC_CLOCK_PERIOD_NS",
+            "FLOW_PNR_CLOCK_PERIOD_NS",
+            "FLOW_STA_CLOCK_PERIOD_NS",
+        ):
+            try:
+                actual = float(config_value(config, key))
+            except ValueError:
+                errors.append("bounded DC A/B CONFIG_{} is malformed".format(key))
+                continue
+            if abs(actual - period_ns) > 1.0e-6:
+                errors.append(
+                    "bounded DC A/B CONFIG_{} must equal {:.6f}".format(
+                        key, period_ns
+                    )
+                )
     if errors:
         raise RuntimeError("invalid flow profile: " + "; ".join(errors))
 
@@ -204,4 +263,3 @@ def main():
 
 if __name__ == "__main__":
     raise SystemExit(main())
-

@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+"""Tests for the public bounded buffered versus Direct-AXIS DC A/B."""
+
+import importlib.util
+import os
+from pathlib import Path
+import tempfile
+import unittest
+from unittest import mock
+
+
+SCRIPT_DIR = Path(__file__).resolve().parent
+ROOT = SCRIPT_DIR.parents[1]
+SPEC = importlib.util.spec_from_file_location(
+    "bounded_buffered_direct_dc_ab",
+    SCRIPT_DIR / "bounded_buffered_direct_dc_ab.py",
+)
+AB = importlib.util.module_from_spec(SPEC)
+SPEC.loader.exec_module(AB)
+
+
+class BoundedBufferedDirectDcAbTest(unittest.TestCase):
+    def config(self, name):
+        return AB.flowctl.parse_config(ROOT / "configs" / name)
+
+    def test_four_fixed_points_are_unique(self):
+        self.assertEqual(4, len(AB.POINTS))
+        self.assertEqual(4, len({point["key"] for point in AB.POINTS}))
+        self.assertEqual({315, 630}, {point["frequency_mhz"] for point in AB.POINTS})
+
+    def test_all_configs_pass_fixed_contract(self):
+        for point in AB.POINTS:
+            spec = AB.flowctl.bounded_dc_ab_spec(self.config(point["config"]))
+            self.assertEqual(point["family"], spec["family"])
+            self.assertEqual(point["storage_bits"], spec["storage_bits"])
+
+    def test_family_mismatch_fails_closed(self):
+        config = self.config("rdtc_v1_bounded_ab_buffered_dc315_defconfig")
+        config["CONFIG_FLOW_BOUNDED_ASIC_REGISTER_EXPANDED"] = "n"
+        config["CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED"] = "y"
+        with self.assertRaisesRegex(RuntimeError, "family"):
+            AB.flowctl.bounded_dc_ab_spec(config)
+
+    def test_library_hash_and_period_mutations_fail(self):
+        original = self.config("rdtc_v1_bounded_ab_direct_dc315_defconfig")
+        for field, value in (
+            ("CONFIG_FLOW_EXPECTED_STDCELL_DB_SHA256", "0" * 64),
+            ("CONFIG_FLOW_DC_CLOCK_PERIOD_NS", "3.200000"),
+            ("CONFIG_FLOW_DC_MAX_CORES", "8"),
+            ("CONFIG_FLOW_PNR", "y"),
+        ):
+            changed = dict(original)
+            changed[field] = value
+            with self.assertRaises(RuntimeError):
+                AB.flowctl.bounded_dc_ab_spec(changed)
+
+    def test_stage_environment_is_hash_bound(self):
+        name = "rdtc_v1_bounded_ab_direct_dc315_defconfig"
+        path = ROOT / "configs" / name
+        config = self.config(name)
+        with mock.patch.dict(os.environ, {}, clear=True):
+            environment = AB.flowctl.stage_environment(
+                ROOT, path, config, "dc-baseline"
+            )
+        self.assertEqual(str(ROOT / AB.FILELIST), environment["RDTC_FILELIST"])
+        self.assertEqual(str(ROOT / AB.COMMON_SDC), environment["RDTC_SDC"])
+        self.assertEqual("y", environment["RDTC_BOUNDED_DC_AB"])
+        self.assertEqual("y", environment["RDTC_DC_NO_INIT"])
+        self.assertEqual("32768", environment["RDTC_EXPECTED_BOUNDED_BULK_STORAGE_BITS"])
+        self.assertEqual(AB.EXPECTED_DB_SHA256, environment["RDTC_EXPECTED_STDCELL_DB_SHA256"])
+        self.assertEqual("4", environment["RDTC_DC_MAX_CORES"])
+
+    def test_stage_command_uses_no_init(self):
+        config = self.config("rdtc_v1_bounded_ab_buffered_dc315_defconfig")
+        with mock.patch.dict(os.environ, {"RDTC_TOOL_DC": "dc_shell"}, clear=True):
+            command = AB.flowctl.stage_command(ROOT, "dc-baseline", False, config)
+        self.assertIn("-no_init", command)
+        self.assertLess(command.index("-no_init"), command.index("-f"))
+
+    def test_dc_uses_single_define_list_for_o2018(self):
+        tcl = (ROOT / AB.RUN_TCL).read_text(encoding="utf-8")
+        self.assertIn("lappend analyze_command -define $rdtc_rtl_defines", tcl)
+        self.assertNotIn("foreach define $rdtc_rtl_defines", tcl)
+
+    def test_source_identity_binds_public_rtl(self):
+        identity = AB.source_identity(ROOT)
+        self.assertTrue(identity["fixed_public_rtl_match"])
+        self.assertEqual(69, identity["source_count"])
+        self.assertEqual(64, len(identity["source_set_sha256"]))
+
+    def test_area_parser(self):
+        report = """Version: O-2018.06-SP1
+Number of cells: 100
+Number of combinational cells: 60
+Number of sequential cells: 40
+Number of macros/black boxes: 0
+Number of buf/inv: 12
+Combinational area: 123.500
+Noncombinational area: 45.250
+Total cell area: 168.750
+"""
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "area.rpt"
+            path.write_text(report, encoding="utf-8")
+            parsed = AB.parse_area_report(path)
+        self.assertEqual(100, parsed["cell_count"])
+        self.assertEqual(168.75, parsed["total_cell_area_um2"])
+
+    def test_gate_accepts_complete_closed_run(self):
+        point = AB.POINTS[0]
+        expected = {
+            "status": "PASS",
+            "setup_wns": "0.01",
+            "setup_tns": "0.0",
+            "setup_violating_paths": "0",
+            "constraint_violating_checks": "0",
+            "seqgen_cell_count": "0",
+            "gtech_cell_count": "0",
+            "designware_cell_count": "0",
+            "unmapped_cell_count": "0",
+            "memory_macro_count": "0",
+            "retiming": "disabled",
+            "bounded_asic_family": "buffered",
+            "bounded_bulk_storage_bits": "180224",
+            "bounded_register_storage_bits": "180224",
+            "stdcell_db_sha256": AB.EXPECTED_DB_SHA256,
+            "dc_max_cores": "4",
+        }
+        run = {
+            "status": "PASS",
+            "closure": expected,
+            "contract": {"top": AB.flowctl.BOUNDED_BUFFERED_TOP},
+            "area": {"tool_version": AB.EXPECTED_DC_VERSION, "macro_count": 0},
+        }
+        self.assertEqual((True, []), AB.gate_run(run, point))
+
+    def test_gate_rejects_negative_slack(self):
+        point = AB.POINTS[0]
+        run = {
+            "status": "PASS",
+            "closure": {"setup_wns": "-0.01", "setup_tns": "-0.01"},
+            "contract": {},
+            "area": {"tool_version": AB.EXPECTED_DC_VERSION, "macro_count": 0},
+        }
+        passed, failures = AB.gate_run(run, point)
+        self.assertFalse(passed)
+        self.assertTrue(failures)
+
+    def test_percent_reduction(self):
+        self.assertAlmostEqual(75.0, AB.percent_reduction(100.0, 25.0))
+        with self.assertRaises(RuntimeError):
+            AB.percent_reduction(0.0, 0.0)
+
+    def test_public_surface_contains_fail_closed_guards(self):
+        tcl = (ROOT / AB.RUN_TCL).read_text(encoding="utf-8")
+        makefile = (ROOT / "Makefile").read_text(encoding="utf-8")
+        kconfig = (ROOT / "Kconfig").read_text(encoding="utf-8")
+        for marker in (
+            "RDTC_EXPECTED_STDCELL_DB_SHA256",
+            "RDTC_BOUNDED_HT_WAY_RING",
+            "compile_ultra -incremental -only_design_rule",
+            "bounded_register_storage_bits",
+            "dc_closure_summary.txt",
+        ):
+            self.assertIn(marker, tcl)
+        self.assertIn("bounded-dc-ab-run:", makefile)
+        self.assertIn("config FLOW_BOUNDED_ASIC_REGISTER_EXPANDED", kconfig)
+
+    def test_runner_has_no_private_host_or_path_literals(self):
+        text = (SCRIPT_DIR / "bounded_buffered_direct_dc_ab.py").read_text(
+            encoding="utf-8"
+        )
+        for forbidden in ("private_host", "private_worktree", "license_server"):
+            self.assertNotIn(forbidden, text)
+
+
+if __name__ == "__main__":
+    unittest.main()

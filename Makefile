@@ -22,10 +22,19 @@ ifeq ($(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED)$(CONFIG_FLOW_BOUNDED_
 $(error Direct-AXIS register-expanded and SRAM profiles are mutually exclusive)
 endif
 RDTC_BOUNDED_DIRECT_PROFILE := $(filter y,$(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED) $(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_SRAM))
+ifneq ($(strip $(CONFIG_FLOW_BOUNDED_ASIC_REGISTER_EXPANDED)),)
+ifneq ($(strip $(RDTC_BOUNDED_DIRECT_PROFILE)),)
+$(error Buffered and Direct-AXIS bounded profiles are mutually exclusive)
+endif
+endif
+RDTC_BOUNDED_DC_AB_PROFILE := $(filter rdtc_v1_bounded_ab_%,$(call unquote,$(CONFIG_FLOW_BUILD_TAG)))
 
 export RDTC_FLOW_ROOT := $(ROOT)
 export RDTC_FLOW_CONFIG := $(abspath $(CONFIG))
-ifneq ($(strip $(RDTC_BOUNDED_DIRECT_PROFILE)),)
+ifneq ($(strip $(RDTC_BOUNDED_DC_AB_PROFILE)),)
+export RDTC_FILELIST ?= $(ROOT)/flows/manifests/rdtc_v1_bounded_ab.f
+export RDTC_SDC ?= $(ROOT)/flows/constraints/rdtc_v1_bounded_sync_boundary_10pct.sdc
+else ifneq ($(strip $(RDTC_BOUNDED_DIRECT_PROFILE)),)
 export RDTC_FILELIST ?= $(ROOT)/flows/manifests/rdtc_v1_bounded_direct.f
 export RDTC_SDC ?= $(ROOT)/$(call unquote,$(CONFIG_FLOW_SDC_FILE))
 else
@@ -60,7 +69,10 @@ export RDTC_ORFS_PLATFORM ?= $(call unquote,$(CONFIG_FLOW_OPENROAD_PLATFORM))
 export RDTC_TECHNOLOGY ?= $(call unquote,$(CONFIG_FLOW_TECHNOLOGY))
 export RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED ?= $(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED)
 export RDTC_BOUNDED_DIRECT_ASIC_SRAM ?= $(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_SRAM)
+export RDTC_BOUNDED_ASIC_REGISTER_EXPANDED ?= $(CONFIG_FLOW_BOUNDED_ASIC_REGISTER_EXPANDED)
 export RDTC_DC_FORBID_RETIME ?= $(CONFIG_FLOW_DC_FORBID_RETIME)
+export RDTC_EXPECTED_STDCELL_DB_SHA256 ?= $(call unquote,$(CONFIG_FLOW_EXPECTED_STDCELL_DB_SHA256))
+export RDTC_DC_MAX_CORES ?= $(call unquote,$(CONFIG_FLOW_DC_MAX_CORES))
 
 RDTC_REGISTER_DC_SETUP ?= $(ROOT)/flows/local/dc_setup_registers.tcl
 RDTC_REGISTER_PRIMETIME_SETUP ?= $(ROOT)/flows/local/primetime_setup_registers.tcl
@@ -98,6 +110,9 @@ RDTC_TOOL_DC ?= dc_shell
 RDTC_TOOL_LC ?= lc_shell
 RDTC_SYNOPSYS_LC_ROOT ?=
 RDTC_TOOL_OPENRAM_PYTHON ?= python3
+RDTC_DC_AB_ROOT ?= $(ROOT)/build/bounded_buffered_direct_dc_ab
+RDTC_DC_AB_SUMMARY ?= $(RDTC_DC_AB_ROOT)/summary.json
+RDTC_DC_AB_MARKDOWN ?= $(RDTC_DC_AB_ROOT)/summary.md
 RDTC_TSMC90_RF_GENERATOR ?= rf_2p_adv
 RDTC_TSMC90_SRAM_GENERATOR ?= sram_dp_adv
 RDTC_TOOL_GRDGENXO ?= grdgenxo
@@ -123,7 +138,8 @@ export RDTC_POST_GRT_HOLD_SLACK_MARGIN_NS
 export RDTC_TARGETED_DRC_ECO RDTC_EXPECTED_DC_NETLIST_SHA256 RDTC_DC_HANDOFF_ROOT
 export RDTC_STA_UNUSED_RW_DOUT_MIN_CAP_WAIVER RDTC_STA_WAIVER_POLICY
 export RDTC_PRODUCT_PROFILE RDTC_MEMORY_MODE RDTC_TSMC90_MEMORY_VARIANT RDTC_ORFS_PLATFORM RDTC_TECHNOLOGY
-export RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED RDTC_BOUNDED_DIRECT_ASIC_SRAM RDTC_DC_FORBID_RETIME
+export RDTC_BOUNDED_ASIC_REGISTER_EXPANDED RDTC_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED RDTC_BOUNDED_DIRECT_ASIC_SRAM RDTC_DC_FORBID_RETIME
+export RDTC_EXPECTED_STDCELL_DB_SHA256 RDTC_DC_MAX_CORES
 export RDTC_BOUNDED_RING_SRAM_DB RDTC_BOUNDED_RING_SRAM_MODEL
 export RDTC_STDCELL_DB RDTC_NANGATE15_DB RDTC_NANGATE45_DB RDTC_ICSPROUT55_DB
 export RDTC_TSMC90_RF_GENERATOR RDTC_TSMC90_SRAM_GENERATOR
@@ -157,6 +173,7 @@ endif
         icc2-libs icc2-libs-dry-run \
         rtl-smoke integration-smoke codec-demo multiengine-smoke fpga-wrapper-smoke showcase-assets-check verify-current-checksums sim sim-dry-run sim-full selected selected-dry-run \
         bounded-direct-register-modelsim-regression bounded-direct-modelsim-regression bounded-direct-modelsim-regression-dry-run \
+        bounded-dc-ab-validate bounded-dc-ab-run bounded-dc-ab-collect \
         bounded-direct-rtl-smoke bounded-direct-rtl-identity-check bounded-direct-vivado-route200 bounded-direct-vivado-route200-check \
         lint lint-dry-run cdc cdc-dry-run \
         dc-baseline dc-baseline-dry-run dc-gated dc-gated-dry-run \
@@ -202,6 +219,9 @@ help:
 	  '  make bounded-direct-register-modelsim-regression  Verify the Direct-AXIS register profile' \
 	  '  make bounded-direct-modelsim-regression  Compare Direct-AXIS register and local OpenRAM profiles' \
 	  '  make bounded-direct-modelsim-regression-dry-run  Validate the Direct-AXIS ModelSim plan' \
+	  '  make bounded-dc-ab-validate      Audit the paired buffered/Direct DC inputs' \
+	  '  make bounded-dc-ab-run           Run the four serial register-expanded DC points' \
+	  '  make bounded-dc-ab-collect       Re-audit completed local DC reports' \
 	  '  make bounded-direct-rtl-smoke  Elaborate the Direct-AXIS top with Icarus' \
 	  '  make bounded-direct-rtl-identity-check  Verify Direct RTL against fixed evidence' \
 	  '  make bounded-direct-vivado-route200  Run the 200 MHz Vivado OOC post-route gate' \
@@ -439,6 +459,27 @@ bounded-direct-modelsim-regression-dry-run:
 	  --sram-manifest-sha256 "$(RDTC_BOUNDED_DIRECT_SRAM_MANIFEST_SHA256)" \
 	  --sram-target-period-ns "$(RDTC_CLOCK_PERIOD_NS)" \
 	  --dry-run
+
+bounded-dc-ab-validate:
+	@$(RDTC_TOOL_PYTHON) flows/scripts/bounded_buffered_direct_dc_ab.py \
+	  --root "$(ROOT)" validate
+
+bounded-dc-ab-run:
+	@$(RDTC_TOOL_PYTHON) flows/scripts/bounded_buffered_direct_dc_ab.py \
+	  --root "$(ROOT)" run \
+	  --dc-tool "$(RDTC_TOOL_DC)" \
+	  --dc-setup "$(RDTC_REGISTER_DC_SETUP)" \
+	  --stdcell-db "$(RDTC_NANGATE45_DB)" \
+	  --orchestration-root "$(RDTC_DC_AB_ROOT)" \
+	  --output "$(RDTC_DC_AB_SUMMARY)" \
+	  --markdown-output "$(RDTC_DC_AB_MARKDOWN)"
+
+bounded-dc-ab-collect:
+	@$(RDTC_TOOL_PYTHON) flows/scripts/bounded_buffered_direct_dc_ab.py \
+	  --root "$(ROOT)" collect \
+	  --orchestration-root "$(RDTC_DC_AB_ROOT)" \
+	  --output "$(RDTC_DC_AB_SUMMARY)" \
+	  --markdown-output "$(RDTC_DC_AB_MARKDOWN)"
 
 bounded-direct-rtl-smoke:
 	@$(PYTHON) flows/scripts/rtl_smoke.py --root "$(ROOT)" \

@@ -39,6 +39,77 @@ PRIMETIME_CONSTRAINT_TYPES = frozenset(
 BOUNDED_DIRECT_TOP = "mrtc_rdtc_bounded_axis_multiengine_wrapper"
 BOUNDED_DIRECT_FILELIST = "flows/manifests/rdtc_v1_bounded_direct.f"
 BOUNDED_DIRECT_SDC = "flows/constraints/rdtc_v1_direct_axis_sync_boundary.sdc"
+BOUNDED_BUFFERED_TOP = "mrtc_rdtc_ddr_multiengine_wrapper"
+BOUNDED_DC_AB_FILELIST = "flows/manifests/rdtc_v1_bounded_ab.f"
+BOUNDED_DC_AB_SDC = "flows/constraints/rdtc_v1_bounded_sync_boundary_10pct.sdc"
+BOUNDED_DC_AB_STDCELL_DB_SHA256 = (
+    "c6da1f0e7a7f445c0476d1e6bf6860c9815fe4f50c9ce138264a581af59e4cb5"
+)
+BOUNDED_DC_AB_POINTS = {
+    "rdtc_v1_bounded_ab_buffered_dc315": ("buffered", 3.174603, 180224),
+    "rdtc_v1_bounded_ab_direct_dc315": ("direct", 3.174603, 32768),
+    "rdtc_v1_bounded_ab_buffered_dc630": ("buffered", 1.587302, 180224),
+    "rdtc_v1_bounded_ab_direct_dc630": ("direct", 1.587302, 32768),
+}
+
+
+def bounded_dc_ab_spec(config: Dict[str, str]):
+    build_tag = config.get("CONFIG_FLOW_BUILD_TAG", "")
+    point = BOUNDED_DC_AB_POINTS.get(build_tag)
+    if point is None:
+        return None
+    family, period_ns, storage_bits = point
+    buffered = config.get("CONFIG_FLOW_BOUNDED_ASIC_REGISTER_EXPANDED") == "y"
+    direct = config.get("CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED") == "y"
+    direct_sram = config.get("CONFIG_FLOW_BOUNDED_DIRECT_ASIC_SRAM") == "y"
+    if direct_sram or buffered == direct:
+        raise RuntimeError(
+            "bounded DC A/B point requires exactly one fixed register-expanded family"
+        )
+    if (family == "buffered") != buffered:
+        raise RuntimeError("bounded DC A/B build tag and architecture family differ")
+    expected_top = BOUNDED_BUFFERED_TOP if buffered else BOUNDED_DIRECT_TOP
+    expected_profile = (
+        "bounded-register-expanded" if buffered else "bounded-direct-register-expanded"
+    )
+    expected = {
+        "CONFIG_RDTC_TOP": expected_top,
+        "CONFIG_FLOW_PRODUCT_PROFILE": expected_profile,
+        "CONFIG_FLOW_TECHNOLOGY": "nangate45_registers",
+        "CONFIG_FLOW_MEMORY_MODE": "registers",
+        "CONFIG_FLOW_SDC_FILE": BOUNDED_DC_AB_SDC,
+        "CONFIG_FLOW_EXPECTED_STDCELL_DB_SHA256": BOUNDED_DC_AB_STDCELL_DB_SHA256,
+        "CONFIG_FLOW_DC_MAX_CORES": "4",
+        "CONFIG_FLOW_DC_FORBID_RETIME": "y",
+        "CONFIG_FLOW_DC_BASELINE": "y",
+        "CONFIG_FLOW_PNR": "n",
+        "CONFIG_FLOW_STA": "n",
+    }
+    for symbol, value in expected.items():
+        if config.get(symbol, "n") != value:
+            raise RuntimeError(
+                "bounded DC A/B point requires {}={}".format(symbol, value)
+            )
+    for field in (
+        "CONFIG_FLOW_CLOCK_PERIOD_NS",
+        "CONFIG_FLOW_DC_CLOCK_PERIOD_NS",
+        "CONFIG_FLOW_PNR_CLOCK_PERIOD_NS",
+        "CONFIG_FLOW_STA_CLOCK_PERIOD_NS",
+    ):
+        try:
+            actual = float(config.get(field, ""))
+        except ValueError:
+            raise RuntimeError("bounded DC A/B {} is malformed".format(field))
+        if abs(actual - period_ns) > 1.0e-6:
+            raise RuntimeError(
+                "bounded DC A/B {} must equal {:.6f}".format(field, period_ns)
+            )
+    return {
+        "build_tag": build_tag,
+        "family": family,
+        "period_ns": period_ns,
+        "storage_bits": storage_bits,
+    }
 
 
 def bounded_direct_mode(config: Dict[str, str]) -> str:
@@ -71,8 +142,14 @@ def bounded_direct_mode(config: Dict[str, str]) -> str:
             )
     if config.get("CONFIG_RDTC_TOP") != BOUNDED_DIRECT_TOP:
         raise RuntimeError("Direct-AXIS profile requires top " + BOUNDED_DIRECT_TOP)
-    if config.get("CONFIG_FLOW_SDC_FILE") != BOUNDED_DIRECT_SDC:
-        raise RuntimeError("Direct-AXIS profile requires SDC " + BOUNDED_DIRECT_SDC)
+    ab_spec = bounded_dc_ab_spec(config)
+    expected_sdc = (
+        BOUNDED_DC_AB_SDC
+        if ab_spec is not None and ab_spec["family"] == "direct"
+        else BOUNDED_DIRECT_SDC
+    )
+    if config.get("CONFIG_FLOW_SDC_FILE") != expected_sdc:
+        raise RuntimeError("Direct-AXIS profile requires SDC " + expected_sdc)
     if config.get("CONFIG_FLOW_DC_FORBID_RETIME") != "y":
         raise RuntimeError("Direct-AXIS profile requires CONFIG_FLOW_DC_FORBID_RETIME=y")
     return mode
@@ -263,6 +340,8 @@ def stage_command(root: Path, stage: str, dry_run: bool, config: Dict[str, str])
     tool = os.environ.get(spec["tool_env"]) or spec["tool"]
     script = str(root / spec["script"])
     args = [item.format(script=script, root=str(root)) for item in spec["args"]]
+    if stage == "dc-baseline" and bounded_dc_ab_spec(config) is not None:
+        args.insert(0, "-no_init")
     if dry_run:
         args.extend(spec.get("dry_run_args", []))
     return [*split_tool(tool), *args]
@@ -272,7 +351,11 @@ def stage_environment(
     root: Path, config_path: Path, config: Dict[str, str], stage: str
 ) -> Dict[str, str]:
     environment = os.environ.copy()
+    ab_spec = bounded_dc_ab_spec(config)
     direct_mode = bounded_direct_mode(config)
+    buffered_mode = config.get("CONFIG_FLOW_BOUNDED_ASIC_REGISTER_EXPANDED") == "y"
+    if buffered_mode and (ab_spec is None or ab_spec["family"] != "buffered"):
+        raise RuntimeError("bounded buffered register profile is reserved for the DC A/B")
     default_period = config.get("CONFIG_FLOW_CLOCK_PERIOD_NS", "2.500")
     dc_period = config.get("CONFIG_FLOW_DC_CLOCK_PERIOD_NS", "") or default_period
     pnr_period = config.get("CONFIG_FLOW_PNR_CLOCK_PERIOD_NS", "") or default_period
@@ -287,7 +370,11 @@ def stage_environment(
         "pnr": pnr_period,
         "sta": sta_period,
     }.get(stage, default_period)
-    filelist = BOUNDED_DIRECT_FILELIST if direct_mode else "flows/manifests/rdtc_v1.f"
+    filelist = (
+        BOUNDED_DC_AB_FILELIST
+        if ab_spec is not None
+        else (BOUNDED_DIRECT_FILELIST if direct_mode else "flows/manifests/rdtc_v1.f")
+    )
     sdc = config.get(
         "CONFIG_FLOW_SDC_FILE", "flows/constraints/rdtc_v1_internal_400m.sdc"
     )
@@ -353,11 +440,33 @@ def stage_environment(
         "RDTC_BOUNDED_DIRECT_ASIC_SRAM": config.get(
             "CONFIG_FLOW_BOUNDED_DIRECT_ASIC_SRAM", "n"
         ),
+        "RDTC_BOUNDED_ASIC_REGISTER_EXPANDED": config.get(
+            "CONFIG_FLOW_BOUNDED_ASIC_REGISTER_EXPANDED", "n"
+        ),
         "RDTC_DC_FORBID_RETIME": config.get("CONFIG_FLOW_DC_FORBID_RETIME", "n"),
+        "RDTC_EXPECTED_STDCELL_DB_SHA256": config.get(
+            "CONFIG_FLOW_EXPECTED_STDCELL_DB_SHA256", ""
+        ),
+        "RDTC_DC_MAX_CORES": config.get("CONFIG_FLOW_DC_MAX_CORES", ""),
     }
     for key, value in defaults.items():
         if not environment.get(key):
             environment[key] = value
+    if ab_spec is not None:
+        environment.update(
+            {
+                "RDTC_FILELIST": str(root / BOUNDED_DC_AB_FILELIST),
+                "RDTC_SDC": str(root / BOUNDED_DC_AB_SDC),
+                "RDTC_TOP": config["CONFIG_RDTC_TOP"],
+                "RDTC_BOUNDED_DC_AB": "y",
+                "RDTC_DC_NO_INIT": "y",
+                "RDTC_EXPECTED_BOUNDED_BULK_STORAGE_BITS": str(
+                    ab_spec["storage_bits"]
+                ),
+                "RDTC_EXPECTED_STDCELL_DB_SHA256": BOUNDED_DC_AB_STDCELL_DB_SHA256,
+                "RDTC_DC_MAX_CORES": "4",
+            }
+        )
     # The generic constraint variable is intentionally stage-specific. This
     # prevents a fast DC target from silently becoming the P&R/STA target.
     environment["RDTC_CLOCK_PERIOD_NS"] = stage_period
@@ -782,6 +891,7 @@ def command_defconfig(args: argparse.Namespace) -> None:
 
 def command_show_config(args: argparse.Namespace) -> None:
     config = parse_config(Path(args.config))
+    ab_spec = bounded_dc_ab_spec(config)
     direct_mode = bounded_direct_mode(config)
     print(f"top: {config.get('CONFIG_RDTC_TOP', 'mrtc_rdtc_wb_wrapper')}")
     print(f"product_profile: {config.get('CONFIG_FLOW_PRODUCT_PROFILE', 'sram-macro')}")
@@ -841,6 +951,7 @@ def command_show_config(args: argparse.Namespace) -> None:
     print("pnr_scope: " + config.get("CONFIG_FLOW_PNR_SCOPE", "full"))
     print("public_rtl_smoke: " + config.get("CONFIG_FLOW_PUBLIC_RTL_SMOKE", "n"))
     print("bounded_direct_mode: " + (direct_mode or "disabled"))
+    print("bounded_dc_ab_family: " + (ab_spec["family"] if ab_spec else "disabled"))
     print("enabled_stages: " + ", ".join(stage for stage, spec in STAGES.items() if config.get(spec["symbol"]) == "y"))
 
 
