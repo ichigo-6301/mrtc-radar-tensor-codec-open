@@ -845,7 +845,7 @@ def run_stage(root: Path, config_path: Path, config: Dict[str, str], stage: str,
     if config.get(spec["symbol"]) != "y":
         raise RuntimeError(f"{stage} is disabled by {spec['symbol']} in {config_path}.")
     if stage in ("dc-baseline", "dc-gated", "pnr", "sta"):
-        validate_selected_config(root, config, stage=stage)
+        validate_selected_config(root, config, stage=stage, config_path=config_path)
     environment = stage_environment(root, config_path, config, stage)
     command = stage_command(root, stage, dry_run, config)
     print(f"stage: {stage}")

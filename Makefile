@@ -22,7 +22,7 @@ ifeq ($(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED)$(CONFIG_FLOW_BOUNDED_
 $(error Direct-AXIS register-expanded and SRAM profiles are mutually exclusive)
 endif
 RDTC_BOUNDED_DIRECT_PROFILE := $(filter y,$(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED) $(CONFIG_FLOW_BOUNDED_DIRECT_ASIC_SRAM))
-ifneq ($(strip $(CONFIG_FLOW_BOUNDED_ASIC_REGISTER_EXPANDED)),)
+ifeq ($(strip $(CONFIG_FLOW_BOUNDED_ASIC_REGISTER_EXPANDED)),y)
 ifneq ($(strip $(RDTC_BOUNDED_DIRECT_PROFILE)),)
 $(error Buffered and Direct-AXIS bounded profiles are mutually exclusive)
 endif
@@ -477,6 +477,7 @@ bounded-dc-ab-run:
 bounded-dc-ab-collect:
 	@$(RDTC_TOOL_PYTHON) flows/scripts/bounded_buffered_direct_dc_ab.py \
 	  --root "$(ROOT)" collect \
+	  --dc-setup "$(RDTC_REGISTER_DC_SETUP)" \
 	  --orchestration-root "$(RDTC_DC_AB_ROOT)" \
 	  --output "$(RDTC_DC_AB_SUMMARY)" \
 	  --markdown-output "$(RDTC_DC_AB_MARKDOWN)"

@@ -449,6 +449,31 @@ u_engine.u_engine                     40.0000   23.7  1.0
                     execution,
                 )
 
+    def test_comparison_inputs_bind_dc_setup_content(self):
+        with tempfile.TemporaryDirectory() as temp:
+            orchestration = Path(temp) / "orchestration"
+            setup = Path(temp) / "dc_setup_registers.tcl"
+            setup.write_text("set_app_var test_mode false\n", encoding="utf-8")
+            first = AB.comparison_inputs(ROOT, {"source_head": "test"}, setup)
+            self.assertEqual(AB.sha256_file(setup), first["dc_setup"]["sha256"])
+            self.assertEqual(setup.name, first["dc_setup"]["path"])
+            manifest = AB.write_input_manifest(ROOT, orchestration, first)
+            execution = {
+                "input_manifest": manifest,
+                "input_manifest_sha256": manifest["sha256"],
+                "runs": [],
+            }
+
+            setup.write_text("set_app_var test_mode true\n", encoding="utf-8")
+            second = AB.comparison_inputs(ROOT, {"source_head": "test"}, setup)
+            self.assertNotEqual(
+                first["dc_setup"]["sha256"], second["dc_setup"]["sha256"]
+            )
+            with self.assertRaisesRegex(RuntimeError, "as-run manifest"):
+                AB.validate_bound_inputs(
+                    ROOT, orchestration, second, execution
+                )
+
     def test_gate_binds_area_hierarchy_and_report_hashes(self):
         point = AB.POINTS[0]
         run = self.bind_run_integrity(
@@ -500,6 +525,13 @@ u_engine.u_engine                     40.0000   23.7  1.0
         }
         markdown = AB.render_markdown(summary)
         self.assertIn("| buffered315 | n/a |", markdown)
+
+    def test_markdown_writer_creates_missing_parent_directory(self):
+        with tempfile.TemporaryDirectory() as temp:
+            output = Path(temp) / "new" / "reports" / "summary.md"
+            with mock.patch.object(AB, "render_markdown", return_value="report\n"):
+                AB.write_markdown(output, {})
+            self.assertEqual("report\n", output.read_text(encoding="utf-8"))
 
     def test_execution_status_comes_from_all_final_gates(self):
         summary = {
@@ -631,6 +663,14 @@ u_engine.u_engine                     40.0000   23.7  1.0
         ):
             self.assertIn(marker, tcl)
         self.assertIn("bounded-dc-ab-run:", makefile)
+        self.assertIn(
+            "ifeq ($(strip $(CONFIG_FLOW_BOUNDED_ASIC_REGISTER_EXPANDED)),y)",
+            makefile,
+        )
+        self.assertNotIn(
+            "ifneq ($(strip $(CONFIG_FLOW_BOUNDED_ASIC_REGISTER_EXPANDED)),)",
+            makefile,
+        )
         self.assertIn("config FLOW_BOUNDED_ASIC_REGISTER_EXPANDED", kconfig)
 
     def test_runner_has_no_private_host_or_path_literals(self):

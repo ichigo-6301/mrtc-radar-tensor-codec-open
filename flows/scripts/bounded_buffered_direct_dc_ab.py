@@ -456,7 +456,7 @@ def percent_reduction(baseline, optimized):
     return 100.0 * (baseline - optimized) / baseline
 
 
-def comparison_inputs(root, identity):
+def comparison_inputs(root, identity, dc_setup=None):
     configs = {}
     for point in POINTS:
         path = root / "configs" / point["config"]
@@ -465,7 +465,7 @@ def comparison_inputs(root, identity):
         if spec is None or spec["family"] != point["family"]:
             raise RuntimeError("invalid paired config: {}".format(path.name))
         configs[point["key"]] = file_record(root, path)
-    return {
+    inputs = {
         "source": identity,
         "filelist": file_record(root, root / FILELIST),
         "sdc": file_record(root, root / COMMON_SDC),
@@ -476,6 +476,9 @@ def comparison_inputs(root, identity):
         "expected_stdcell_db_sha256": EXPECTED_DB_SHA256,
         "expected_dc_version": EXPECTED_DC_VERSION,
     }
+    if dc_setup is not None:
+        inputs["dc_setup"] = file_record(root, dc_setup)
+    return inputs
 
 
 def read_json_object(path, label):
@@ -585,10 +588,10 @@ def archive_retry_closure(orchestration_root, point, closure_path):
     return archive_path
 
 
-def collect(root, orchestration_root):
+def collect(root, orchestration_root, dc_setup):
     root = Path(root).resolve()
     identity = source_identity(root)
-    current_inputs = comparison_inputs(root, identity)
+    current_inputs = comparison_inputs(root, identity, dc_setup)
     execution_path = Path(orchestration_root) / "execution.json"
     execution_document = read_execution_document(execution_path)
     inputs, input_manifest = validate_bound_inputs(
@@ -725,6 +728,14 @@ def write_json(path, value):
     os.replace(str(temporary), str(path))
 
 
+def write_markdown(path, summary):
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(path.suffix + ".tmp")
+    temporary.write_text(render_markdown(summary), encoding="utf-8")
+    os.replace(str(temporary), str(path))
+
+
 def is_mandatory_point(point):
     return point["frequency_mhz"] == 315
 
@@ -733,7 +744,7 @@ def run_all(args):
     root = Path(args.root).resolve()
     orchestration_root = Path(args.orchestration_root).resolve()
     identity = source_identity(root)
-    inputs = comparison_inputs(root, identity)
+    inputs = comparison_inputs(root, identity, args.dc_setup)
     if not identity["tracked_worktree_clean"]:
         raise RuntimeError("paired DC execution requires a tracked-clean worktree")
     if sha256_file(args.stdcell_db) != EXPECTED_DB_SHA256:
@@ -832,11 +843,11 @@ def run_all(args):
         if returncode:
             if is_mandatory_point(point):
                 break
-    summary = collect(root, orchestration_root)
+    summary = collect(root, orchestration_root, args.dc_setup)
     execution["status"] = summary["execution_status"]
     write_json(execution_path, execution)
     write_json(args.output, summary)
-    Path(args.markdown_output).write_text(render_markdown(summary), encoding="utf-8")
+    write_markdown(args.markdown_output, summary)
     return 0 if summary["status"] == "PASS_DC_ONLY" else 1
 
 
@@ -848,6 +859,7 @@ def main():
 
     collect_parser = subparsers.add_parser("collect")
     collect_parser.add_argument("--orchestration-root", required=True)
+    collect_parser.add_argument("--dc-setup", required=True)
     collect_parser.add_argument("--output", required=True)
     collect_parser.add_argument("--markdown-output", required=True)
 
@@ -870,13 +882,13 @@ def main():
             print(json.dumps(comparison_inputs(root, source_identity(root)), indent=2))
             return 0
         if args.command == "collect":
-            summary = collect(root, args.orchestration_root)
+            summary = collect(root, args.orchestration_root, args.dc_setup)
             execution_path = Path(args.orchestration_root) / "execution.json"
             execution = read_execution_document(execution_path)
             execution["status"] = summary["execution_status"]
             write_json(execution_path, execution)
             write_json(args.output, summary)
-            Path(args.markdown_output).write_text(render_markdown(summary), encoding="utf-8")
+            write_markdown(args.markdown_output, summary)
             return 0 if summary["status"] == "PASS_DC_ONLY" else 1
         return run_all(args)
     except RuntimeError as error:

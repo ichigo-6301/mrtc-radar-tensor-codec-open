@@ -92,7 +92,7 @@ class ProfileValidationTest(unittest.TestCase):
     def test_bounded_dc_ab_validator_enforces_complete_contract(self):
         path = SOURCE_ROOT / "configs/rdtc_v1_bounded_ab_direct_dc315_defconfig"
         original = parse_config(path)
-        validate_selected_config(SOURCE_ROOT, original)
+        validate_selected_config(SOURCE_ROOT, original, config_path=path)
         mutations = (
             ("CONFIG_FLOW_PRODUCT_PROFILE", "bounded-register-expanded"),
             ("CONFIG_FLOW_SDC_TIME_SCALE", "1000.0"),
@@ -105,7 +105,38 @@ class ProfileValidationTest(unittest.TestCase):
             with self.subTest(field=field), self.assertRaisesRegex(
                 RuntimeError, "bounded DC A/B"
             ):
-                validate_selected_config(SOURCE_ROOT, changed)
+                validate_selected_config(SOURCE_ROOT, changed, config_path=path)
+
+    def test_bounded_dc_ab_defconfig_identity_rejects_corrupt_build_tag(self):
+        configs = self.root / "configs"
+        configs.mkdir()
+        source = SOURCE_ROOT / "configs/rdtc_v1_bounded_ab_direct_dc315_defconfig"
+        target = configs / source.name
+        original = source.read_text(encoding="utf-8")
+        corrupted = original.replace(
+            'CONFIG_FLOW_BUILD_TAG="rdtc_v1_bounded_ab_direct_dc315"',
+            'CONFIG_FLOW_BUILD_TAG="rdtc_v1_bounded_ab_direct_typo"',
+        )
+        self.assertNotEqual(original, corrupted)
+        target.write_text(corrupted, encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeError, "match defconfig identity"):
+            validate_repository(self.root, all_defconfigs=True)
+
+    def test_bounded_dc_ab_validator_rejects_nonfinite_periods(self):
+        path = SOURCE_ROOT / "configs/rdtc_v1_bounded_ab_direct_dc315_defconfig"
+        original = parse_config(path)
+        for field in (
+            "CONFIG_FLOW_CLOCK_PERIOD_NS",
+            "CONFIG_FLOW_DC_CLOCK_PERIOD_NS",
+            "CONFIG_FLOW_PNR_CLOCK_PERIOD_NS",
+            "CONFIG_FLOW_STA_CLOCK_PERIOD_NS",
+        ):
+            changed = dict(original)
+            changed[field] = "nan"
+            with self.subTest(field=field), self.assertRaisesRegex(
+                RuntimeError, "bounded DC A/B"
+            ):
+                validate_selected_config(SOURCE_ROOT, changed, config_path=path)
 
 
 if __name__ == "__main__":

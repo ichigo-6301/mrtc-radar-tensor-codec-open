@@ -5,6 +5,7 @@ from __future__ import print_function
 
 import argparse
 import hashlib
+import math
 import sys
 from pathlib import Path
 
@@ -32,6 +33,9 @@ BOUNDED_DC_AB_POINTS = {
     "rdtc_v1_bounded_ab_direct_dc315": ("direct", 3.174603),
     "rdtc_v1_bounded_ab_buffered_dc630": ("buffered", 1.587302),
     "rdtc_v1_bounded_ab_direct_dc630": ("direct", 1.587302),
+}
+BOUNDED_DC_AB_CONFIGS = {
+    build_tag + "_defconfig": build_tag for build_tag in BOUNDED_DC_AB_POINTS
 }
 
 
@@ -69,7 +73,7 @@ def config_value(config, key, default=""):
     return config.get("CONFIG_" + key, default)
 
 
-def validate_selected_config(root, config, stage=None):
+def validate_selected_config(root, config, stage=None, config_path=None):
     errors = []
     product = config_value(config, "FLOW_PRODUCT_PROFILE")
     memory = config_value(config, "FLOW_MEMORY_MODE")
@@ -79,6 +83,8 @@ def validate_selected_config(root, config, stage=None):
     backend = config_value(config, "FLOW_PNR_BACKEND", "openroad")
     platform = config_value(config, "FLOW_OPENROAD_PLATFORM")
     build_tag = config_value(config, "FLOW_BUILD_TAG")
+    config_name = Path(config_path).name if config_path is not None else ""
+    expected_ab_tag = BOUNDED_DC_AB_CONFIGS.get(config_name)
 
     if not product:
         product = "register-expanded" if memory == "registers" else "sram-macro"
@@ -108,7 +114,21 @@ def validate_selected_config(root, config, stage=None):
     if stage == "pnr" and config_value(config, "FLOW_PNR", "n") != "y":
         errors.append("P&R stage is not enabled")
 
-    ab_point = BOUNDED_DC_AB_POINTS.get(build_tag)
+    if (
+        config_name.startswith("rdtc_v1_bounded_ab_")
+        and config_name.endswith("_defconfig")
+        and expected_ab_tag is None
+    ):
+        errors.append("unknown bounded DC A/B defconfig identity: {}".format(config_name))
+    if expected_ab_tag is not None and build_tag != expected_ab_tag:
+        errors.append(
+            "bounded DC A/B CONFIG_FLOW_BUILD_TAG must match defconfig identity {}".format(
+                expected_ab_tag
+            )
+        )
+
+    ab_tag = expected_ab_tag or build_tag
+    ab_point = BOUNDED_DC_AB_POINTS.get(ab_tag)
     if ab_point:
         family, period_ns = ab_point
         buffered = config_value(
@@ -129,6 +149,7 @@ def validate_selected_config(root, config, stage=None):
         )
         exact_values = {
             "RDTC_TOP": expected_top,
+            "FLOW_BUILD_TAG": ab_tag,
             "FLOW_PRODUCT_PROFILE": (
                 "bounded-register-expanded"
                 if buffered
@@ -140,7 +161,7 @@ def validate_selected_config(root, config, stage=None):
             "FLOW_SDC_TIME_SCALE": "1.0",
             "FLOW_EXPECTED_STDCELL_DB_SHA256": BOUNDED_DC_AB_DB_SHA256,
             "FLOW_DC_MAX_CORES": "4",
-            "FLOW_DC_HANDOFF_BUILD_TAG": build_tag,
+            "FLOW_DC_HANDOFF_BUILD_TAG": ab_tag,
             "FLOW_BOUNDED_ASIC_REGISTER_EXPANDED": "y" if buffered else "n",
             "FLOW_BOUNDED_DIRECT_ASIC_REGISTER_EXPANDED": "n" if buffered else "y",
             "FLOW_BOUNDED_DIRECT_ASIC_SRAM": "n",
@@ -160,10 +181,10 @@ def validate_selected_config(root, config, stage=None):
         ):
             try:
                 actual = float(config_value(config, key))
-            except ValueError:
+            except (TypeError, ValueError):
                 errors.append("bounded DC A/B CONFIG_{} is malformed".format(key))
                 continue
-            if abs(actual - period_ns) > 1.0e-6:
+            if not math.isfinite(actual) or abs(actual - period_ns) > 1.0e-6:
                 errors.append(
                     "bounded DC A/B CONFIG_{} must equal {:.6f}".format(
                         key, period_ns
@@ -248,7 +269,7 @@ def validate_repository(root, config_path=None, all_defconfigs=False):
         configs.append(config_path)
     for path in configs:
         try:
-            validate_selected_config(root, parse_config(path))
+            validate_selected_config(root, parse_config(path), config_path=path)
         except RuntimeError as error:
             errors.append("{}: {}".format(path, error))
 
