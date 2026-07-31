@@ -17,6 +17,13 @@ module mrtc_prefix_sample_buffer #(
   localparam int OPENRAM_WORDS  = 64;
 
   logic [AXIS_DATA_W-1:0] macro_rd_data;
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+  logic                    sram_dout_request_valid_reg;
+  logic [AXIS_DATA_W-1:0] sram_dout_response_reg;
+`ifdef RDTC_PREFIX_BUFFER_ASSERTIONS
+  logic [1:0]              sram_dout_valid_shadow;
+`endif
+`endif
 
   mrtc_rdtc_prefix_1rw1r_64x128 u_sram (
     .clk0 (clk),
@@ -31,7 +38,18 @@ module mrtc_prefix_sample_buffer #(
     .dout1(macro_rd_data)
   );
 
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+  // OpenRAM updates dout1 from its falling-edge read arc.  Capture it at the
+  // macro boundary so no downstream mux or FIFO logic remains on that
+  // half-cycle path.  Data is intentionally captured without an enable.
+  always_ff @(posedge clk) begin
+    sram_dout_response_reg <= macro_rd_data;
+  end
+
+  assign o_rd_data = rst_n ? sram_dout_response_reg : '0;
+`else
   assign o_rd_data = rst_n ? macro_rd_data : '0;
+`endif
 `elsif RDTC_USE_OPENRAM_PREFIX_SRAM
   localparam int OPENRAM_DATA_W = 128;
   localparam int OPENRAM_WORDS  = 64;
@@ -138,10 +156,32 @@ module mrtc_prefix_sample_buffer #(
   always_ff @(posedge clk or negedge rst_n) begin
     if (!rst_n) begin
       o_rd_valid <= 1'b0;
+`ifdef RDTC_USE_OPENRAM_PREFIX_SRAM_1RW1R
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+      sram_dout_request_valid_reg <= 1'b0;
+`endif
+`endif
     end else begin
+`ifdef RDTC_USE_OPENRAM_PREFIX_SRAM_1RW1R
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+      sram_dout_request_valid_reg <= i_rd_en;
+      o_rd_valid <= sram_dout_request_valid_reg;
+`else
       o_rd_valid <= i_rd_en;
+`endif
+`else
+      o_rd_valid <= i_rd_en;
+`endif
     end
   end
+
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+`ifndef RDTC_USE_OPENRAM_PREFIX_SRAM_1RW1R
+  initial begin
+    $fatal(1, "RDTC_PIPELINE_PREFIX_SRAM_DOUT requires the OpenRAM 1RW1R binding");
+  end
+`endif
+`endif
 
 `ifdef RDTC_USE_OPENRAM_PREFIX_SRAM_1RW1R
   initial begin
@@ -182,5 +222,25 @@ module mrtc_prefix_sample_buffer #(
       $fatal(1, "mrtc_prefix_sample_buffer forbids same-cycle same-address read/write");
     end
   end
+
+`ifdef RDTC_USE_OPENRAM_PREFIX_SRAM_1RW1R
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+  // This shadow is verification-only and independent of the implementation
+  // valid registers.  At the consumer sampling edge, dout1 must have exactly
+  // two cycles of request latency.
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      sram_dout_valid_shadow <= '0;
+    end else begin
+      if (o_rd_valid !== sram_dout_valid_shadow[1]) begin
+        $fatal(1,
+               "OpenRAM 1RW1R pipelined valid latency mismatch got=%0b expected=%0b shadow=%02b",
+               o_rd_valid, sram_dout_valid_shadow[1], sram_dout_valid_shadow);
+      end
+      sram_dout_valid_shadow <= {sram_dout_valid_shadow[0], i_rd_en};
+    end
+  end
+`endif
+`endif
 `endif
 endmodule

@@ -1,6 +1,7 @@
 module mrtc_pingpong_block_bank_manager #(
   parameter int BLOCK_WORDS      = 256,
-  parameter int BLOCK_RANGE_LEN  = 16
+  parameter int BLOCK_RANGE_LEN  = 16,
+  parameter int BANK_COUNT       = 2
 ) (
   input  logic                             clk,
   input  logic                             rst_n,
@@ -46,6 +47,9 @@ module mrtc_pingpong_block_bank_manager #(
 );
   import mrtc_pkg::*;
 
+  localparam int BANK_COUNT_CHECK =
+    1 / (((BANK_COUNT == 1) || (BANK_COUNT == 2)) ? 1 : 0);
+
   typedef enum logic [1:0] {
     BANK_FREE       = 2'd0,
     BANK_FILLING    = 2'd1,
@@ -72,6 +76,7 @@ module mrtc_pingpong_block_bank_manager #(
   logic        proc_bank_valid_reg;
   logic        proc_bank_sel_reg;
   logic [15:0] next_block_id_reg;
+  logic        block_id_initialized_reg;
   logic [15:0] next_block_range_start_reg;
   logic [31:0] error_reg;
   logic [31:0] capture_accepted_blocks_reg;
@@ -86,10 +91,16 @@ module mrtc_pingpong_block_bank_manager #(
   logic        ready_bank_sel_comb;
   logic [$clog2(BLOCK_WORDS)-1:0] fill_word_addr_comb;
 
-  assign free_bank_available = (bank_state_reg[0] == BANK_FREE) || (bank_state_reg[1] == BANK_FREE);
-  assign free_bank_sel_comb  = (bank_state_reg[0] == BANK_FREE) ? 1'b0 : 1'b1;
-  assign ready_bank_available = (bank_state_reg[0] == BANK_READY) || (bank_state_reg[1] == BANK_READY);
-  assign ready_bank_sel_comb  = (bank_state_reg[0] == BANK_READY) ? 1'b0 : 1'b1;
+  assign free_bank_available =
+    (bank_state_reg[0] == BANK_FREE) ||
+    ((BANK_COUNT == 2) && (bank_state_reg[1] == BANK_FREE));
+  assign free_bank_sel_comb  =
+    (BANK_COUNT == 1) ? 1'b0 : ((bank_state_reg[0] == BANK_FREE) ? 1'b0 : 1'b1);
+  assign ready_bank_available =
+    (bank_state_reg[0] == BANK_READY) ||
+    ((BANK_COUNT == 2) && (bank_state_reg[1] == BANK_READY));
+  assign ready_bank_sel_comb  =
+    (BANK_COUNT == 1) ? 1'b0 : ((bank_state_reg[0] == BANK_READY) ? 1'b0 : 1'b1);
 
   assign o_capture_can_accept = fill_bank_active_reg || free_bank_available;
   assign o_fill_bank_valid    = fill_bank_active_reg || (i_capture_valid && free_bank_available);
@@ -154,7 +165,8 @@ module mrtc_pingpong_block_bank_manager #(
       fill_bank_sel_reg <= 1'b0;
       proc_bank_valid_reg <= 1'b0;
       proc_bank_sel_reg <= 1'b0;
-      next_block_id_reg <= i_block_id_base;
+      next_block_id_reg <= 16'd0;
+      block_id_initialized_reg <= 1'b0;
       next_block_range_start_reg <= 16'd0;
       error_reg <= MRTC_ERR_NONE;
       capture_accepted_blocks_reg <= 32'd0;
@@ -166,7 +178,8 @@ module mrtc_pingpong_block_bank_manager #(
     end else begin
       start_fill_now = !fill_bank_active_reg && i_capture_valid && free_bank_available;
       fill_bank_sel_now = fill_bank_active_reg ? fill_bank_sel_reg : free_bank_sel_comb;
-      fill_bank_state_other = bank_state_reg[~fill_bank_sel_now];
+      fill_bank_state_other =
+        (BANK_COUNT == 2) ? bank_state_reg[~fill_bank_sel_now] : BANK_FREE;
 
       if (start_fill_now) begin
         fill_bank_active_reg <= 1'b1;
@@ -178,13 +191,18 @@ module mrtc_pingpong_block_bank_manager #(
         bank_fixed_k_reg[fill_bank_sel_now] <= i_capture_fixed_k;
         bank_last_block_reg[fill_bank_sel_now] <= i_capture_last_block;
         bank_frame_id_reg[fill_bank_sel_now] <= i_capture_frame_id;
-        bank_block_id_reg[fill_bank_sel_now] <= next_block_id_reg;
+        bank_block_id_reg[fill_bank_sel_now] <=
+          block_id_initialized_reg ? next_block_id_reg : i_block_id_base;
         bank_block_range_start_reg[fill_bank_sel_now] <= next_block_range_start_reg;
         bank_tensor_spatial_size_reg[fill_bank_sel_now] <= i_capture_tensor_spatial_size;
         bank_tensor_doppler_size_reg[fill_bank_sel_now] <= i_capture_tensor_doppler_size;
         bank_tensor_range_size_reg[fill_bank_sel_now] <= i_capture_tensor_range_size;
         bank_ctrl_error_reg[fill_bank_sel_now] <= MRTC_ERR_NONE;
         overlap_seen_reg[fill_bank_sel_now] <= (fill_bank_state_other == BANK_PROCESSING);
+        if (!block_id_initialized_reg) begin
+          next_block_id_reg <= i_block_id_base;
+          block_id_initialized_reg <= 1'b1;
+        end
       end
 
       if ((fill_bank_active_reg || start_fill_now) && i_capture_accept) begin
@@ -205,7 +223,9 @@ module mrtc_pingpong_block_bank_manager #(
             if (overlap_seen_reg[fill_bank_sel_now]) begin
               pingpong_overlap_blocks_reg <= pingpong_overlap_blocks_reg + 32'd1;
             end
-            next_block_id_reg <= next_block_id_reg + 16'd1;
+            next_block_id_reg <=
+              (start_fill_now && !block_id_initialized_reg) ?
+              (i_block_id_base + 16'd1) : (next_block_id_reg + 16'd1);
             next_block_range_start_reg <= next_block_range_start_reg + BLOCK_RANGE_LEN[15:0];
           end
           bank_fill_count_reg[fill_bank_sel_now] <= '0;

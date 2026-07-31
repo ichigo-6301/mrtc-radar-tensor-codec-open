@@ -236,8 +236,11 @@ module mrtc_rice_bitpacker_axis #(
           if (!frag_valid_reg) begin
             emit_bits_int = (unary_remaining_reg > FRAG_W) ? FRAG_W : unary_remaining_reg;
             next_frag_data = '0;
-            for (frag_idx = 0; frag_idx < emit_bits_int; frag_idx = frag_idx + 1) begin
-              next_frag_data[frag_idx] = 1'b1;
+            // Keep the loop statically bounded for older synthesis frontends.
+            for (frag_idx = 0; frag_idx < FRAG_W; frag_idx = frag_idx + 1) begin
+              if (frag_idx < emit_bits_int) begin
+                next_frag_data[frag_idx] = 1'b1;
+              end
             end
             frag_data_reg  <= next_frag_data;
             frag_bits_reg  <= $clog2(FRAG_W+1)'(emit_bits_int);
@@ -257,9 +260,10 @@ module mrtc_rice_bitpacker_axis #(
           if (!frag_valid_reg) begin
             emit_bits_int = 1 + remainder_bits_left_reg;
             next_frag_data = '0;
-            for (frag_idx = 0; frag_idx < remainder_bits_left_reg; frag_idx = frag_idx + 1) begin
-              next_frag_data[(emit_bits_int - 2) - frag_idx] =
-                remainder_reg[remainder_bits_left_reg - 1 - frag_idx];
+            for (frag_idx = 0; frag_idx < FRAG_W; frag_idx = frag_idx + 1) begin
+              if (frag_idx < remainder_bits_left_reg) begin
+                next_frag_data[frag_idx] = remainder_reg[frag_idx];
+              end
             end
             final_symbol = component_is_q_reg && (sample_idx_reg == ADDR_W'(BLOCK_SAMPLES-1));
             frag_data_reg  <= next_frag_data;

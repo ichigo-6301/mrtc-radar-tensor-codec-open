@@ -63,6 +63,13 @@ module mrtc_rdtc_ddr_feeder_engine #(
   localparam int FIFO_DEPTH = RAW_BEATS;
   localparam int FIFO_IDX_W = (FIFO_DEPTH <= 1) ? 1 : $clog2(FIFO_DEPTH);
   localparam int COUNT_W = $clog2(FIFO_DEPTH + 1);
+  localparam int BEAT_COUNT_W = (RAW_BEATS <= 1) ? 1 : $clog2(RAW_BEATS + 1);
+  localparam int BURST_COUNT_W =
+    (DDR_BURST_BEATS <= 1) ? 1 : $clog2(DDR_BURST_BEATS + 1);
+  localparam int OUTSTANDING_COUNT_W =
+    (MAX_OUTSTANDING <= 1) ? 1 : $clog2(MAX_OUTSTANDING + 1);
+  localparam int GAP_COUNT_W =
+    (FEED_GAP_CYCLES <= 0) ? 1 : $clog2(FEED_GAP_CYCLES + 1);
 
   typedef enum logic [0:0] {
     ST_IDLE,
@@ -88,15 +95,15 @@ module mrtc_rdtc_ddr_feeder_engine #(
   logic [15:0]           tensor_range_size_reg;
   logic                  last_block_reg;
 
-  integer outstanding_reads_reg;
-  integer issue_addr_word_reg;
-  integer beats_requested_reg;
-  integer beats_received_reg;
-  integer beats_sent_reg;
-  integer gap_count_reg;
-  integer burst_len_words;
-  integer reserved_beats_now;
-  integer fifo_space_now;
+  logic [OUTSTANDING_COUNT_W-1:0] outstanding_reads_reg;
+  logic [BEAT_COUNT_W-1:0]       issue_addr_word_reg;
+  logic [BEAT_COUNT_W-1:0]       beats_requested_reg;
+  logic [BEAT_COUNT_W-1:0]       beats_received_reg;
+  logic [BEAT_COUNT_W-1:0]       beats_sent_reg;
+  logic [GAP_COUNT_W-1:0]        gap_count_reg;
+  logic [BEAT_COUNT_W-1:0]       remaining_beats;
+  logic [BURST_COUNT_W-1:0]      burst_len_words;
+  logic [COUNT_W-1:0]            fifo_space_now;
 
   assign o_desc_ready = (state_reg == ST_IDLE);
   assign o_busy = (state_reg != ST_IDLE);
@@ -112,9 +119,14 @@ module mrtc_rdtc_ddr_feeder_engine #(
   assign o_desc_tensor_range_size = tensor_range_size_reg;
   assign o_desc_last_block = last_block_reg;
 
-  assign m_axis_raw_tvalid = (fifo_count_reg != COUNT_W'(0)) && (state_reg == ST_ACTIVE) && (gap_count_reg == 0);
+  assign m_axis_raw_tvalid =
+    (fifo_count_reg != COUNT_W'(0)) &&
+    (state_reg == ST_ACTIVE) &&
+    (gap_count_reg == GAP_COUNT_W'(0));
   assign m_axis_raw_tdata = fifo_data[fifo_rd_ptr_reg];
-  assign m_axis_raw_tlast = (beats_sent_reg == (RAW_BEATS - 1)) && (fifo_count_reg != COUNT_W'(0));
+  assign m_axis_raw_tlast =
+    (beats_sent_reg == BEAT_COUNT_W'(RAW_BEATS - 1)) &&
+    (fifo_count_reg != COUNT_W'(0));
   assign m_axis_raw_tuser = {
     4'd0,
     last_block_reg,
@@ -123,38 +135,30 @@ module mrtc_rdtc_ddr_feeder_engine #(
   };
 
   always_comb begin
-    burst_len_words = DDR_BURST_BEATS;
-    if ((RAW_BEATS - issue_addr_word_reg) < DDR_BURST_BEATS) begin
-      burst_len_words = RAW_BEATS - issue_addr_word_reg;
+    remaining_beats = BEAT_COUNT_W'(RAW_BEATS) - issue_addr_word_reg;
+    burst_len_words = BURST_COUNT_W'(DDR_BURST_BEATS);
+    if (remaining_beats < BEAT_COUNT_W'(DDR_BURST_BEATS)) begin
+      burst_len_words = BURST_COUNT_W'(remaining_beats);
     end
-    reserved_beats_now = beats_requested_reg - beats_received_reg;
-    if (reserved_beats_now < 0) begin
-      reserved_beats_now = 0;
-    end
-    fifo_space_now = FIFO_DEPTH - fifo_count_reg - reserved_beats_now;
-    if (fifo_space_now < 0) begin
-      fifo_space_now = 0;
-    end
+    fifo_space_now = COUNT_W'(FIFO_DEPTH) - fifo_count_reg;
     o_mem_rd_req = 1'b0;
     o_mem_rd_addr = raw_addr_reg + DDR_ADDR_W'(issue_addr_word_reg * AXIS_BYTES);
     o_mem_rd_len = 16'(burst_len_words);
     if ((state_reg == ST_ACTIVE) &&
-        (issue_addr_word_reg < RAW_BEATS) &&
-        (outstanding_reads_reg < MAX_OUTSTANDING) &&
-        (fifo_space_now >= burst_len_words)) begin
+        (issue_addr_word_reg < BEAT_COUNT_W'(RAW_BEATS)) &&
+        (outstanding_reads_reg < OUTSTANDING_COUNT_W'(MAX_OUTSTANDING)) &&
+        (fifo_space_now >= COUNT_W'(burst_len_words))) begin
       o_mem_rd_req = 1'b1;
     end
   end
 
   always_ff @(posedge clk or negedge rst_n) begin
-    integer next_ptr;
-    integer fifo_count_next;
-    integer outstanding_next;
-    integer mem_wait_this_cycle;
     logic do_pop;
     logic do_push;
     logic issue_fire;
+    logic burst_complete;
     logic final_pop;
+    logic mem_wait_this_cycle;
     if (!rst_n) begin
       state_reg <= ST_IDLE;
       raw_addr_reg <= '0;
@@ -188,7 +192,8 @@ module mrtc_rdtc_ddr_feeder_engine #(
       do_push = i_mem_rd_data_valid;
       do_pop = m_axis_raw_tvalid && m_axis_raw_tready;
       issue_fire = (state_reg == ST_ACTIVE) && o_mem_rd_req && i_mem_rd_ready;
-      final_pop = do_pop && (beats_sent_reg == (RAW_BEATS - 1));
+      burst_complete = do_push && i_mem_rd_last;
+      final_pop = do_pop && (beats_sent_reg == BEAT_COUNT_W'(RAW_BEATS - 1));
 
       if (i_clear_status) begin
         o_mem_wait_cycles <= 32'd0;
@@ -196,6 +201,12 @@ module mrtc_rdtc_ddr_feeder_engine #(
         o_blocks_fed <= 32'd0;
         o_bursts_issued <= 32'd0;
         o_beats_streamed <= 32'd0;
+      end
+
+      // The memory response itself owns the wide data-register write enable.
+      // Pointer and occupancy ownership remain guarded by ST_ACTIVE below.
+      if (do_push) begin
+        fifo_data[fifo_wr_ptr_reg] <= i_mem_rd_data;
       end
 
       case (state_reg)
@@ -226,87 +237,88 @@ module mrtc_rdtc_ddr_feeder_engine #(
         end
 
         ST_ACTIVE: begin
-          fifo_count_next = fifo_count_reg;
           if (do_push && !do_pop) begin
-            fifo_count_next = fifo_count_next + 1;
+            fifo_count_reg <= fifo_count_reg + COUNT_W'(1);
           end else if (!do_push && do_pop) begin
-            fifo_count_next = fifo_count_next - 1;
+            fifo_count_reg <= fifo_count_reg - COUNT_W'(1);
           end
-          fifo_count_reg <= COUNT_W'(fifo_count_next);
 
           if (do_push) begin
-            fifo_data[fifo_wr_ptr_reg] <= i_mem_rd_data;
-            next_ptr = fifo_wr_ptr_reg + 1;
-            if (next_ptr >= FIFO_DEPTH) begin
-              next_ptr = 0;
+            if (fifo_wr_ptr_reg == FIFO_IDX_W'(FIFO_DEPTH - 1)) begin
+              fifo_wr_ptr_reg <= '0;
+            end else begin
+              fifo_wr_ptr_reg <= fifo_wr_ptr_reg + FIFO_IDX_W'(1);
             end
-            fifo_wr_ptr_reg <= FIFO_IDX_W'(next_ptr);
-            beats_received_reg <= beats_received_reg + 1;
+            beats_received_reg <= beats_received_reg + BEAT_COUNT_W'(1);
           end
 
-          if (!i_clear_status && m_axis_raw_tvalid && !m_axis_raw_tready) begin
+          if (m_axis_raw_tvalid && !m_axis_raw_tready) begin
             o_axis_stall_cycles <= o_axis_stall_cycles + 32'd1;
           end
 
           if (do_pop) begin
-            next_ptr = fifo_rd_ptr_reg + 1;
-            if (next_ptr >= FIFO_DEPTH) begin
-              next_ptr = 0;
-            end
-            fifo_rd_ptr_reg <= FIFO_IDX_W'(next_ptr);
-            beats_sent_reg <= beats_sent_reg + 1;
-            if (!i_clear_status) begin
-              o_beats_streamed <= o_beats_streamed + 32'd1;
-            end
-            if (final_pop) begin
-              gap_count_reg <= 0;
-            end else if (FEED_GAP_CYCLES > 0) begin
-              gap_count_reg <= FEED_GAP_CYCLES;
+            if (fifo_rd_ptr_reg == FIFO_IDX_W'(FIFO_DEPTH - 1)) begin
+              fifo_rd_ptr_reg <= '0;
             end else begin
-              gap_count_reg <= 0;
+              fifo_rd_ptr_reg <= fifo_rd_ptr_reg + FIFO_IDX_W'(1);
             end
-          end else if (gap_count_reg > 0) begin
-            gap_count_reg <= gap_count_reg - 1;
+            beats_sent_reg <= beats_sent_reg + BEAT_COUNT_W'(1);
+            o_beats_streamed <= o_beats_streamed + 32'd1;
+            if (final_pop) begin
+              gap_count_reg <= '0;
+            end else if (FEED_GAP_CYCLES > 0) begin
+              gap_count_reg <= GAP_COUNT_W'(FEED_GAP_CYCLES);
+            end else begin
+              gap_count_reg <= '0;
+            end
+          end else if (gap_count_reg != GAP_COUNT_W'(0)) begin
+            gap_count_reg <= gap_count_reg - GAP_COUNT_W'(1);
           end
 
           if (issue_fire) begin
-            issue_addr_word_reg <= issue_addr_word_reg + burst_len_words;
-            beats_requested_reg <= beats_requested_reg + burst_len_words;
-            if (!i_clear_status) begin
-              o_bursts_issued <= o_bursts_issued + 32'd1;
+            issue_addr_word_reg <=
+              issue_addr_word_reg + BEAT_COUNT_W'(burst_len_words);
+            beats_requested_reg <=
+              beats_requested_reg + BEAT_COUNT_W'(burst_len_words);
+            o_bursts_issued <= o_bursts_issued + 32'd1;
+          end
+
+          case ({issue_fire, burst_complete})
+            2'b10: begin
+              outstanding_reads_reg <=
+                outstanding_reads_reg + OUTSTANDING_COUNT_W'(1);
             end
-          end
+            2'b01: begin
+              if (outstanding_reads_reg != OUTSTANDING_COUNT_W'(0)) begin
+                outstanding_reads_reg <=
+                  outstanding_reads_reg - OUTSTANDING_COUNT_W'(1);
+              end
+            end
+            default: begin
+            end
+          endcase
 
-          outstanding_next = outstanding_reads_reg;
-          if (issue_fire) begin
-            outstanding_next = outstanding_next + 1;
-          end
-          if (do_push && i_mem_rd_last && (outstanding_next > 0)) begin
-            outstanding_next = outstanding_next - 1;
-          end
-          outstanding_reads_reg <= outstanding_next;
-
-          mem_wait_this_cycle = 0;
-          if ((issue_addr_word_reg < RAW_BEATS) && !issue_fire) begin
-            if ((outstanding_reads_reg >= MAX_OUTSTANDING) ||
+          mem_wait_this_cycle = 1'b0;
+          if ((issue_addr_word_reg < BEAT_COUNT_W'(RAW_BEATS)) && !issue_fire) begin
+            if ((outstanding_reads_reg >= OUTSTANDING_COUNT_W'(MAX_OUTSTANDING)) ||
                 (o_mem_rd_req && !i_mem_rd_ready) ||
-                (!o_mem_rd_req && (fifo_space_now < burst_len_words))) begin
-              mem_wait_this_cycle = 1;
+                (!o_mem_rd_req && (fifo_space_now < COUNT_W'(burst_len_words)))) begin
+              mem_wait_this_cycle = 1'b1;
             end
           end
-          if ((beats_received_reg < RAW_BEATS) && !do_push && (fifo_count_reg == COUNT_W'(0))) begin
-            mem_wait_this_cycle = 1;
+          if ((beats_received_reg < BEAT_COUNT_W'(RAW_BEATS)) &&
+              !do_push &&
+              (fifo_count_reg == COUNT_W'(0))) begin
+            mem_wait_this_cycle = 1'b1;
           end
-          if (!i_clear_status && (mem_wait_this_cycle != 0)) begin
+          if (mem_wait_this_cycle) begin
             o_mem_wait_cycles <= o_mem_wait_cycles + 32'd1;
           end
 
           if (final_pop) begin
             state_reg <= ST_IDLE;
             o_done <= 1'b1;
-            if (!i_clear_status) begin
-              o_blocks_fed <= o_blocks_fed + 32'd1;
-            end
+            o_blocks_fed <= o_blocks_fed + 32'd1;
           end
         end
 
@@ -314,6 +326,22 @@ module mrtc_rdtc_ddr_feeder_engine #(
           state_reg <= ST_IDLE;
         end
       endcase
+
+`ifndef SYNTHESIS
+      if ((state_reg == ST_IDLE) && i_mem_rd_data_valid) begin
+        $fatal(1, "DDR feeder received a memory response while idle");
+      end
+`endif
+    end
+  end
+
+  initial begin
+    if ((AXIS_DATA_W <= 0) || ((AXIS_DATA_W % 8) != 0) ||
+        (RAW_BEATS <= 0) || (DDR_BURST_BEATS <= 0) ||
+        (DDR_BURST_BEATS > RAW_BEATS) || (DDR_BURST_BEATS > 16'hffff) ||
+        (MAX_OUTSTANDING <= 0) ||
+        ((MAX_OUTSTANDING * DDR_BURST_BEATS) > FIFO_DEPTH)) begin
+      $fatal(1, "mrtc_rdtc_ddr_feeder_engine has an unsupported parameter combination");
     end
   end
 endmodule

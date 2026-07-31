@@ -1,6 +1,8 @@
 module mrtc_axis_width_packer #(
   parameter int AXIS_DATA_W = 128,
-  parameter int FRAG_W = 32
+  parameter int FRAG_W = 32,
+  parameter bit DRAIN_APPEND_LOOKAHEAD = 1'b0,
+  parameter bit REGISTERED_INPUT_QUEUE = 1'b0
 ) (
   input  logic                               clk,
   input  logic                               rst_n,
@@ -36,6 +38,12 @@ module mrtc_axis_width_packer #(
   localparam int AXIS_BYTE_ALIGN_CHECK =
     1 / (((AXIS_DATA_W % 8) == 0) ? 1 : 0);
   localparam int FRAG_W_CHECK = 1 / ((FRAG_W > 0) ? 1 : 0);
+  localparam int DRAIN_APPEND_LOOKAHEAD_CHECK =
+    1 / (((DRAIN_APPEND_LOOKAHEAD == 1'b0) ||
+          (DRAIN_APPEND_LOOKAHEAD == 1'b1)) ? 1 : 0);
+  localparam int REGISTERED_INPUT_QUEUE_CHECK =
+    1 / (((REGISTERED_INPUT_QUEUE == 1'b0) ||
+          (REGISTERED_INPUT_QUEUE == 1'b1)) ? 1 : 0);
 
   logic [BUF_W-1:0]              buf_reg;
   logic [BUF_BITS_W-1:0]         buf_bits_reg;
@@ -49,11 +57,22 @@ module mrtc_axis_width_packer #(
   logic [FRAG_W-1:0]             norm_data_reg;
   logic [FRAG_BITS_W-1:0]        norm_bits_reg;
   logic                          norm_last_reg;
+  logic [1:0]                    input_queue_count_reg;
+  logic [FRAG_W-1:0]             input_queue_data_reg [0:1];
+  logic [FRAG_BITS_W-1:0]        input_queue_bits_reg [0:1];
+  logic                          input_queue_last_reg [0:1];
+  logic                          input_queue_push;
+  logic                          input_queue_pop;
+  logic                          input_valid;
+  logic [FRAG_W-1:0]             input_data;
+  logic [FRAG_BITS_W-1:0]        input_bits;
+  logic                          input_last;
   logic                          reservoir_ready;
   logic                          norm_advance;
   logic                          output_advance;
   logic                          drain_full_word;
   logic                          drain_tail_word;
+  logic [BUF_BITS_W-1:0]         reservoir_bits_after_drain;
 
   function automatic logic [AXIS_DATA_W-1:0] logical_to_axis_word(
     input logic [AXIS_DATA_W-1:0] logical_bits
@@ -119,15 +138,104 @@ module mrtc_axis_width_packer #(
   assign drain_full_word = output_advance && (buf_bits_reg >= AXIS_DATA_BITS);
   assign drain_tail_word = output_advance && !drain_full_word &&
                            packet_end_reg && (buf_bits_reg != 0);
-  assign reservoir_ready = !packet_end_reg && (buf_bits_reg <= BUF_ACCEPT_LIMIT);
-  assign norm_advance = !norm_valid_reg || reservoir_ready;
-  assign s_frag_ready = norm_advance;
+  assign reservoir_bits_after_drain = drain_full_word ?
+    (buf_bits_reg - AXIS_DATA_BITS) : buf_bits_reg;
+  assign reservoir_ready = !packet_end_reg &&
+    ((DRAIN_APPEND_LOOKAHEAD != 0) ?
+      (reservoir_bits_after_drain <= BUF_ACCEPT_LIMIT) :
+      (buf_bits_reg <= BUF_ACCEPT_LIMIT));
   assign m_axis_tdata = (rst_n && out_valid_reg) ? out_data_reg : '0;
   assign m_axis_tvalid = out_valid_reg;
   assign m_axis_tlast = out_last_reg;
   assign m_axis_tvalid_bytes_minus1 = out_valid_bytes_reg;
-  assign o_busy = norm_valid_reg || out_valid_reg || (buf_bits_reg != 0) || packet_end_reg;
+  assign o_busy = input_valid || out_valid_reg || (buf_bits_reg != 0) || packet_end_reg;
   assign o_overflow = overflow_reg;
+
+  generate
+    if (REGISTERED_INPUT_QUEUE != 0) begin : g_registered_input_queue
+      assign s_frag_ready = (input_queue_count_reg != 2);
+      assign input_queue_push = s_frag_valid && s_frag_ready;
+      assign input_queue_pop = (input_queue_count_reg != 0) && reservoir_ready;
+      assign input_valid = (input_queue_count_reg != 0);
+      assign input_data = input_queue_data_reg[0];
+      assign input_bits = input_queue_bits_reg[0];
+      assign input_last = input_queue_last_reg[0];
+      assign norm_advance = 1'b0;
+
+      always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+          input_queue_count_reg <= '0;
+          input_queue_bits_reg[0] <= '0;
+          input_queue_bits_reg[1] <= '0;
+          input_queue_last_reg[0] <= 1'b0;
+          input_queue_last_reg[1] <= 1'b0;
+        end else begin
+          unique case ({input_queue_push, input_queue_pop})
+            2'b10: begin
+              if (input_queue_count_reg == 0) begin
+                input_queue_data_reg[0] <= fragment_to_logical_bits(s_frag_data, s_frag_bits);
+                input_queue_bits_reg[0] <= s_frag_bits;
+                input_queue_last_reg[0] <= s_frag_last;
+              end else begin
+                input_queue_data_reg[1] <= fragment_to_logical_bits(s_frag_data, s_frag_bits);
+                input_queue_bits_reg[1] <= s_frag_bits;
+                input_queue_last_reg[1] <= s_frag_last;
+              end
+              input_queue_count_reg <= input_queue_count_reg + 1'b1;
+            end
+            2'b01: begin
+              if (input_queue_count_reg == 2) begin
+                input_queue_data_reg[0] <= input_queue_data_reg[1];
+                input_queue_bits_reg[0] <= input_queue_bits_reg[1];
+                input_queue_last_reg[0] <= input_queue_last_reg[1];
+              end
+              input_queue_count_reg <= input_queue_count_reg - 1'b1;
+            end
+            2'b11: begin
+              if (input_queue_count_reg == 1) begin
+                input_queue_data_reg[0] <= fragment_to_logical_bits(s_frag_data, s_frag_bits);
+                input_queue_bits_reg[0] <= s_frag_bits;
+                input_queue_last_reg[0] <= s_frag_last;
+              end else begin
+                input_queue_data_reg[0] <= input_queue_data_reg[1];
+                input_queue_bits_reg[0] <= input_queue_bits_reg[1];
+                input_queue_last_reg[0] <= input_queue_last_reg[1];
+                input_queue_data_reg[1] <= fragment_to_logical_bits(s_frag_data, s_frag_bits);
+                input_queue_bits_reg[1] <= s_frag_bits;
+                input_queue_last_reg[1] <= s_frag_last;
+              end
+            end
+            default: begin
+            end
+          endcase
+        end
+      end
+    end else begin : g_single_input_stage
+      assign norm_advance = !norm_valid_reg || reservoir_ready;
+      assign s_frag_ready = norm_advance;
+      assign input_queue_push = 1'b0;
+      assign input_queue_pop = 1'b0;
+      assign input_valid = norm_valid_reg;
+      assign input_data = norm_data_reg;
+      assign input_bits = norm_bits_reg;
+      assign input_last = norm_last_reg;
+
+      always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+          norm_valid_reg <= 1'b0;
+          norm_bits_reg <= '0;
+          norm_last_reg <= 1'b0;
+        end else if (norm_advance) begin
+          norm_valid_reg <= s_frag_valid;
+          if (s_frag_valid) begin
+            norm_data_reg <= fragment_to_logical_bits(s_frag_data, s_frag_bits);
+            norm_bits_reg <= s_frag_bits;
+            norm_last_reg <= s_frag_last;
+          end
+        end
+      end
+    end
+  endgenerate
 
   always_ff @(posedge clk or negedge rst_n) begin
     int final_valid_bytes;
@@ -143,9 +251,6 @@ module mrtc_axis_width_packer #(
       out_last_reg <= 1'b0;
       out_valid_bytes_reg <= '0;
       overflow_reg <= 1'b0;
-      norm_valid_reg <= 1'b0;
-      norm_bits_reg <= '0;
-      norm_last_reg <= 1'b0;
       o_done <= 1'b0;
     end else begin
       o_done <= out_valid_reg && m_axis_tready && out_last_reg;
@@ -181,23 +286,14 @@ module mrtc_axis_width_packer #(
         end
       end
 
-      if (norm_advance) begin
-        norm_valid_reg <= s_frag_valid;
-        if (s_frag_valid) begin
-          norm_data_reg <= fragment_to_logical_bits(s_frag_data, s_frag_bits);
-          norm_bits_reg <= s_frag_bits;
-          norm_last_reg <= s_frag_last;
-        end
-      end
-
-      accept_frag = norm_valid_reg && reservoir_ready;
+      accept_frag = input_valid && reservoir_ready;
       if (accept_frag) begin
-        if ((norm_bits_reg == '0) && !norm_last_reg) begin
+        if ((input_bits == '0) && !input_last) begin
           overflow_reg <= 1'b1;
         end else begin
-          work_buf = append_fragment_bits(work_buf, work_buf_bits, norm_data_reg);
-          work_buf_bits = work_buf_bits + BUF_BITS_W'(norm_bits_reg);
-          if (norm_last_reg) begin
+          work_buf = append_fragment_bits(work_buf, work_buf_bits, input_data);
+          work_buf_bits = work_buf_bits + BUF_BITS_W'(input_bits);
+          if (input_last) begin
             work_packet_end = 1'b1;
           end
         end

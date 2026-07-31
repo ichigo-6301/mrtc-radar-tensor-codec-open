@@ -10,7 +10,9 @@ module mrtc_rice_bitpacker_lane_axis #(
   parameter int ADDR_W           = $clog2(BLOCK_BEATS),
   parameter int PACKER_LANE_MODE = 1,
   parameter int TOKEN_W          = 256,
-  parameter int WORD_FIFO_DEPTH  = 4
+  parameter int WORD_FIFO_DEPTH  = 4,
+  parameter int ELASTIC_WORD_ISSUE = 0,
+  parameter bit BOUNDED_II1      = 1'b0
 ) (
   input  logic                                   clk,
   input  logic                                   rst_n,
@@ -32,7 +34,10 @@ module mrtc_rice_bitpacker_lane_axis #(
   output logic [31:0]                            o_payload_bytes_counted,
   output logic                                   o_overflow,
   output logic                                   o_long_unary_used,
-  output logic                                   o_group_fallback_used
+  output logic                                   o_group_fallback_used,
+  output logic                                   o_bounded_error,
+  output logic                                   o_bounded_word_error,
+  output logic                                   o_bounded_protocol_error
 );
   import mrtc_pkg::*;
 
@@ -74,6 +79,14 @@ module mrtc_rice_bitpacker_lane_axis #(
     1 / ((ADDR_W == WORD_ADDR_W) ? 1 : 0);
   localparam int TOKEN_W_CHECK = 1 / ((TOKEN_W >= AXIS_DATA_W) ? 1 : 0);
   localparam int WORD_FIFO_DEPTH_CHECK = 1 / ((WORD_FIFO_DEPTH >= 2) ? 1 : 0);
+  localparam int ELASTIC_WORD_ISSUE_CHECK =
+    1 / (((ELASTIC_WORD_ISSUE == 0) || (ELASTIC_WORD_ISSUE == 1)) ? 1 : 0);
+  localparam int BOUNDED_II1_CHECK =
+    1 / (((BOUNDED_II1 == 1'b0) ||
+          ((AXIS_DATA_W == 128) &&
+           (TOKEN_W == 128) &&
+           (PACKER_LANE_MODE == LANES) &&
+           (ELASTIC_WORD_ISSUE == 1))) ? 1 : 0);
 
   typedef enum logic [3:0] {
     ST_IDLE           = 4'd0,
@@ -84,7 +97,9 @@ module mrtc_rice_bitpacker_lane_axis #(
     ST_FALLBACK_UNARY = 4'd5,
     ST_FALLBACK_ZREM  = 4'd6,
     ST_WAIT_ACC_DONE  = 4'd7,
-    ST_DONE           = 4'd8
+    ST_DONE           = 4'd8,
+    ST_BOUNDED_ERROR  = 4'd9,
+    ST_BOUNDED_STREAM = 4'd10
   } state_t;
 
   state_t state_reg;
@@ -94,6 +109,12 @@ module mrtc_rice_bitpacker_lane_axis #(
   logic [WORD_COUNT_W-1:0] issue_word_idx_reg;
   logic [WORD_COUNT_W-1:0] return_word_idx_reg;
   logic [FIFO_COUNT_W-1:0] pending_reads_reg;
+  logic                    bounded_req_valid_reg;
+  logic [WORD_ADDR_W-1:0]  bounded_req_addr_reg;
+  logic                    bounded_req_valid_d1_reg;
+  logic                    bounded_req_valid_d2_reg;
+  logic [WORD_ADDR_W-1:0]  bounded_req_addr_d1_reg;
+  logic [WORD_ADDR_W-1:0]  bounded_req_addr_d2_reg;
 
   logic [AXIS_DATA_W-1:0] word_fifo_data [0:WORD_FIFO_DEPTH-1];
   logic [WORD_ADDR_W-1:0] word_fifo_idx [0:WORD_FIFO_DEPTH-1];
@@ -261,6 +282,18 @@ module mrtc_rice_bitpacker_lane_axis #(
   logic                   acc_done;
   logic                   acc_overflow;
   logic                   codec_supported;
+  logic                   word_rd_req_int;
+  logic                   bounded_error_reg;
+  logic                   bounded_word_error_reg;
+  logic                   bounded_protocol_error_reg;
+  logic                   bounded_read_started_reg;
+  logic                   bounded_word_cost_violation;
+  logic                   bounded_backpressure_violation;
+  logic                   bounded_read_gap_violation;
+  logic                   bounded_response_cadence_violation;
+  logic                   bounded_response_address_violation;
+  logic                   bounded_fallback_violation;
+  logic                   bounded_violation_now;
 
   integer                 fifo_init_idx;
   integer                 component_init_idx;
@@ -608,6 +641,9 @@ module mrtc_rice_bitpacker_lane_axis #(
   assign o_overflow              = overflow_reg | acc_overflow;
   assign o_long_unary_used       = long_unary_used_reg;
   assign o_group_fallback_used   = group_fallback_used_reg;
+  assign o_bounded_error         = bounded_error_reg;
+  assign o_bounded_word_error    = bounded_word_error_reg;
+  assign o_bounded_protocol_error = bounded_protocol_error_reg;
   generate
     for (genvar component_idx = 0; component_idx < MAX_COMPONENTS; component_idx = component_idx + 1) begin : g_p1_component_len
       assign p1_component_len_comb[component_idx] =
@@ -697,49 +733,156 @@ module mrtc_rice_bitpacker_lane_axis #(
 
   assign p2_total_bits_comb = p2_pair_sum_l3[0];
   assign token_accepted          = token_valid_reg && token_ready;
-  assign final_token_slot_ready  = !token_valid_reg || token_accepted;
+  assign final_token_slot_ready  = (BOUNDED_II1 != 0) ?
+                                   1'b1 : (!token_valid_reg || token_accepted);
   assign fallback_active         =
     (state_reg == ST_FALLBACK_UNARY) || (state_reg == ST_FALLBACK_ZREM);
-  assign p3b_ready               = !p3b_valid_reg ||
-                                   (!fallback_active && final_token_slot_ready);
-  assign p3p_ready               = !p3p_valid_reg || p3b_ready;
-  assign p3a_ready               = !p3a_valid_reg || p3p_ready;
-  assign p2s_ready               = !p2s_valid_reg || p3a_ready;
-  assign p2_ready                = !p2_valid_reg || p2s_ready;
-  assign p1_ready                = !p1_valid_reg || p2_ready;
-  assign p1r_ready               = !p1r_valid_reg || p1_ready;
-  assign p0_ready                = !p0_valid_reg || p1r_ready;
+  assign p3b_ready               = (BOUNDED_II1 != 0) ? 1'b1 :
+                                   (!p3b_valid_reg ||
+                                    (!fallback_active && final_token_slot_ready));
+  assign p3p_ready               = (BOUNDED_II1 != 0) ? 1'b1 :
+                                   (!p3p_valid_reg || p3b_ready);
+  assign p3a_ready               = (BOUNDED_II1 != 0) ? 1'b1 :
+                                   (!p3a_valid_reg || p3p_ready);
+  assign p2s_ready               = (BOUNDED_II1 != 0) ? 1'b1 :
+                                   (!p2s_valid_reg || p3a_ready);
+  assign p2_ready                = (BOUNDED_II1 != 0) ? 1'b1 :
+                                   (!p2_valid_reg || p2s_ready);
+  assign p1_ready                = (BOUNDED_II1 != 0) ? 1'b1 :
+                                   (!p1_valid_reg || p2_ready);
+  assign p1r_ready               = (BOUNDED_II1 != 0) ? 1'b1 :
+                                   (!p1r_valid_reg || p1_ready);
+  assign p0_ready                = (BOUNDED_II1 != 0) ? 1'b1 :
+                                   (!p0_valid_reg || p1r_ready);
   assign p3_fallback_pending     = p3b_valid_reg && p3b_ready && !p3b_success_reg;
 
-  assign o_word_rd_req =
+  assign word_rd_req_int =
     codec_supported &&
     (state_reg != ST_IDLE) &&
     (state_reg != ST_DONE) &&
     (state_reg != ST_WAIT_ACC_DONE) &&
+    (state_reg != ST_BOUNDED_ERROR) &&
     (issue_word_idx_reg < WORD_COUNT_W'(BLOCK_WORDS)) &&
     ((word_fifo_count_reg + pending_reads_reg) < FIFO_COUNT_W'(WORD_FIFO_DEPTH));
-  assign o_word_rd_addr_base = issue_word_idx_reg[WORD_ADDR_W-1:0];
+  assign bounded_word_cost_violation =
+    (BOUNDED_II1 != 0) && p2s_valid_reg && !p2s_success_reg;
+  assign bounded_backpressure_violation =
+    (BOUNDED_II1 != 0) &&
+    ((p0_valid_reg && !p0_ready) ||
+     ((state_reg == ST_BUILD_GROUP) && current_word_valid_reg && !p0_ready) ||
+     ((state_reg == ST_BOUNDED_STREAM) && i_word_rd_valid && !p0_ready) ||
+     (token_valid_reg && !token_ready));
+  assign bounded_read_gap_violation =
+    (BOUNDED_II1 != 0) && bounded_read_started_reg &&
+    (issue_word_idx_reg < WORD_COUNT_W'(BLOCK_WORDS)) &&
+    (state_reg != ST_BOUNDED_ERROR) && !bounded_req_valid_reg;
+  assign bounded_response_cadence_violation =
+    (BOUNDED_II1 != 0) &&
+    (i_word_rd_valid != bounded_req_valid_d2_reg);
+  assign bounded_response_address_violation =
+    (BOUNDED_II1 != 0) && i_word_rd_valid &&
+    (bounded_req_addr_d2_reg != return_word_idx_reg[WORD_ADDR_W-1:0]);
+  assign bounded_fallback_violation =
+    (BOUNDED_II1 != 0) &&
+    (fallback_active || p3_fallback_pending ||
+     long_unary_used_reg || group_fallback_used_reg);
+  assign bounded_violation_now = !bounded_error_reg &&
+    (bounded_word_cost_violation || bounded_backpressure_violation ||
+     bounded_read_gap_violation || bounded_response_cadence_violation ||
+     bounded_response_address_violation || bounded_fallback_violation);
+  assign o_word_rd_req = (BOUNDED_II1 != 0) ?
+                         bounded_req_valid_reg : word_rd_req_int;
+  assign o_word_rd_addr_base = (BOUNDED_II1 != 0) ?
+                               bounded_req_addr_reg :
+                               issue_word_idx_reg[WORD_ADDR_W-1:0];
 
-  mrtc_bit_accumulator_axis #(
-    .AXIS_DATA_W(AXIS_DATA_W),
-    .TOKEN_W    (TOKEN_W)
-  ) u_bit_accumulator_axis (
-    .clk(clk),
-    .rst_n(rst_n),
-    .s_token_valid(token_valid_reg),
-    .s_token_ready(token_ready),
-    .s_token_bits(token_bits_reg),
-    .s_token_len(token_len_reg),
-    .s_token_last(token_last_reg),
-    .m_axis_tdata(m_axis_tdata),
-    .m_axis_tvalid(m_axis_tvalid),
-    .m_axis_tready(m_axis_tready),
-    .m_axis_tlast(m_axis_tlast),
-    .m_axis_tvalid_bytes_minus1(m_axis_tvalid_bytes_minus1),
-    .o_busy(),
-    .o_done(acc_done),
-    .o_overflow(acc_overflow)
-  );
+  generate
+    if (BOUNDED_II1 != 0) begin : g_bounded_accumulator
+      mrtc_axis_width_packer #(
+        .AXIS_DATA_W           (AXIS_DATA_W),
+        .FRAG_W                (TOKEN_W),
+        .DRAIN_APPEND_LOOKAHEAD(1'b1),
+        .REGISTERED_INPUT_QUEUE(1'b1)
+      ) u_axis_width_packer (
+        .clk                     (clk),
+        .rst_n                   (rst_n),
+        .s_frag_valid            (token_valid_reg),
+        .s_frag_ready            (token_ready),
+        .s_frag_data             (token_bits_reg),
+        .s_frag_bits             (token_len_reg),
+        .s_frag_last             (token_last_reg),
+        .m_axis_tdata            (m_axis_tdata),
+        .m_axis_tvalid           (m_axis_tvalid),
+        .m_axis_tready           (m_axis_tready),
+        .m_axis_tlast            (m_axis_tlast),
+        .m_axis_tvalid_bytes_minus1(m_axis_tvalid_bytes_minus1),
+        .o_busy                  (),
+        .o_done                  (acc_done),
+        .o_overflow              (acc_overflow)
+      );
+    end else begin : g_legacy_accumulator
+      mrtc_bit_accumulator_axis #(
+        .AXIS_DATA_W(AXIS_DATA_W),
+        .TOKEN_W    (TOKEN_W)
+      ) u_bit_accumulator_axis (
+        .clk(clk),
+        .rst_n(rst_n),
+        .s_token_valid(token_valid_reg),
+        .s_token_ready(token_ready),
+        .s_token_bits(token_bits_reg),
+        .s_token_len(token_len_reg),
+        .s_token_last(token_last_reg),
+        .m_axis_tdata(m_axis_tdata),
+        .m_axis_tvalid(m_axis_tvalid),
+        .m_axis_tready(m_axis_tready),
+        .m_axis_tlast(m_axis_tlast),
+        .m_axis_tvalid_bytes_minus1(m_axis_tvalid_bytes_minus1),
+        .o_busy(),
+        .o_done(acc_done),
+        .o_overflow(acc_overflow)
+      );
+    end
+  endgenerate
+
+  generate
+    if (BOUNDED_II1 != 0) begin : g_bounded_read_command
+      always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+          bounded_req_valid_reg <= 1'b0;
+          bounded_req_addr_reg <= '0;
+          bounded_req_valid_d1_reg <= 1'b0;
+          bounded_req_valid_d2_reg <= 1'b0;
+          bounded_req_addr_d1_reg <= '0;
+          bounded_req_addr_d2_reg <= '0;
+        end else if (i_start) begin
+          bounded_req_valid_reg <= 1'b0;
+          bounded_req_addr_reg <= '0;
+          bounded_req_valid_d1_reg <= 1'b0;
+          bounded_req_valid_d2_reg <= 1'b0;
+          bounded_req_addr_d1_reg <= '0;
+          bounded_req_addr_d2_reg <= '0;
+        end else begin
+          bounded_req_valid_d1_reg <= bounded_req_valid_reg;
+          bounded_req_valid_d2_reg <= bounded_req_valid_d1_reg;
+          bounded_req_addr_d1_reg <= bounded_req_addr_reg;
+          bounded_req_addr_d2_reg <= bounded_req_addr_d1_reg;
+
+          if (bounded_error_reg) begin
+            bounded_req_valid_reg <= 1'b0;
+          end else if ((state_reg == ST_SETUP) && codec_supported) begin
+            bounded_req_valid_reg <= 1'b1;
+            bounded_req_addr_reg <= '0;
+          end else if (bounded_req_valid_reg) begin
+            if (bounded_req_addr_reg == WORD_ADDR_W'(BLOCK_WORDS - 1)) begin
+              bounded_req_valid_reg <= 1'b0;
+            end else begin
+              bounded_req_addr_reg <= bounded_req_addr_reg + WORD_ADDR_W'(1);
+            end
+          end
+        end
+      end
+    end
+  endgenerate
 
   always_ff @(posedge clk or negedge rst_n) begin
     logic [TOKEN_W-1:0]     next_token_bits;
@@ -848,9 +991,13 @@ module mrtc_rice_bitpacker_lane_axis #(
       fallback_component_idx_reg   <= '0;
       fallback_component_count_reg <= '0;
       fallback_resume_state_reg    <= ST_IDLE;
+      bounded_error_reg            <= 1'b0;
+      bounded_word_error_reg       <= 1'b0;
+      bounded_protocol_error_reg   <= 1'b0;
+      bounded_read_started_reg     <= 1'b0;
     end else begin
       issue_read_now = o_word_rd_req;
-      push_word_now  = i_word_rd_valid;
+      push_word_now  = (BOUNDED_II1 == 0) && i_word_rd_valid;
       pop_word_now   = 1'b0;
       issue_pipeline_now = 1'b0;
       issue_word_data = current_word_data_reg;
@@ -867,7 +1014,6 @@ module mrtc_rice_bitpacker_lane_axis #(
 
       if (token_accepted) begin
         token_valid_reg <= 1'b0;
-        token_bits_reg  <= '0;
         token_len_reg   <= '0;
         token_last_reg  <= 1'b0;
         next_payload_bits_u32 = payload_bits_counted_reg + 32'(token_len_reg);
@@ -899,7 +1045,6 @@ module mrtc_rice_bitpacker_lane_axis #(
             prev_i_global_reg         <= 16'sd0;
             prev_q_global_reg         <= 16'sd0;
             token_valid_reg           <= 1'b0;
-            token_bits_reg            <= '0;
             token_len_reg             <= '0;
             token_last_reg            <= 1'b0;
             p0_valid_reg              <= 1'b0;
@@ -910,7 +1055,6 @@ module mrtc_rice_bitpacker_lane_axis #(
             p3a_valid_reg             <= 1'b0;
             p3p_valid_reg             <= 1'b0;
             p3b_valid_reg             <= 1'b0;
-            p0_word_data_reg          <= '0;
             p0_sample_idx_reg         <= '0;
             p0_sample_count_reg       <= '0;
             p0_component_count_reg    <= '0;
@@ -946,14 +1090,39 @@ module mrtc_rice_bitpacker_lane_axis #(
             fallback_component_idx_reg   <= '0;
             fallback_component_count_reg <= '0;
             fallback_resume_state_reg    <= ST_IDLE;
+            bounded_error_reg            <= 1'b0;
+            bounded_word_error_reg       <= 1'b0;
+            bounded_protocol_error_reg   <= 1'b0;
+            bounded_read_started_reg     <= 1'b0;
           end
         end
 
         ST_SETUP: begin
           if (codec_supported) begin
-            state_reg <= ST_FETCH_WORD;
+            state_reg <= (BOUNDED_II1 != 0) ?
+                         ST_BOUNDED_STREAM : ST_FETCH_WORD;
           end else begin
             state_reg <= ST_DONE;
+          end
+        end
+
+        ST_BOUNDED_STREAM: begin
+          if (i_word_rd_valid) begin
+            issue_pipeline_now = 1'b1;
+            issue_word_data = i_word_rd_data;
+            issue_word_idx = bounded_req_addr_d2_reg;
+            issue_sample_idx = SAMPLE_IDX_W'(0);
+            issue_sample_count = SAMPLE_COUNT_W'(LANES);
+            issue_component_count = COMPONENT_COUNT_W'(LANES * 2);
+            issue_token_last =
+              (bounded_req_addr_d2_reg == WORD_ADDR_W'(BLOCK_WORDS - 1));
+            issue_whole_group = 1'b1;
+
+            prev_i_global_reg <= word_lane_i(i_word_rd_data, LANES - 1);
+            prev_q_global_reg <= word_lane_q(i_word_rd_data, LANES - 1);
+            if (bounded_req_addr_d2_reg == WORD_ADDR_W'(BLOCK_WORDS - 1)) begin
+              state_reg <= ST_WAIT_ACC_DONE;
+            end
           end
         end
 
@@ -990,6 +1159,12 @@ module mrtc_rice_bitpacker_lane_axis #(
               sample_stream_mode_reg <= 1'b0;
               if (current_word_last) begin
                 state_reg <= ST_WAIT_ACC_DONE;
+              end else if ((ELASTIC_WORD_ISSUE != 0) && (word_fifo_count_reg != 0)) begin
+                pop_word_now           = 1'b1;
+                current_word_valid_reg <= 1'b1;
+                current_word_data_reg  <= word_fifo_data[word_fifo_rd_ptr_reg];
+                current_word_idx_reg   <= word_fifo_idx[word_fifo_rd_ptr_reg];
+                state_reg              <= ST_BUILD_GROUP;
               end else begin
                 state_reg <= ST_FETCH_WORD;
               end
@@ -1011,6 +1186,12 @@ module mrtc_rice_bitpacker_lane_axis #(
                 sample_stream_mode_reg <= 1'b0;
                 if (current_word_last) begin
                   state_reg <= ST_WAIT_ACC_DONE;
+                end else if ((ELASTIC_WORD_ISSUE != 0) && (word_fifo_count_reg != 0)) begin
+                  pop_word_now           = 1'b1;
+                  current_word_valid_reg <= 1'b1;
+                  current_word_data_reg  <= word_fifo_data[word_fifo_rd_ptr_reg];
+                  current_word_idx_reg   <= word_fifo_idx[word_fifo_rd_ptr_reg];
+                  state_reg              <= ST_BUILD_GROUP;
                 end else begin
                   state_reg <= ST_FETCH_WORD;
                 end
@@ -1100,6 +1281,10 @@ module mrtc_rice_bitpacker_lane_axis #(
           state_reg <= ST_IDLE;
         end
 
+        ST_BOUNDED_ERROR: begin
+          state_reg <= ST_BOUNDED_ERROR;
+        end
+
         default: begin
           state_reg <= ST_IDLE;
         end
@@ -1114,7 +1299,8 @@ module mrtc_rice_bitpacker_lane_axis #(
         token_last_reg  <= p3b_token_last_reg;
       end
 
-      if (p3b_valid_reg && p3b_ready && !p3b_success_reg) begin
+      if ((BOUNDED_II1 == 0) &&
+          p3b_valid_reg && p3b_ready && !p3b_success_reg) begin
         if (p3b_component_count_reg > COMPONENT_COUNT_W'(2)) begin
           group_fallback_used_reg <= 1'b1;
         end
@@ -1323,20 +1509,29 @@ module mrtc_rice_bitpacker_lane_axis #(
 
       if (issue_read_now) begin
         issue_word_idx_reg <= issue_word_idx_reg + WORD_COUNT_W'(1);
+        if (BOUNDED_II1 != 0) begin
+          bounded_read_started_reg <= 1'b1;
+        end
       end
 
-      case ({issue_read_now, push_word_now})
-        2'b10: pending_reads_reg <= pending_reads_reg + FIFO_COUNT_W'(1);
-        2'b01: pending_reads_reg <= pending_reads_reg - FIFO_COUNT_W'(1);
-        default: begin
-        end
-      endcase
+      if (BOUNDED_II1 == 0) begin
+        case ({issue_read_now, push_word_now})
+          2'b10: pending_reads_reg <= pending_reads_reg + FIFO_COUNT_W'(1);
+          2'b01: pending_reads_reg <= pending_reads_reg - FIFO_COUNT_W'(1);
+          default: begin
+          end
+        endcase
+      end else begin
+        pending_reads_reg <= '0;
+      end
 
       if (push_word_now) begin
         word_fifo_data[word_fifo_wr_ptr_reg] <= i_word_rd_data;
         word_fifo_idx[word_fifo_wr_ptr_reg]  <= return_word_idx_reg[WORD_ADDR_W-1:0];
         word_fifo_wr_ptr_reg <= word_fifo_wr_ptr_reg + FIFO_PTR_W'(1);
         return_word_idx_reg  <= return_word_idx_reg + WORD_COUNT_W'(1);
+      end else if ((BOUNDED_II1 != 0) && i_word_rd_valid) begin
+        return_word_idx_reg <= return_word_idx_reg + WORD_COUNT_W'(1);
       end
 
       if (pop_word_now) begin
@@ -1349,6 +1544,15 @@ module mrtc_rice_bitpacker_lane_axis #(
         default: begin
         end
       endcase
+
+      if ((BOUNDED_II1 != 0) && bounded_violation_now) begin
+        bounded_error_reg          <= 1'b1;
+        bounded_word_error_reg     <= bounded_word_cost_violation ||
+                                      bounded_fallback_violation;
+        bounded_protocol_error_reg <= !(bounded_word_cost_violation ||
+                                        bounded_fallback_violation);
+        state_reg                  <= ST_BOUNDED_ERROR;
+      end
     end
   end
 endmodule

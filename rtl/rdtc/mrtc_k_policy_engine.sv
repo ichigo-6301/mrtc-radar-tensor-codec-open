@@ -19,6 +19,8 @@ module mrtc_k_policy_engine #(
   input  logic [31:0]       i_prefix_precomputed_bits,
   input  logic [31:0]       i_prefix_precomputed_cycles,
   input  logic              i_prefix_precomputed_unsupported,
+  input  logic              i_prefix_precomputed_exact_valid,
+  input  logic [31:0]       i_prefix_precomputed_exact_bits,
   output logic              o_rd_req,
   output logic [ADDR_W-1:0] o_rd_addr,
   input  logic              i_rd_valid,
@@ -146,6 +148,7 @@ module mrtc_k_policy_engine #(
       logic [63:0] prefix_est_payload_bytes_u64;
       logic        prefix_est_use_raw;
       logic [31:0] prefix_bits_for_estimate;
+      logic        use_precomputed_exact_payload;
 
       logic [7:0]  selected_k_reg;
       logic [31:0] payload_bits_reg;
@@ -166,7 +169,11 @@ module mrtc_k_policy_engine #(
         ((prefix_codec_mode_eval == MRTC_CODEC_ZERO_RICE) || (prefix_codec_mode_eval == MRTC_CODEC_DELTA_RICE));
       assign prefix_bits_for_estimate =
         use_precomputed_prefix ? i_prefix_precomputed_bits : prefix_bits;
-      assign prefix_est_payload_bits_u64  = {32'd0, prefix_bits_for_estimate} * PREFIX_SCALE;
+      assign use_precomputed_exact_payload =
+        use_precomputed_prefix && i_prefix_precomputed_exact_valid;
+      assign prefix_est_payload_bits_u64 = use_precomputed_exact_payload ?
+        {32'd0, i_prefix_precomputed_exact_bits} :
+        ({32'd0, prefix_bits_for_estimate} * PREFIX_SCALE);
       assign prefix_est_payload_bytes_u64 = (prefix_est_payload_bits_u64 + 64'd7) >> 3;
       assign prefix_est_use_raw =
         ((HEADER_BYTES + prefix_est_payload_bytes_u64) >= RAW_BYTES);
@@ -219,7 +226,7 @@ module mrtc_k_policy_engine #(
         .rst_n             (rst_n),
         .i_start           (size_start),
         .i_codec_mode      (codec_mode_reg),
-        .i_rice_mode       (8'(MRTC_RICE_FIXED_K)),
+        .i_rice_mode       (MRTC_RICE_FIXED_K),
         .i_fixed_k         (prefix_selected_k_reg[3:0]),
         .o_rd_req          (size_rd_req),
         .o_rd_addr         (size_rd_addr),
@@ -290,8 +297,13 @@ module mrtc_k_policy_engine #(
                       state_reg            <= ST_DONE;
                     end else if (PREFIX_STREAM_LENGTH_BY_TLAST) begin
                       selected_k_reg       <= i_prefix_precomputed_k;
-                      payload_bits_reg     <= prefix_est_use_raw ? 32'(RAW_BYTES * 8) : 32'd0;
-                      payload_bytes_reg    <= prefix_est_use_raw ? 32'(RAW_BYTES) : 32'd0;
+                      payload_bits_reg     <= prefix_est_use_raw ? 32'(RAW_BYTES * 8) :
+                                              (use_precomputed_exact_payload ?
+                                               i_prefix_precomputed_exact_bits : 32'd0);
+                      payload_bytes_reg    <= prefix_est_use_raw ? 32'(RAW_BYTES) :
+                                              (use_precomputed_exact_payload ?
+                                               32'((i_prefix_precomputed_exact_bits + 32'd7) >> 3) :
+                                               32'd0);
                       use_raw_reg          <= prefix_est_use_raw;
                       unsupported_rice_reg <= 1'b0;
                       state_reg            <= ST_DONE;

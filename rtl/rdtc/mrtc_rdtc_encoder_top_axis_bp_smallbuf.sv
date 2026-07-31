@@ -53,6 +53,7 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
   localparam int PREFIX_ADDR_W = $clog2(PREFIX_WORDS);
   localparam int VALID_BYTE_COUNT_W = $clog2(AXIS_BYTES + 1);
   localparam int SUFFIX_PENDING_W = 4;
+  localparam int PREFIX_OUTSTANDING_W = $clog2(PREFIX_WORDS + 1);
   localparam int I_W_CHECK = 1 / ((I_W == 16) ? 1 : 0);
   localparam int Q_W_CHECK = 1 / ((Q_W == 16) ? 1 : 0);
   localparam int COMPLEX_SAMPLE_W_CHECK = 1 / ((COMPLEX_SAMPLE_W == 32) ? 1 : 0);
@@ -85,6 +86,13 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
 
   logic [WORD_ADDR_W:0] input_word_count_reg;
   logic [SUFFIX_PENDING_W-1:0] suffix_pending_count_reg;
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+  logic [PREFIX_OUTSTANDING_W-1:0] prefix_reads_outstanding;
+`ifdef RDTC_SMALLBUF_ASSERTIONS
+  logic [1:0] prefix_request_valid_shadow;
+  logic [PREFIX_OUTSTANDING_W-1:0] prefix_outstanding_shadow;
+`endif
+`endif
   logic [7:0] block_codec_mode_reg;
   logic block_last_reg;
   logic [15:0] block_id_reg;
@@ -106,6 +114,8 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
   logic suffix_accept;
   logic suffix_request_issue;
   logic prefix_request_issue;
+  logic prefix_response_barrier;
+  logic suffix_would_accept_without_prefix_barrier;
   logic output_beat_accept;
 
   logic accum_start;
@@ -154,11 +164,18 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
   assign prefix_capture_active =
     (state_reg == ST_IDLE) || (state_reg == ST_CAPTURE_PREFIX);
   assign raw_beat_accept = s_axis_raw_tvalid && s_axis_raw_tready;
-  assign suffix_accept = (state_reg == ST_PAYLOAD) &&
-                         (suffix_pending_count_reg != '0) &&
-                         !prefix_rd_valid &&
-                         s_axis_raw_tvalid &&
-                         s_axis_raw_tready;
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+  assign prefix_response_barrier =
+    (prefix_reads_outstanding != '0) || prefix_rd_valid || prefix_request_issue;
+`else
+  assign prefix_response_barrier = prefix_rd_valid;
+`endif
+  assign suffix_would_accept_without_prefix_barrier =
+    (state_reg == ST_PAYLOAD) &&
+    (suffix_pending_count_reg != '0) &&
+    s_axis_raw_tvalid;
+  assign suffix_accept = suffix_would_accept_without_prefix_barrier &&
+                         !prefix_response_barrier && s_axis_raw_tready;
 
   always_comb begin
     s_axis_raw_tready = 1'b0;
@@ -167,7 +184,8 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
     end else if (state_reg == ST_CAPTURE_PREFIX) begin
       s_axis_raw_tready = accum_ready && (input_word_count_reg < WORD_ADDR_W'(PREFIX_WORDS));
     end else if (state_reg == ST_PAYLOAD) begin
-      s_axis_raw_tready = (suffix_pending_count_reg != '0) && !prefix_rd_valid;
+      s_axis_raw_tready =
+        (suffix_pending_count_reg != '0) && !prefix_response_barrier;
     end
   end
 
@@ -226,6 +244,7 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
   ) u_prefix_k_accum_stream (
     .clk                (clk),
     .rst_n              (rst_n),
+    .i_abort            (state_reg == ST_ERROR),
     .i_start            (accum_start),
     .i_codec_mode       ({6'd0, s_axis_raw_tuser[2:1]}),
     .i_word_valid       (accum_word_valid),
@@ -235,7 +254,9 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
     .o_done             (accum_done),
     .o_selected_k       (accum_selected_k),
     .o_prefix_bits      (accum_prefix_bits),
-    .o_unsupported_codec(accum_unsupported_codec)
+    .o_unsupported_codec(accum_unsupported_codec),
+    .o_full_done        (),
+    .o_full_payload_bits()
   );
 
   mrtc_header_gen u_header_gen (
@@ -346,6 +367,9 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
       state_reg <= ST_IDLE;
       input_word_count_reg <= '0;
       suffix_pending_count_reg <= '0;
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+      prefix_reads_outstanding <= '0;
+`endif
       block_codec_mode_reg <= MRTC_CODEC_ZERO_RICE;
       block_last_reg <= 1'b0;
       block_id_reg <= 16'd0;
@@ -396,6 +420,9 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
         ST_IDLE: begin
           input_word_count_reg <= '0;
           suffix_pending_count_reg <= '0;
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+          prefix_reads_outstanding <= '0;
+`endif
           if (raw_beat_accept) begin
             block_codec_mode_reg <= {6'd0, s_axis_raw_tuser[2:1]};
             block_last_reg <= s_axis_raw_tuser[3];
@@ -456,6 +483,16 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
         end
 
         ST_PAYLOAD: begin
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+          case ({prefix_request_issue, prefix_rd_valid})
+            2'b10: prefix_reads_outstanding <=
+              prefix_reads_outstanding + PREFIX_OUTSTANDING_W'(1);
+            2'b01: prefix_reads_outstanding <=
+              prefix_reads_outstanding - PREFIX_OUTSTANDING_W'(1);
+            default: begin
+            end
+          endcase
+`endif
           case ({suffix_request_issue, suffix_accept})
             2'b10: suffix_pending_count_reg <= suffix_pending_count_reg + SUFFIX_PENDING_W'(1);
             2'b01: suffix_pending_count_reg <= suffix_pending_count_reg - SUFFIX_PENDING_W'(1);
@@ -483,12 +520,18 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
         end
 
         ST_DONE: begin
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+          prefix_reads_outstanding <= '0;
+`endif
           stat_done <= 1'b1;
           stat_num_blocks <= stat_num_blocks + 32'd1;
           state_reg <= ST_IDLE;
         end
 
         ST_ERROR: begin
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+          prefix_reads_outstanding <= '0;
+`endif
           state_reg <= ST_IDLE;
         end
 
@@ -498,6 +541,65 @@ module mrtc_rdtc_encoder_top_axis_bp_smallbuf #(
       endcase
     end
   end
+
+`ifdef RDTC_SMALLBUF_ASSERTIONS
+`ifdef RDTC_PIPELINE_PREFIX_SRAM_DOUT
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      prefix_request_valid_shadow <= '0;
+      prefix_outstanding_shadow <= '0;
+    end else begin
+      if (prefix_rd_valid !== prefix_request_valid_shadow[1]) begin
+        $fatal(1,
+               "smallbuf fixed-two-cycle prefix valid mismatch got=%0b expected=%0b shadow=%02b",
+               prefix_rd_valid, prefix_request_valid_shadow[1],
+               prefix_request_valid_shadow);
+      end
+      if (prefix_reads_outstanding !== prefix_outstanding_shadow) begin
+        $fatal(1,
+               "smallbuf prefix outstanding reference mismatch got=%0d expected=%0d",
+               prefix_reads_outstanding, prefix_outstanding_shadow);
+      end
+      if ((prefix_reads_outstanding > PREFIX_OUTSTANDING_W'(2)) ||
+          (prefix_outstanding_shadow > PREFIX_OUTSTANDING_W'(2))) begin
+        $fatal(1,
+               "smallbuf prefix outstanding exceeded fixed-latency range got=%0d reference=%0d",
+               prefix_reads_outstanding, prefix_outstanding_shadow);
+      end
+      if (prefix_rd_valid && (prefix_outstanding_shadow == '0)) begin
+        $fatal(1, "smallbuf prefix response underflow");
+      end
+      if (prefix_request_issue && !prefix_rd_valid &&
+          (prefix_outstanding_shadow == PREFIX_OUTSTANDING_W'(2))) begin
+        $fatal(1, "smallbuf prefix request overflow beyond two outstanding reads");
+      end
+      if (suffix_accept &&
+          ((prefix_outstanding_shadow != '0) ||
+           prefix_request_valid_shadow[1] || prefix_request_issue)) begin
+        $fatal(1,
+               "smallbuf suffix response overtook reference-tracked prefix traffic");
+      end
+      if (bpack_done &&
+          (prefix_request_issue ||
+           (prefix_outstanding_shadow !=
+            PREFIX_OUTSTANDING_W'(prefix_rd_valid)))) begin
+        $fatal(1, "smallbuf completed with reference-tracked prefix reads outstanding");
+      end
+
+      prefix_request_valid_shadow <=
+        {prefix_request_valid_shadow[0], prefix_request_issue};
+      case ({prefix_request_issue, prefix_rd_valid})
+        2'b10: prefix_outstanding_shadow <=
+          prefix_outstanding_shadow + PREFIX_OUTSTANDING_W'(1);
+        2'b01: prefix_outstanding_shadow <=
+          prefix_outstanding_shadow - PREFIX_OUTSTANDING_W'(1);
+        default: begin
+        end
+      endcase
+    end
+  end
+`endif
+`endif
 
   // Keep configuration inputs referenced for lint-clean compatibility with the legacy port set.
   logic unused_cfg_inputs;

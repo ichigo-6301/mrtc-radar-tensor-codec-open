@@ -5,7 +5,10 @@ module mrtc_rdtc_encoder_top #(
   parameter int PACKER_LANE_MODE = 4,
   parameter bit PREFIX_DURING_CAPTURE = 1'b1,
   parameter bit PREFIX_STREAM_LENGTH_BY_TLAST = 1'b1,
-  parameter int PREFIX_SAMPLES = 256
+  parameter int PREFIX_SAMPLES = 256,
+  parameter bit SINGLE_FULL_BLOCK_BANK = 1'b0,
+  parameter bit STREAMING_PREFIX_K = 1'b0,
+  parameter bit ELASTIC_WORD_ISSUE = 1'b0
 ) (
   input  logic                   clk,
   input  logic                   rst_n,
@@ -71,12 +74,27 @@ module mrtc_rdtc_encoder_top #(
   localparam int AXIS_VALID_BYTE_COUNT_W = $clog2(AXIS_BYTES + 1);
   localparam int BLOCK_WORDS = MRTC_BLOCK_SAMPLES / MRTC_LANES;
   localparam int BLOCK_WORD_ADDR_W = $clog2(BLOCK_WORDS);
+  localparam int BANK_READ_OUTSTANDING_W = $clog2(BLOCK_WORDS + 1);
   localparam int PREFIX_WORDS = PREFIX_SAMPLES / MRTC_LANES;
   localparam int PREFIX_WORD_ADDR_W = $clog2(PREFIX_WORDS);
+  localparam bit PREFIX_STREAM_ACCUM_ENABLED =
+    (MRTC_K_POLICY_ARCH == MRTC_K_POLICY_PREFIX_FAST) &&
+    PREFIX_DURING_CAPTURE && STREAMING_PREFIX_K;
+  localparam bit PREFIX_PRECOMPUTE_ENABLED =
+    (MRTC_K_POLICY_ARCH == MRTC_K_POLICY_PREFIX_FAST) &&
+    PREFIX_DURING_CAPTURE && !STREAMING_PREFIX_K;
+`ifdef RDTC_PIPELINE_BLOCK_SRAM_DOUT
+  localparam int BLOCK_WORD_BANK_READ_LATENCY = 2;
+`elsif RDTC_PIPELINE_BLOCK_SRAM_INPUT
+  localparam int BLOCK_WORD_BANK_READ_LATENCY = 2;
+`else
+  localparam int BLOCK_WORD_BANK_READ_LATENCY = 1;
+`endif
 
   state_t state_reg;
   bank_owner_t bank_owner_reg;
   sample_client_t sample_client_reg;
+  logic [BANK_READ_OUTSTANDING_W-1:0] bank_reads_outstanding_reg;
 
   logic        raw_beat_accept;
   logic        capture_can_accept;
@@ -134,8 +152,8 @@ module mrtc_rdtc_encoder_top #(
   logic                   raw_bank_rd_valid;
   logic [AXIS_DATA_W-1:0] raw_bank_rd_word_data;
   logic                   internal_state_error_pulse;
-  logic                   bank_owner_release_now;
-  logic                   bank_owner_accept_same_owner_now;
+  bank_owner_t            bank_request_owner_now;
+  sample_client_t         bank_request_sample_client_now;
 
   logic        ksel_start;
   logic        ksel_start_pulse;
@@ -249,6 +267,8 @@ module mrtc_rdtc_encoder_top #(
   logic [31:0] prefix_bits_reg_bank [0:1];
   logic [31:0] prefix_cycles_reg_bank [0:1];
   logic        prefix_unsupported_reg_bank [0:1];
+  logic        prefix_exact_valid_reg_bank [0:1];
+  logic [31:0] prefix_exact_bits_reg_bank [0:1];
   logic        prefix_pre_rd_req;
   logic [9:0]  prefix_pre_rd_addr;
   logic        prefix_pre_rd_valid;
@@ -264,11 +284,27 @@ module mrtc_rdtc_encoder_top #(
   logic [31:0] prefix_pre_bits;
   logic [31:0] prefix_pre_cycles;
   logic        prefix_pre_unsupported;
+  logic        prefix_stream_start;
+  logic        prefix_stream_word_valid;
+  logic        prefix_stream_abort;
+  logic [7:0]  prefix_stream_capture_codec;
+  logic        prefix_stream_capture_supported;
+  logic        prefix_stream_requires_ready;
+  logic        prefix_stream_ready;
+  logic        prefix_stream_busy;
+  logic        prefix_stream_done;
+  logic [7:0]  prefix_stream_selected_k;
+  logic [31:0] prefix_stream_bits;
+  logic        prefix_stream_unsupported;
+  logic        prefix_stream_full_done;
+  logic [31:0] prefix_stream_full_bits;
   logic [31:0] block_ready_to_k_done_dbg;
   logic        ready_bank_prefix_result_valid;
   logic [7:0]  ready_bank_prefix_codec_mode;
   logic        ready_prefix_wait_needed;
   logic        proc_prefix_wait_needed;
+  logic        proc_prefix_exact_valid;
+  logic [31:0] proc_prefix_exact_bits;
 
   // Legacy debug aliases kept for existing file-vector TB hierarchy probes.
   logic        block_ready;
@@ -293,7 +329,8 @@ module mrtc_rdtc_encoder_top #(
   logic        bpack_expected_length_valid;
 
   assign raw_beat_accept   = s_axis_raw_tvalid && s_axis_raw_tready;
-  assign s_axis_raw_tready = capture_can_accept;
+  assign s_axis_raw_tready = capture_can_accept &&
+                             (!prefix_stream_requires_ready || prefix_stream_ready);
   assign stat_busy         = fill_bank_valid || proc_ready_valid || proc_active_valid || (state_reg != ST_CAPTURE);
   assign stat_error        = stat_error_reg;
   assign ksel_start_pulse  = (state_reg == ST_KSEL_START);
@@ -304,15 +341,6 @@ module mrtc_rdtc_encoder_top #(
   assign proc_take_ready   = (state_reg == ST_CAPTURE) && proc_ready_valid && !ready_prefix_wait_needed;
   assign proc_done_pulse   = (state_reg == ST_DRAIN);
   assign use_lane_word_bpack = (MRTC_BPACK_ARCH == MRTC_BPACK_ARCH_LANE_WORD);
-  assign bank_owner_release_now =
-    bank_rd_valid &&
-    (((bank_owner_reg == BANK_OWNER_SAMPLE) &&
-      sample_bank_rd_req && !raw_bank_rd_req && !lane_bpack_word_rd_req) ||
-     ((bank_owner_reg == BANK_OWNER_RAW) &&
-      raw_bank_rd_req && !sample_bank_rd_req && !lane_bpack_word_rd_req) ||
-     ((bank_owner_reg == BANK_OWNER_BPACK_WORD) &&
-      lane_bpack_word_rd_req && !sample_bank_rd_req && !raw_bank_rd_req));
-  assign bank_owner_accept_same_owner_now = bank_owner_release_now;
 
   assign selected_k        = selected_k_reg;
   assign payload_bits_pre  = payload_bits_pre_reg;
@@ -333,8 +361,27 @@ module mrtc_rdtc_encoder_top #(
   assign bank0_wr_en       = bank_wr_en && !fill_bank_sel;
   assign bank1_wr_en       = bank_wr_en && fill_bank_sel;
   assign prefix_buf_wr_addr = PREFIX_WORD_ADDR_W'(fill_word_addr);
-  assign prefix_buf0_wr_en  = bank0_wr_en && (fill_word_addr < PREFIX_WORDS);
-  assign prefix_buf1_wr_en  = bank1_wr_en && (fill_word_addr < PREFIX_WORDS);
+  assign prefix_buf0_wr_en  = PREFIX_PRECOMPUTE_ENABLED &&
+                               bank0_wr_en && (fill_word_addr < PREFIX_WORDS);
+  assign prefix_buf1_wr_en  = PREFIX_PRECOMPUTE_ENABLED &&
+                               bank1_wr_en && (fill_word_addr < PREFIX_WORDS);
+  assign prefix_stream_capture_codec =
+    (fill_word_addr == BLOCK_WORD_ADDR_W'(0)) ? {6'd0, s_axis_raw_tuser[2:1]} :
+    (fill_bank_sel ? prefix_codec_mode_reg_bank[1] : prefix_codec_mode_reg_bank[0]);
+  assign prefix_stream_capture_supported =
+    (prefix_stream_capture_codec == MRTC_CODEC_ZERO_RICE) ||
+    (prefix_stream_capture_codec == MRTC_CODEC_DELTA_RICE);
+  assign prefix_stream_requires_ready =
+    PREFIX_STREAM_ACCUM_ENABLED && s_axis_raw_tvalid &&
+    prefix_stream_capture_supported;
+  assign prefix_stream_start = PREFIX_STREAM_ACCUM_ENABLED && bank_wr_en &&
+                               prefix_stream_capture_supported &&
+                               (fill_word_addr == BLOCK_WORD_ADDR_W'(0));
+  assign prefix_stream_word_valid = PREFIX_STREAM_ACCUM_ENABLED && bank_wr_en &&
+                                    prefix_stream_capture_supported;
+  assign prefix_stream_abort = PREFIX_STREAM_ACCUM_ENABLED && bank_wr_en &&
+                               (s_axis_raw_tlast !=
+                                (fill_word_addr == BLOCK_WORD_ADDR_W'(BLOCK_WORDS - 1)));
   assign proc_prefix_precomputed_valid =
     proc_active_valid && prefix_result_valid_reg[proc_active_bank_sel];
   assign proc_prefix_precomputed_k =
@@ -345,6 +392,11 @@ module mrtc_rdtc_encoder_top #(
     proc_active_bank_sel ? prefix_cycles_reg_bank[1] : prefix_cycles_reg_bank[0];
   assign proc_prefix_precomputed_unsupported =
     proc_active_bank_sel ? prefix_unsupported_reg_bank[1] : prefix_unsupported_reg_bank[0];
+  assign proc_prefix_exact_valid =
+    proc_active_valid &&
+    (proc_active_bank_sel ? prefix_exact_valid_reg_bank[1] : prefix_exact_valid_reg_bank[0]);
+  assign proc_prefix_exact_bits =
+    proc_active_bank_sel ? prefix_exact_bits_reg_bank[1] : prefix_exact_bits_reg_bank[0];
   assign ready_bank_prefix_result_valid =
     proc_ready_bank_sel ? prefix_result_valid_reg[1] : prefix_result_valid_reg[0];
   assign ready_bank_prefix_codec_mode =
@@ -406,15 +458,19 @@ module mrtc_rdtc_encoder_top #(
         (MRTC_BPACK_ARCH != MRTC_BPACK_ARCH_LANE_WORD)) begin
       $fatal(1, "mrtc_rdtc_encoder_top unsupported MRTC_BPACK_ARCH=%0d", MRTC_BPACK_ARCH);
     end
-    if ((MRTC_BPACK_ARCH == MRTC_BPACK_ARCH_LANE_WORD) &&
-        (MRTC_K_POLICY_ARCH != MRTC_K_POLICY_PREFIX_FAST)) begin
-      $fatal(1, "mrtc_rdtc_encoder_top Stage 16D-2 lane-word bitpacker only supports PREFIX_FAST");
+    if (STREAMING_PREFIX_K && !SINGLE_FULL_BLOCK_BANK) begin
+      $fatal(1, "streaming prefix-k currently requires SINGLE_FULL_BLOCK_BANK=1");
+    end
+    if (STREAMING_PREFIX_K &&
+        ((MRTC_K_POLICY_ARCH != MRTC_K_POLICY_PREFIX_FAST) || !PREFIX_DURING_CAPTURE)) begin
+      $fatal(1, "streaming prefix-k requires PREFIX_FAST with PREFIX_DURING_CAPTURE=1");
     end
   end
 
   mrtc_pingpong_block_bank_manager #(
     .BLOCK_WORDS    (BLOCK_WORDS),
-    .BLOCK_RANGE_LEN(MRTC_BLOCK_RANGE_LEN)
+    .BLOCK_RANGE_LEN(MRTC_BLOCK_RANGE_LEN),
+    .BANK_COUNT     (SINGLE_FULL_BLOCK_BANK ? 1 : 2)
   ) u_pingpong_block_bank_manager (
     .clk                        (clk),
     .rst_n                      (rst_n),
@@ -463,7 +519,7 @@ module mrtc_rdtc_encoder_top #(
     .AXIS_DATA_W  (AXIS_DATA_W),
     .LANES        (MRTC_LANES),
     .BLOCK_SAMPLES(MRTC_BLOCK_SAMPLES),
-    .READ_LATENCY (1)
+    .READ_LATENCY (BLOCK_WORD_BANK_READ_LATENCY)
   ) u_block_word_bank0 (
     .clk           (clk),
     .rst_n         (rst_n),
@@ -477,23 +533,30 @@ module mrtc_rdtc_encoder_top #(
     .o_rd_word_data(bank0_rd_word_data)
   );
 
-  mrtc_block_word_bank #(
-    .AXIS_DATA_W  (AXIS_DATA_W),
-    .LANES        (MRTC_LANES),
-    .BLOCK_SAMPLES(MRTC_BLOCK_SAMPLES),
-    .READ_LATENCY (1)
-  ) u_block_word_bank1 (
-    .clk           (clk),
-    .rst_n         (rst_n),
-    .i_clear       (1'b0),
-    .i_wr_en       (bank1_wr_en),
-    .i_wr_word_addr(bank_wr_word_addr),
-    .i_wr_word_data(bank_wr_word_data),
-    .i_rd_req      (bank_rd_req && proc_active_valid && proc_active_bank_sel),
-    .i_rd_word_addr(bank_rd_word_addr),
-    .o_rd_valid    (bank1_rd_valid),
-    .o_rd_word_data(bank1_rd_word_data)
-  );
+  generate
+    if (!SINGLE_FULL_BLOCK_BANK) begin : g_second_block_word_bank
+      mrtc_block_word_bank #(
+        .AXIS_DATA_W  (AXIS_DATA_W),
+        .LANES        (MRTC_LANES),
+        .BLOCK_SAMPLES(MRTC_BLOCK_SAMPLES),
+        .READ_LATENCY (BLOCK_WORD_BANK_READ_LATENCY)
+      ) u_block_word_bank1 (
+        .clk           (clk),
+        .rst_n         (rst_n),
+        .i_clear       (1'b0),
+        .i_wr_en       (bank1_wr_en),
+        .i_wr_word_addr(bank_wr_word_addr),
+        .i_wr_word_data(bank_wr_word_data),
+        .i_rd_req      (bank_rd_req && proc_active_valid && proc_active_bank_sel),
+        .i_rd_word_addr(bank_rd_word_addr),
+        .o_rd_valid    (bank1_rd_valid),
+        .o_rd_word_data(bank1_rd_word_data)
+      );
+    end else begin : g_no_second_block_word_bank
+      assign bank1_rd_valid     = 1'b0;
+      assign bank1_rd_word_data = '0;
+    end
+  endgenerate
 
   mrtc_block_sample_read_adapter #(
     .AXIS_DATA_W  (AXIS_DATA_W),
@@ -512,102 +575,230 @@ module mrtc_rdtc_encoder_top #(
     .o_sample_rd_data    (sample_rd_data)
   );
 
-  mrtc_prefix_capture_buffer #(
-    .AXIS_DATA_W    (AXIS_DATA_W),
-    .LANES          (MRTC_LANES),
-    .PREFIX_SAMPLES (PREFIX_SAMPLES)
-  ) u_prefix_capture_buffer0 (
-    .clk         (clk),
-    .rst_n       (rst_n),
-    .i_wr_en     (prefix_buf0_wr_en),
-    .i_wr_word_addr(prefix_buf_wr_addr),
-    .i_wr_word_data(bank_wr_word_data),
-    .i_rd_req    (prefix_pre_rd_req && !prefix_pre_result_bank_sel),
-    .i_rd_addr   (prefix_pre_rd_addr[$clog2(PREFIX_SAMPLES)-1:0]),
-    .o_rd_valid  (prefix_buf0_rd_valid),
-    .o_rd_data   (prefix_buf0_rd_data)
-  );
+  generate
+    if (PREFIX_PRECOMPUTE_ENABLED) begin : g_prefix_precompute
+      mrtc_prefix_capture_buffer #(
+        .AXIS_DATA_W    (AXIS_DATA_W),
+        .LANES          (MRTC_LANES),
+        .PREFIX_SAMPLES (PREFIX_SAMPLES)
+      ) u_prefix_capture_buffer0 (
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .i_wr_en     (prefix_buf0_wr_en),
+        .i_wr_word_addr(prefix_buf_wr_addr),
+        .i_wr_word_data(bank_wr_word_data),
+        .i_rd_req    (prefix_pre_rd_req && !prefix_pre_result_bank_sel),
+        .i_rd_addr   (prefix_pre_rd_addr[$clog2(PREFIX_SAMPLES)-1:0]),
+        .o_rd_valid  (prefix_buf0_rd_valid),
+        .o_rd_data   (prefix_buf0_rd_data)
+      );
 
-  mrtc_prefix_capture_buffer #(
-    .AXIS_DATA_W    (AXIS_DATA_W),
-    .LANES          (MRTC_LANES),
-    .PREFIX_SAMPLES (PREFIX_SAMPLES)
-  ) u_prefix_capture_buffer1 (
-    .clk         (clk),
-    .rst_n       (rst_n),
-    .i_wr_en     (prefix_buf1_wr_en),
-    .i_wr_word_addr(prefix_buf_wr_addr),
-    .i_wr_word_data(bank_wr_word_data),
-    .i_rd_req    (prefix_pre_rd_req && prefix_pre_result_bank_sel),
-    .i_rd_addr   (prefix_pre_rd_addr[$clog2(PREFIX_SAMPLES)-1:0]),
-    .o_rd_valid  (prefix_buf1_rd_valid),
-    .o_rd_data   (prefix_buf1_rd_data)
-  );
+      mrtc_prefix_capture_buffer #(
+        .AXIS_DATA_W    (AXIS_DATA_W),
+        .LANES          (MRTC_LANES),
+        .PREFIX_SAMPLES (PREFIX_SAMPLES)
+      ) u_prefix_capture_buffer1 (
+        .clk         (clk),
+        .rst_n       (rst_n),
+        .i_wr_en     (prefix_buf1_wr_en),
+        .i_wr_word_addr(prefix_buf_wr_addr),
+        .i_wr_word_data(bank_wr_word_data),
+        .i_rd_req    (prefix_pre_rd_req && prefix_pre_result_bank_sel),
+        .i_rd_addr   (prefix_pre_rd_addr[$clog2(PREFIX_SAMPLES)-1:0]),
+        .o_rd_valid  (prefix_buf1_rd_valid),
+        .o_rd_data   (prefix_buf1_rd_data)
+      );
 
-  mrtc_prefix_precompute_engine #(
-    .PREFIX_SAMPLES(PREFIX_SAMPLES),
-    .BLOCK_SAMPLES (MRTC_BLOCK_SAMPLES),
-    .ADDR_W        (10)
-  ) u_prefix_precompute_engine (
-    .clk                 (clk),
-    .rst_n               (rst_n),
-    .i_bank0_ready       (prefix_buf_bank0_ready_reg),
-    .i_bank1_ready       (prefix_buf_bank1_ready_reg),
-    .i_bank0_result_valid(prefix_result_valid_reg[0]),
-    .i_bank1_result_valid(prefix_result_valid_reg[1]),
-    .i_bank0_codec_mode  (prefix_codec_mode_reg_bank[0]),
-    .i_bank1_codec_mode  (prefix_codec_mode_reg_bank[1]),
-    .o_rd_req            (prefix_pre_rd_req),
-    .o_rd_addr           (prefix_pre_rd_addr),
-    .i_rd_valid          (prefix_pre_rd_valid),
-    .i_rd_data           (prefix_pre_rd_data),
-    .o_busy              (prefix_pre_busy),
-    .o_result_done       (prefix_pre_done),
-    .o_result_bank_sel   (prefix_pre_result_bank_sel),
-    .o_selected_k        (prefix_pre_selected_k),
-    .o_prefix_bits       (prefix_pre_bits),
-    .o_prefix_cycles     (prefix_pre_cycles),
-    .o_unsupported_codec (prefix_pre_unsupported)
-  );
+      mrtc_prefix_precompute_engine #(
+        .PREFIX_SAMPLES(PREFIX_SAMPLES),
+        .BLOCK_SAMPLES (MRTC_BLOCK_SAMPLES),
+        .ADDR_W        (10)
+      ) u_prefix_precompute_engine (
+        .clk                 (clk),
+        .rst_n               (rst_n),
+        .i_bank0_ready       (prefix_buf_bank0_ready_reg),
+        .i_bank1_ready       (prefix_buf_bank1_ready_reg),
+        .i_bank0_result_valid(prefix_result_valid_reg[0]),
+        .i_bank1_result_valid(prefix_result_valid_reg[1]),
+        .i_bank0_codec_mode  (prefix_codec_mode_reg_bank[0]),
+        .i_bank1_codec_mode  (prefix_codec_mode_reg_bank[1]),
+        .o_rd_req            (prefix_pre_rd_req),
+        .o_rd_addr           (prefix_pre_rd_addr),
+        .i_rd_valid          (prefix_pre_rd_valid),
+        .i_rd_data           (prefix_pre_rd_data),
+        .o_busy              (prefix_pre_busy),
+        .o_result_done       (prefix_pre_done),
+        .o_result_bank_sel   (prefix_pre_result_bank_sel),
+        .o_selected_k        (prefix_pre_selected_k),
+        .o_prefix_bits       (prefix_pre_bits),
+        .o_prefix_cycles     (prefix_pre_cycles),
+        .o_unsupported_codec (prefix_pre_unsupported)
+      );
+    end else begin : g_no_prefix_precompute
+      assign prefix_buf0_rd_valid       = 1'b0;
+      assign prefix_buf0_rd_data        = '0;
+      assign prefix_buf1_rd_valid       = 1'b0;
+      assign prefix_buf1_rd_data        = '0;
+      assign prefix_pre_rd_req          = 1'b0;
+      assign prefix_pre_rd_addr         = '0;
+      assign prefix_pre_busy            = 1'b0;
+      assign prefix_pre_done            = 1'b0;
+      assign prefix_pre_result_bank_sel = 1'b0;
+      assign prefix_pre_selected_k      = 8'd0;
+      assign prefix_pre_bits            = 32'd0;
+      assign prefix_pre_cycles          = 32'd0;
+      assign prefix_pre_unsupported     = 1'b0;
+    end
+  endgenerate
 
-  mrtc_k_policy_engine #(
-    .MRTC_K_POLICY_ARCH(MRTC_K_POLICY_ARCH),
-    .PREFIX_DURING_CAPTURE(PREFIX_DURING_CAPTURE),
-    .PREFIX_STREAM_LENGTH_BY_TLAST(PREFIX_STREAM_LENGTH_BY_TLAST),
-    .PREFIX_SAMPLES    (PREFIX_SAMPLES),
-    .BLOCK_SAMPLES     (MRTC_BLOCK_SAMPLES),
-    .RAW_BYTES         (MRTC_RAW_BYTES),
-    .HEADER_BYTES      (MRTC_HEADER_BYTES),
-    .ADDR_W            (10)
-  ) u_k_policy_engine (
-    .clk               (clk),
-    .rst_n             (rst_n),
-    .i_start           (ksel_start),
-    .i_codec_mode      (proc_codec_mode),
-    .i_rice_mode       (proc_rice_mode),
-    .i_fixed_k         (proc_fixed_k),
-    .i_prefix_precomputed_valid(proc_prefix_precomputed_valid),
-    .i_prefix_precomputed_k(proc_prefix_precomputed_k),
-    .i_prefix_precomputed_bits(proc_prefix_precomputed_bits),
-    .i_prefix_precomputed_cycles(proc_prefix_precomputed_cycles),
-    .i_prefix_precomputed_unsupported(proc_prefix_precomputed_unsupported),
-    .o_rd_req          (ksel_rd_req),
-    .o_rd_addr         (ksel_rd_addr),
-    .i_rd_valid        (ksel_rd_valid),
-    .i_rd_data         (ksel_rd_data),
-    .o_busy            (ksel_busy),
-    .o_done            (ksel_done),
-    .o_selected_k      (ksel_selected_k),
-    .o_payload_bits    (ksel_payload_bits),
-    .o_payload_bytes   (ksel_payload_bytes),
-    .o_use_raw         (ksel_use_raw),
-    .o_unsupported_rice(ksel_unsupported_rice),
-    .o_prefix_fast_active(ksel_prefix_fast_active),
-    .o_prefix_bits     (ksel_prefix_bits),
-    .o_prefix_cycles   (ksel_prefix_cycles),
-    .o_size_count_cycles(ksel_size_count_cycles),
-    .o_total_policy_cycles(ksel_total_policy_cycles)
-  );
+  generate
+    if (PREFIX_STREAM_ACCUM_ENABLED) begin : g_prefix_stream_accum
+      mrtc_prefix_k_accum_stream #(
+        .PHASES_PER_BEAT       (MRTC_LANES),
+        .LANES                 (MRTC_LANES),
+        .AXIS_DATA_W           (AXIS_DATA_W),
+        .PREFIX_COMPLEX_SAMPLES(PREFIX_SAMPLES),
+        .PREFIX_SAMPLES        (PREFIX_SAMPLES),
+        .BLOCK_COMPLEX_SAMPLES (MRTC_BLOCK_SAMPLES),
+        .TRACK_FULL_BLOCK      (1'b1)
+      ) u_prefix_k_accum_stream (
+        .clk                (clk),
+        .rst_n              (rst_n),
+        .i_abort            (prefix_stream_abort),
+        .i_start            (prefix_stream_start),
+        .i_codec_mode       ({6'd0, s_axis_raw_tuser[2:1]}),
+        .i_word_valid       (prefix_stream_word_valid),
+        .i_word_data        (bank_wr_word_data),
+        .o_ready            (prefix_stream_ready),
+        .o_busy             (prefix_stream_busy),
+        .o_done             (prefix_stream_done),
+        .o_selected_k       (prefix_stream_selected_k),
+        .o_prefix_bits      (prefix_stream_bits),
+        .o_unsupported_codec(prefix_stream_unsupported),
+        .o_full_done        (prefix_stream_full_done),
+        .o_full_payload_bits(prefix_stream_full_bits)
+      );
+    end else begin : g_no_prefix_stream_accum
+      assign prefix_stream_ready       = 1'b0;
+      assign prefix_stream_busy        = 1'b0;
+      assign prefix_stream_done        = 1'b0;
+      assign prefix_stream_selected_k  = 8'd0;
+      assign prefix_stream_bits        = 32'd0;
+      assign prefix_stream_unsupported = 1'b0;
+      assign prefix_stream_full_done   = 1'b0;
+      assign prefix_stream_full_bits   = 32'd0;
+    end
+  endgenerate
+
+  // The streaming accumulator already supplies prefix-k and exact full-block
+  // cost; retaining the legacy scan would duplicate arithmetic and SRAM reads.
+  generate
+    if (SINGLE_FULL_BLOCK_BANK && STREAMING_PREFIX_K) begin : g_streaming_prefix_policy
+      logic [31:0] exact_payload_bytes;
+      logic [31:0] selected_payload_bits;
+      logic [31:0] selected_payload_bytes;
+      logic        selected_use_raw;
+      logic        selected_unsupported;
+      logic        selected_codec_supported;
+      logic        selected_prefix_valid;
+
+      assign exact_payload_bytes = (proc_prefix_exact_bits + 32'd7) >> 3;
+      assign selected_codec_supported =
+        (proc_codec_mode == MRTC_CODEC_ZERO_RICE) ||
+        (proc_codec_mode == MRTC_CODEC_DELTA_RICE);
+      assign selected_prefix_valid = proc_prefix_precomputed_valid &&
+                                     proc_prefix_exact_valid &&
+                                     !proc_prefix_precomputed_unsupported;
+      assign selected_use_raw =
+        (proc_codec_mode == MRTC_CODEC_RAW) ||
+        !selected_codec_supported ||
+        !selected_prefix_valid ||
+        ((MRTC_HEADER_BYTES + exact_payload_bytes) >= MRTC_RAW_BYTES);
+      assign selected_unsupported =
+        (proc_codec_mode != MRTC_CODEC_RAW) &&
+        (!selected_codec_supported || !selected_prefix_valid);
+      assign selected_payload_bits = selected_use_raw ?
+        32'(MRTC_RAW_BYTES * 8) : proc_prefix_exact_bits;
+      assign selected_payload_bytes = selected_use_raw ?
+        32'(MRTC_RAW_BYTES) : exact_payload_bytes;
+
+      assign ksel_rd_req              = 1'b0;
+      assign ksel_rd_addr             = '0;
+      assign ksel_busy                = ksel_done;
+      assign ksel_prefix_fast_active  = selected_codec_supported;
+      assign ksel_size_count_cycles   = 32'd0;
+      assign ksel_total_policy_cycles = proc_prefix_precomputed_cycles;
+
+      always_ff @(posedge clk or negedge rst_n) begin
+        if (!rst_n) begin
+          ksel_done             <= 1'b0;
+          ksel_selected_k       <= 8'd0;
+          ksel_payload_bits     <= 32'd0;
+          ksel_payload_bytes    <= 32'd0;
+          ksel_use_raw          <= 1'b0;
+          ksel_unsupported_rice <= 1'b0;
+          ksel_prefix_bits      <= 32'd0;
+          ksel_prefix_cycles    <= 32'd0;
+        end else begin
+          ksel_done <= 1'b0;
+          if (ksel_start) begin
+            ksel_done             <= 1'b1;
+            ksel_selected_k       <= selected_codec_supported ?
+                                      proc_prefix_precomputed_k : {4'd0, proc_fixed_k};
+            ksel_payload_bits     <= selected_payload_bits;
+            ksel_payload_bytes    <= selected_payload_bytes;
+            ksel_use_raw          <= selected_use_raw;
+            ksel_unsupported_rice <= selected_unsupported;
+            ksel_prefix_bits      <= selected_codec_supported ?
+                                      proc_prefix_precomputed_bits : 32'd0;
+            ksel_prefix_cycles    <= selected_codec_supported ?
+                                      proc_prefix_precomputed_cycles : 32'd0;
+          end
+        end
+      end
+    end else begin : g_legacy_k_policy
+      mrtc_k_policy_engine #(
+        .MRTC_K_POLICY_ARCH(MRTC_K_POLICY_ARCH),
+        .PREFIX_DURING_CAPTURE(PREFIX_DURING_CAPTURE),
+        .PREFIX_STREAM_LENGTH_BY_TLAST(PREFIX_STREAM_LENGTH_BY_TLAST),
+        .PREFIX_SAMPLES    (PREFIX_SAMPLES),
+        .BLOCK_SAMPLES     (MRTC_BLOCK_SAMPLES),
+        .RAW_BYTES         (MRTC_RAW_BYTES),
+        .HEADER_BYTES      (MRTC_HEADER_BYTES),
+        .ADDR_W            (10)
+      ) u_k_policy_engine (
+        .clk               (clk),
+        .rst_n             (rst_n),
+        .i_start           (ksel_start),
+        .i_codec_mode      (proc_codec_mode),
+        .i_rice_mode       (proc_rice_mode),
+        .i_fixed_k         (proc_fixed_k),
+        .i_prefix_precomputed_valid(proc_prefix_precomputed_valid),
+        .i_prefix_precomputed_k(proc_prefix_precomputed_k),
+        .i_prefix_precomputed_bits(proc_prefix_precomputed_bits),
+        .i_prefix_precomputed_cycles(proc_prefix_precomputed_cycles),
+        .i_prefix_precomputed_unsupported(proc_prefix_precomputed_unsupported),
+        .i_prefix_precomputed_exact_valid(proc_prefix_exact_valid),
+        .i_prefix_precomputed_exact_bits(proc_prefix_exact_bits),
+        .o_rd_req          (ksel_rd_req),
+        .o_rd_addr         (ksel_rd_addr),
+        .i_rd_valid        (ksel_rd_valid),
+        .i_rd_data         (ksel_rd_data),
+        .o_busy            (ksel_busy),
+        .o_done            (ksel_done),
+        .o_selected_k      (ksel_selected_k),
+        .o_payload_bits    (ksel_payload_bits),
+        .o_payload_bytes   (ksel_payload_bytes),
+        .o_use_raw         (ksel_use_raw),
+        .o_unsupported_rice(ksel_unsupported_rice),
+        .o_prefix_fast_active(ksel_prefix_fast_active),
+        .o_prefix_bits     (ksel_prefix_bits),
+        .o_prefix_cycles   (ksel_prefix_cycles),
+        .o_size_count_cycles(ksel_size_count_cycles),
+        .o_total_policy_cycles(ksel_total_policy_cycles)
+      );
+    end
+  endgenerate
 
   generate
     if (MRTC_BPACK_ARCH == MRTC_BPACK_ARCH_LANE_WORD) begin : g_lane_word_bpack
@@ -628,8 +819,9 @@ module mrtc_rdtc_encoder_top #(
         .AXIS_DATA_W      (AXIS_DATA_W),
         .LANES            (MRTC_LANES),
         .BLOCK_SAMPLES    (MRTC_BLOCK_SAMPLES),
-        .ADDR_W           (10),
-        .PACKER_LANE_MODE (PACKER_LANE_MODE)
+        .ADDR_W           (BLOCK_WORD_ADDR_W),
+        .PACKER_LANE_MODE (PACKER_LANE_MODE),
+        .ELASTIC_WORD_ISSUE(ELASTIC_WORD_ISSUE)
       ) u_rice_bitpacker_lane_axis (
         .clk                       (clk),
         .rst_n                     (rst_n),
@@ -744,7 +936,7 @@ module mrtc_rdtc_encoder_top #(
     .i_block_spatial_len   (8'(MRTC_BLOCK_SPATIAL_LEN)),
     .i_block_doppler_len   (8'(MRTC_BLOCK_DOPPLER_LEN)),
     .i_block_range_len     (16'(MRTC_BLOCK_RANGE_LEN)),
-    .i_sample_format       (8'(MRTC_SAMPLE_I16Q16)),
+    .i_sample_format       (MRTC_SAMPLE_I16Q16),
     .i_codec_mode          (use_raw_pre_reg ? MRTC_CODEC_RAW : proc_codec_mode),
     .i_predictor_mode      (proc_codec_mode),
     .i_rice_k              (selected_k_reg),
@@ -804,8 +996,18 @@ module mrtc_rdtc_encoder_top #(
     raw_bank_rd_valid          = 1'b0;
     raw_bank_rd_word_data      = bank_rd_word_data;
     internal_state_error_pulse = 1'b0;
+    bank_request_owner_now     = BANK_OWNER_NONE;
+    bank_request_sample_client_now = SAMPLE_CLIENT_NONE;
 
     if (bank_wr_en && proc_active_valid && (fill_bank_sel == proc_active_bank_sel)) begin
+      internal_state_error_pulse = 1'b1;
+    end
+    if (SINGLE_FULL_BLOCK_BANK &&
+        (fill_bank_sel || proc_ready_bank_sel || proc_active_bank_sel || bank1_rd_valid)) begin
+      internal_state_error_pulse = 1'b1;
+    end
+    if (prefix_stream_word_valid && (fill_word_addr != BLOCK_WORD_ADDR_W'(0)) &&
+        !prefix_stream_ready) begin
       internal_state_error_pulse = 1'b1;
     end
 
@@ -826,21 +1028,51 @@ module mrtc_rdtc_encoder_top #(
         (sample_bank_rd_req && lane_bpack_word_rd_req) ||
         (raw_bank_rd_req && lane_bpack_word_rd_req)) begin
       internal_state_error_pulse = 1'b1;
-    end else if ((bank_owner_reg == BANK_OWNER_NONE) || bank_owner_accept_same_owner_now) begin
-      if (!proc_active_valid && (sample_bank_rd_req || raw_bank_rd_req || lane_bpack_word_rd_req)) begin
-        internal_state_error_pulse = 1'b1;
-      end else if (sample_bank_rd_req) begin
-        bank_rd_req       = 1'b1;
-        bank_rd_word_addr = sample_bank_rd_word_addr;
+    end else begin
+      if (sample_bank_rd_req) begin
+        bank_request_owner_now = BANK_OWNER_SAMPLE;
+        if (ksel_rd_req) begin
+          bank_request_sample_client_now = SAMPLE_CLIENT_KSEL;
+        end else if (legacy_bpack_rd_req) begin
+          bank_request_sample_client_now = SAMPLE_CLIENT_BPACK;
+        end else begin
+          internal_state_error_pulse = 1'b1;
+        end
       end else if (raw_bank_rd_req) begin
-        bank_rd_req       = 1'b1;
-        bank_rd_word_addr = raw_bank_rd_word_addr;
+        bank_request_owner_now = BANK_OWNER_RAW;
       end else if (lane_bpack_word_rd_req) begin
-        bank_rd_req       = 1'b1;
-        bank_rd_word_addr = lane_bpack_word_rd_addr;
+        bank_request_owner_now = BANK_OWNER_BPACK_WORD;
       end
-    end else if (sample_bank_rd_req || raw_bank_rd_req || lane_bpack_word_rd_req) begin
-      internal_state_error_pulse = 1'b1;
+
+      if (!proc_active_valid && (bank_request_owner_now != BANK_OWNER_NONE)) begin
+        internal_state_error_pulse = 1'b1;
+      end else if ((bank_owner_reg != BANK_OWNER_NONE) &&
+                   (bank_request_owner_now != BANK_OWNER_NONE) &&
+                   (bank_owner_reg != bank_request_owner_now)) begin
+        internal_state_error_pulse = 1'b1;
+      end else if ((bank_request_owner_now == BANK_OWNER_SAMPLE) &&
+                   (bank_reads_outstanding_reg != '0)) begin
+        // The sample adapter stores one lane tag, so it remains
+        // single-outstanding while RAW and lane-word reads pipeline.
+        internal_state_error_pulse = 1'b1;
+      end else if (!internal_state_error_pulse) begin
+        case (bank_request_owner_now)
+          BANK_OWNER_SAMPLE: begin
+            bank_rd_req       = 1'b1;
+            bank_rd_word_addr = sample_bank_rd_word_addr;
+          end
+          BANK_OWNER_RAW: begin
+            bank_rd_req       = 1'b1;
+            bank_rd_word_addr = raw_bank_rd_word_addr;
+          end
+          BANK_OWNER_BPACK_WORD: begin
+            bank_rd_req       = 1'b1;
+            bank_rd_word_addr = lane_bpack_word_rd_addr;
+          end
+          default: begin
+          end
+        endcase
+      end
     end
 
     if (bank0_rd_valid && bank1_rd_valid) begin
@@ -852,7 +1084,9 @@ module mrtc_rdtc_encoder_top #(
     end
 
     if (bank_rd_valid) begin
-      if (bank_owner_reg == BANK_OWNER_SAMPLE) begin
+      if (bank_reads_outstanding_reg == '0) begin
+        internal_state_error_pulse = 1'b1;
+      end else if (bank_owner_reg == BANK_OWNER_SAMPLE) begin
         sample_bank_rd_valid = 1'b1;
       end else if (bank_owner_reg == BANK_OWNER_RAW) begin
         raw_bank_rd_valid = 1'b1;
@@ -864,6 +1098,17 @@ module mrtc_rdtc_encoder_top #(
     end
 
     if (sample_rd_valid && (sample_client_reg == SAMPLE_CLIENT_NONE)) begin
+      internal_state_error_pulse = 1'b1;
+    end
+
+    if (bank_rd_req && !bank_rd_valid &&
+        (bank_reads_outstanding_reg == BANK_READ_OUTSTANDING_W'(BLOCK_WORDS))) begin
+      internal_state_error_pulse = 1'b1;
+    end
+
+    if (((bank_reads_outstanding_reg == '0) && (bank_owner_reg != BANK_OWNER_NONE)) ||
+        ((bank_reads_outstanding_reg != '0) && (bank_owner_reg == BANK_OWNER_NONE)) ||
+        (proc_done_pulse && (bank_reads_outstanding_reg != '0))) begin
       internal_state_error_pulse = 1'b1;
     end
   end
@@ -913,6 +1158,7 @@ module mrtc_rdtc_encoder_top #(
       state_reg                <= ST_CAPTURE;
       bank_owner_reg           <= BANK_OWNER_NONE;
       sample_client_reg        <= SAMPLE_CLIENT_NONE;
+      bank_reads_outstanding_reg <= '0;
       payload_bits_post        <= 32'd0;
       payload_bytes_post       <= 32'd0;
       selected_k_reg           <= 8'd0;
@@ -943,32 +1189,36 @@ module mrtc_rdtc_encoder_top #(
         prefix_bits_reg_bank[bank_idx] <= 32'd0;
         prefix_cycles_reg_bank[bank_idx] <= 32'd0;
         prefix_unsupported_reg_bank[bank_idx] <= 1'b0;
+        prefix_exact_valid_reg_bank[bank_idx] <= 1'b0;
+        prefix_exact_bits_reg_bank[bank_idx] <= 32'd0;
       end
     end else begin
       stat_done <= 1'b0;
 
-      if (bank_rd_valid) begin
-        if (!bank_owner_accept_same_owner_now) begin
-          bank_owner_reg <= BANK_OWNER_NONE;
+      case ({bank_rd_req, bank_rd_valid})
+        2'b10: begin
+          if (bank_reads_outstanding_reg != BANK_READ_OUTSTANDING_W'(BLOCK_WORDS)) begin
+            bank_reads_outstanding_reg <=
+              bank_reads_outstanding_reg + BANK_READ_OUTSTANDING_W'(1);
+          end
         end
-      end
-      if (sample_rd_valid) begin
+        2'b01: begin
+          if (bank_reads_outstanding_reg != '0) begin
+            bank_reads_outstanding_reg <=
+              bank_reads_outstanding_reg - BANK_READ_OUTSTANDING_W'(1);
+          end
+        end
+        default: begin
+        end
+      endcase
+
+      if (bank_rd_req && (bank_owner_reg == BANK_OWNER_NONE)) begin
+        bank_owner_reg    <= bank_request_owner_now;
+        sample_client_reg <= bank_request_sample_client_now;
+      end else if (bank_rd_valid && !bank_rd_req &&
+                   (bank_reads_outstanding_reg == BANK_READ_OUTSTANDING_W'(1))) begin
+        bank_owner_reg    <= BANK_OWNER_NONE;
         sample_client_reg <= SAMPLE_CLIENT_NONE;
-      end
-      if ((bank_owner_reg == BANK_OWNER_NONE) &&
-          sample_bank_rd_req && !raw_bank_rd_req && !lane_bpack_word_rd_req) begin
-        bank_owner_reg <= BANK_OWNER_SAMPLE;
-        if (ksel_rd_req) begin
-          sample_client_reg <= SAMPLE_CLIENT_KSEL;
-        end else if (legacy_bpack_rd_req) begin
-          sample_client_reg <= SAMPLE_CLIENT_BPACK;
-        end
-      end else if ((bank_owner_reg == BANK_OWNER_NONE) &&
-                   raw_bank_rd_req && !sample_bank_rd_req && !lane_bpack_word_rd_req) begin
-        bank_owner_reg <= BANK_OWNER_RAW;
-      end else if ((bank_owner_reg == BANK_OWNER_NONE) &&
-                   lane_bpack_word_rd_req && !sample_bank_rd_req && !raw_bank_rd_req) begin
-        bank_owner_reg <= BANK_OWNER_BPACK_WORD;
       end
 
       if (i_clear_status) begin
@@ -1023,6 +1273,8 @@ module mrtc_rdtc_encoder_top #(
           prefix_bits_reg_bank[0] <= 32'd0;
           prefix_cycles_reg_bank[0] <= 32'd0;
           prefix_unsupported_reg_bank[0] <= 1'b0;
+          prefix_exact_valid_reg_bank[0] <= 1'b0;
+          prefix_exact_bits_reg_bank[0] <= 32'd0;
         end else begin
           prefix_buf_bank1_ready_reg <= 1'b0;
           prefix_codec_mode_reg_bank[1] <= {6'd0, s_axis_raw_tuser[2:1]};
@@ -1031,6 +1283,8 @@ module mrtc_rdtc_encoder_top #(
           prefix_bits_reg_bank[1] <= 32'd0;
           prefix_cycles_reg_bank[1] <= 32'd0;
           prefix_unsupported_reg_bank[1] <= 1'b0;
+          prefix_exact_valid_reg_bank[1] <= 1'b0;
+          prefix_exact_bits_reg_bank[1] <= 32'd0;
         end
       end
 
@@ -1049,12 +1303,37 @@ module mrtc_rdtc_encoder_top #(
         prefix_unsupported_reg_bank[prefix_pre_result_bank_sel] <= prefix_pre_unsupported;
       end
 
+      if (prefix_stream_done) begin
+        prefix_selected_k_reg_bank[0] <= prefix_stream_selected_k;
+        prefix_bits_reg_bank[0] <= prefix_stream_bits;
+        prefix_cycles_reg_bank[0] <= 32'(PREFIX_WORDS + 8);
+        prefix_unsupported_reg_bank[0] <= prefix_stream_unsupported;
+      end
+
+      if (prefix_stream_full_done) begin
+        prefix_result_valid_reg[0] <= 1'b1;
+        prefix_exact_valid_reg_bank[0] <= 1'b1;
+        prefix_exact_bits_reg_bank[0] <= prefix_stream_full_bits;
+      end
+
+      if (prefix_stream_abort) begin
+        prefix_result_valid_reg[0] <= 1'b0;
+        prefix_selected_k_reg_bank[0] <= 8'd0;
+        prefix_bits_reg_bank[0] <= 32'd0;
+        prefix_cycles_reg_bank[0] <= 32'd0;
+        prefix_unsupported_reg_bank[0] <= 1'b0;
+        prefix_exact_valid_reg_bank[0] <= 1'b0;
+        prefix_exact_bits_reg_bank[0] <= 32'd0;
+      end
+
       if (proc_done_pulse && proc_active_valid) begin
         prefix_result_valid_reg[proc_active_bank_sel] <= 1'b0;
         prefix_selected_k_reg_bank[proc_active_bank_sel] <= 8'd0;
         prefix_bits_reg_bank[proc_active_bank_sel] <= 32'd0;
         prefix_cycles_reg_bank[proc_active_bank_sel] <= 32'd0;
         prefix_unsupported_reg_bank[proc_active_bank_sel] <= 1'b0;
+        prefix_exact_valid_reg_bank[proc_active_bank_sel] <= 1'b0;
+        prefix_exact_bits_reg_bank[proc_active_bank_sel] <= 32'd0;
         if (!proc_active_bank_sel) begin
           prefix_buf_bank0_ready_reg <= 1'b0;
         end else begin

@@ -143,6 +143,11 @@ package mrtc_pkg;
   localparam logic [31:0] MRTC_ERR_RAW_BYTES_MISMATCH        = 32'd17;
   localparam logic [31:0] MRTC_ERR_BAD_BLOCK_SHAPE           = 32'd18;
   localparam logic [31:0] MRTC_ERR_INTERNAL_STATE            = 32'd19;
+  localparam logic [31:0] MRTC_ERR_BOUNDED_RICE_WORD         = 32'd20;
+  localparam logic [31:0] MRTC_ERR_SRAM_WAY_CONFLICT         = 32'd21;
+  localparam logic [31:0] MRTC_ERR_BITPACK_II1               = 32'd22;
+  localparam logic [31:0] MRTC_ERR_RING_OVERFLOW             = 32'd23;
+  localparam logic [31:0] MRTC_ERR_OUTPUT_CREDIT             = 32'd24;
 
   localparam logic [31:0] MRTC_ERR_UNSUPPORTED_SAMPLE        = MRTC_ERR_UNSUPPORTED_SAMPLE_FORMAT;
 
