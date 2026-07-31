@@ -95,9 +95,12 @@ Nangate45 DB identity, and synthesis script for the buffered and Direct tops.
 Both 315 MHz points must close before an area percentage is published. The 630
 MHz points are stress runs: their true slack is retained, and one stress failure
 does not prevent execution of the other architecture. `bounded-dc-ab-validate`
-checks the public contract without invoking Design Compiler; `run` requires a
-hash-matching local DB and ignored DC setup, while `collect` rebuilds only the
-sanitized summary from existing ignored reports.
+checks the public contract without invoking Design Compiler. The current `run`
+requires only the hash-matching local DB; its A/B children use `-no_init`, bind
+that DB directly, and do not execute `RDTC_DC_SETUP`. The published
+`as_run_flow_commit=db2660c` evidence predates this hardening and used that
+revision's local setup before verifying the selected target DB hash. `collect`
+rebuilds only the sanitized summary from existing ignored reports.
 
 ## Stage Entry Points
 
