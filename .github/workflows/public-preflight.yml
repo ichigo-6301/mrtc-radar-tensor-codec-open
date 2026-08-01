@@ -34,6 +34,8 @@ jobs:
         run: python provenance/generate_checksums.py --ref HEAD --check
       - name: Check bounded Direct-AXIS RTL evidence identity
         run: python flows/scripts/bounded_direct_rtl_identity.py --check
+      - name: Check historical Bitpacker pipeline A/B evidence
+        run: python flows/scripts/validate_bitpacker_pipeline_ab.py
       - name: Run current main unit tests
         shell: bash
         run: |
@@ -86,6 +88,7 @@ jobs:
       - run: make fpga-wrapper-smoke
       - run: make bounded-direct-rtl-smoke
       - run: make bounded-direct-rtl-identity-check
+      - run: make bitpacker-pipeline-ab-validate
       - run: make showcase-assets-check
       - run: python -m unittest discover -s flows/scripts -p 'test_*.py' -v
       - run: python -m unittest discover -s scripts/vivado -p 'test_*.py' -v

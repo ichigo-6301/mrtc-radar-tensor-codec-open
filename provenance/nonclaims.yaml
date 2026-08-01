@@ -55,3 +55,9 @@ nonclaims:
     reason: "The paired result expands both architectures into standard cells and stops after Design Compiler under a common synchronous-boundary SDC."
     status: not_claimed
     public: true
+  - id: rdtc_v1_bitpacker_ab_no_system_speedup
+    profile: rdtc_v1_historical_lane4_bitpacker
+    statement: "The historical 10.6699x Bitpacker result is not a whole-block, Multi-Engine, Direct-AXIS sustained-throughput, FPGA-performance, ASIC-frequency, or Fmax claim."
+    reason: "It measures only the inclusive interval from first payload valid to accepted packet TLAST on one fixed smoke_zero_sparse RTL workload."
+    status: not_claimed
+    public: true

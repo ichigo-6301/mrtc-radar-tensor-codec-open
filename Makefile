@@ -8,6 +8,7 @@ KCONFIG_MCONF ?= mconf
 FLOWCTL := $(PYTHON) flows/scripts/flowctl.py --root "$(ROOT)" --config "$(CONFIG)"
 PROFILE_VALIDATOR := $(PYTHON) flows/scripts/validate_profile.py --root "$(ROOT)" --config "$(CONFIG)"
 DIRECT_RTL_IDENTITY := $(PYTHON) flows/scripts/bounded_direct_rtl_identity.py --root "$(ROOT)"
+BITPACKER_AB_VALIDATOR := $(PYTHON) flows/scripts/validate_bitpacker_pipeline_ab.py --root "$(ROOT)"
 CHECKSUM_GENERATOR := $(PYTHON) provenance/generate_checksums.py --root "$(ROOT)"
 RELEASE_VERIFIER := $(PYTHON) provenance/verify_release.py --root "$(ROOT)"
 SHOWCASE_SMOKE = $(PYTHON) flows/scripts/iverilog_run.py --root "$(ROOT)" \
@@ -173,7 +174,7 @@ endif
         icc2-libs icc2-libs-dry-run \
         rtl-smoke integration-smoke codec-demo multiengine-smoke fpga-wrapper-smoke showcase-assets-check verify-current-checksums sim sim-dry-run sim-full selected selected-dry-run \
         bounded-direct-register-modelsim-regression bounded-direct-modelsim-regression bounded-direct-modelsim-regression-dry-run \
-        bounded-dc-ab-validate bounded-dc-ab-run bounded-dc-ab-collect \
+        bounded-dc-ab-validate bounded-dc-ab-run bounded-dc-ab-collect bitpacker-pipeline-ab-validate \
         bounded-direct-rtl-smoke bounded-direct-rtl-identity-check bounded-direct-vivado-route200 bounded-direct-vivado-route200-check \
         lint lint-dry-run cdc cdc-dry-run \
         dc-baseline dc-baseline-dry-run dc-gated dc-gated-dry-run \
@@ -222,6 +223,7 @@ help:
 	  '  make bounded-dc-ab-validate      Audit the paired buffered/Direct DC inputs' \
 	  '  make bounded-dc-ab-run           Run the four serial register-expanded DC points' \
 	  '  make bounded-dc-ab-collect       Re-audit completed local DC reports' \
+	  '  make bitpacker-pipeline-ab-validate  Verify the historical fixed-workload Bitpacker A/B evidence' \
 	  '  make bounded-direct-rtl-smoke  Elaborate the Direct-AXIS top with Icarus' \
 	  '  make bounded-direct-rtl-identity-check  Verify Direct RTL against fixed evidence' \
 	  '  make bounded-direct-vivado-route200  Run the 200 MHz Vivado OOC post-route gate' \
@@ -340,6 +342,7 @@ public-preflight:
 	@$(MAKE) fpga-wrapper-smoke
 	@$(MAKE) bounded-direct-rtl-smoke
 	@$(MAKE) bounded-direct-rtl-identity-check
+	@$(MAKE) bitpacker-pipeline-ab-validate
 	@$(MAKE) showcase-assets-check
 	@$(PROFILE_VALIDATOR)
 	@$(CHECKSUM_GENERATOR) --ref HEAD --check
@@ -479,6 +482,9 @@ bounded-dc-ab-collect:
 	  --orchestration-root "$(RDTC_DC_AB_ROOT)" \
 	  --output "$(RDTC_DC_AB_SUMMARY)" \
 	  --markdown-output "$(RDTC_DC_AB_MARKDOWN)"
+
+bitpacker-pipeline-ab-validate:
+	@$(BITPACKER_AB_VALIDATOR)
 
 bounded-direct-rtl-smoke:
 	@$(PYTHON) flows/scripts/rtl_smoke.py --root "$(ROOT)" \

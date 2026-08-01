@@ -201,3 +201,15 @@ evidence:
     maturity: verified
     evidence_result_status: verified
     comparison_scope: register_expanded_dc_only
+  - id: rdtc_v1_bitpacker_pipeline_ab_public
+    path: evidence/rdtc_v1_bitpacker_pipeline_ab.yaml
+    type: historical_fixed_workload_rtl_pipeline_ab
+    source_ref: 2c1d9a75d2742659b604dd3f9c754096e196d132
+    source_visibility: private_fixed_commits
+    public_evidence_scope: curated two-point CSV, fixed identities, metric derivation, and fresh ModelSim replay hashes
+    tool: ModelSim SE-64 2020.4
+    claims:
+      - rdtc_v1_bitpacker_pipeline_cycle_speedup
+    sha256: 091856b1ab14d7570f8ceeefa23c0910e8ed0683ef2a07c570aa64c3e94b50d8
+    public: true
+    maturity: verified

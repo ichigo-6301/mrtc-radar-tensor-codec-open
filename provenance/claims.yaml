@@ -271,3 +271,18 @@ claims:
     status: verified
     caveat: "Register-expanded DC-only architecture comparison; not SRAM-macro area, post-route area, power, Fmax, or foundry signoff."
     public: true
+  - id: rdtc_v1_bitpacker_pipeline_cycle_speedup
+    profile: rdtc_v1_historical_lane4_bitpacker
+    statement: "On one fixed smoke_zero_sparse RTL workload, the integrated four-lane word Bitpacker reduced the inclusive payload stream interval from 7693 to 721 cycles, a 10.6699029x speedup."
+    metric: payload_stream_cycle_speedup
+    value: 10.669902912621358
+    unit: x
+    benchmark: fixed smoke_zero_sparse historical RTL workload
+    configuration: "Stage16C3 prefix-during-capture baseline versus Stage16D2 integrated lane4 Bitpacker, identical vector and latency monitor, no input or output stalls"
+    source_ref: 2c1d9a75d2742659b604dd3f9c754096e196d132
+    tool: ModelSim SE-64 2020.4
+    evidence:
+      - rdtc_v1_bitpacker_pipeline_ab_public
+    status: verified
+    caveat: "The metric is the inclusive first-payload-valid to accepted-TLAST interval for one historical fixed RTL workload; it is not whole-block latency, Multi-Engine throughput, current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax."
+    public: true
