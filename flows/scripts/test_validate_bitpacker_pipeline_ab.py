@@ -70,7 +70,7 @@ class BitpackerPipelineAbEvidenceTest(unittest.TestCase):
         claim = next(item for item in data["claims"] if item["id"] == VALIDATOR.CLAIM_ID)
         claim["evidence"] = []
         path.write_text(yaml.safe_dump(data), encoding="utf-8")
-        with self.assertRaisesRegex(RuntimeError, "claim evidence link mismatch"):
+        with self.assertRaisesRegex(RuntimeError, "claim evidence mismatch"):
             VALIDATOR.validate(self.root)
 
     def test_yaml_point_mutation_fails_after_registration_rehash(self):
@@ -88,7 +88,61 @@ class BitpackerPipelineAbEvidenceTest(unittest.TestCase):
         data["fresh_replay"]["optimized"]["commands"].pop()
         path.write_text(yaml.safe_dump(data), encoding="utf-8")
         self.rewrite_evidence_registration_hash()
-        with self.assertRaisesRegex(RuntimeError, "fresh replay optimized mismatch"):
+        with self.assertRaisesRegex(RuntimeError, "fresh replay optimized commands mismatch"):
+            VALIDATOR.validate(self.root)
+
+    def test_workload_identity_mutation_fails_after_registration_rehash(self):
+        path = self.root / VALIDATOR.EVIDENCE_PATH
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        data["workload"]["name"] = "different_workload"
+        path.write_text(yaml.safe_dump(data), encoding="utf-8")
+        self.rewrite_evidence_registration_hash()
+        with self.assertRaisesRegex(RuntimeError, "workload name mismatch"):
+            VALIDATOR.validate(self.root)
+
+    def test_equivalence_mutation_fails_after_registration_rehash(self):
+        path = self.root / VALIDATOR.EVIDENCE_PATH
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        data["equivalence"]["packet_byte_exact"] = False
+        path.write_text(yaml.safe_dump(data), encoding="utf-8")
+        self.rewrite_evidence_registration_hash()
+        with self.assertRaisesRegex(RuntimeError, "equivalence packet_byte_exact mismatch"):
+            VALIDATOR.validate(self.root)
+
+    def test_fractional_cycle_reduction_fails_after_registration_rehash(self):
+        path = self.root / VALIDATOR.EVIDENCE_PATH
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        data["derivation"]["cycle_reduction"] = 6972.5
+        path.write_text(yaml.safe_dump(data), encoding="utf-8")
+        self.rewrite_evidence_registration_hash()
+        with self.assertRaisesRegex(RuntimeError, "cycle reduction must be an integer"):
+            VALIDATOR.validate(self.root)
+
+    def test_claim_metadata_mutation_fails(self):
+        path = self.root / "provenance/claims.yaml"
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        claim = next(item for item in data["claims"] if item["id"] == VALIDATOR.CLAIM_ID)
+        claim["unit"] = "cycles_per_block"
+        path.write_text(yaml.safe_dump(data), encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeError, "claim unit mismatch"):
+            VALIDATOR.validate(self.root)
+
+    def test_registration_metadata_mutation_fails(self):
+        path = self.root / "provenance/evidence.yaml"
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        registration = next(item for item in data["evidence"] if item["id"] == VALIDATOR.EVIDENCE_ID)
+        registration["maturity"] = "partial"
+        path.write_text(yaml.safe_dump(data), encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeError, "evidence registration maturity mismatch"):
+            VALIDATOR.validate(self.root)
+
+    def test_evidence_scope_mutation_fails_after_registration_rehash(self):
+        path = self.root / VALIDATOR.EVIDENCE_PATH
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        data["metric_definition"]["packet_last_event"] = "unaccepted TLAST"
+        path.write_text(yaml.safe_dump(data), encoding="utf-8")
+        self.rewrite_evidence_registration_hash()
+        with self.assertRaisesRegex(RuntimeError, "metric definition packet_last_event mismatch"):
             VALIDATOR.validate(self.root)
 
 

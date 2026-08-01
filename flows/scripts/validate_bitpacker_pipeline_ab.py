@@ -41,6 +41,30 @@ EXPECTED_FILE_HASHES = {
     "vectors/rdtc_v1/smoke_zero_sparse/manifest.json": "1924010e24a27805b452039c62985b727b3356cc625f93539c115c3969b6c1cc",
     "vectors/rdtc_v1/smoke_zero_sparse/axis_comp_expected.hex": "99dbb08d3df40b67653d1f4cb8500fe44e8f93a0e2ddf23f901678bca04d2ef9",
 }
+EXPECTED_WORKLOAD = {
+    "name": "smoke_zero_sparse",
+    "input": "vectors/rdtc_v1/smoke_zero_sparse/axis_raw_in.hex",
+    "input_sha256": "db8e83367cd0219edd004d3f1ad4e35099afd5b906d6e26f4f976ca9affe4b46",
+    "manifest": "vectors/rdtc_v1/smoke_zero_sparse/manifest.json",
+    "manifest_sha256": "1924010e24a27805b452039c62985b727b3356cc625f93539c115c3969b6c1cc",
+    "expected_packet": "vectors/rdtc_v1/smoke_zero_sparse/axis_comp_expected.hex",
+    "expected_packet_sha256": "99dbb08d3df40b67653d1f4cb8500fe44e8f93a0e2ddf23f901678bca04d2ef9",
+    "monitor_path": "tb/sv/mrtc_encoder_latency_monitor.sv",
+    "baseline_monitor_git_blob": "f994a0b4f820b698bcc229d2cd6f4f0d06075f18",
+    "optimized_monitor_git_blob": "f994a0b4f820b698bcc229d2cd6f4f0d06075f18",
+}
+EXPECTED_EQUIVALENCE = {
+    "selected_k": 0,
+    "payload_bits": 2158,
+    "payload_bytes": 270,
+    "packet_bytes": 334,
+    "input_stall_cycles": 0,
+    "output_stall_cycles": 0,
+    "payload_byte_exact": True,
+    "packet_byte_exact": True,
+    "baseline_decoder_loopback": "pass",
+    "optimized_decoder_loopback": "pass",
+}
 EXPECTED_SOURCE_HASHES = {
     "baseline_latency": "974f6bd134e6a706e78746252a80239006f36609da8e74a130c640150e610d5c",
     "optimized_latency": "d78a04854ff297e679a7ed030edd23b90564efc8d6fc3c41b992da8dffd966e3",
@@ -106,6 +130,62 @@ EXPECTED_REPLAY = {
     },
     "result": "pass",
 }
+EXPECTED_CLAIM = {
+    "id": CLAIM_ID,
+    "profile": "rdtc_v1_historical_lane4_bitpacker",
+    "statement": "On one fixed smoke_zero_sparse RTL workload, the integrated four-lane word Bitpacker reduced the inclusive payload stream interval from 7693 to 721 cycles, a 10.6699029x speedup.",
+    "metric": "payload_stream_cycle_speedup",
+    "value": 10.669902912621358,
+    "unit": "x",
+    "benchmark": "fixed smoke_zero_sparse historical RTL workload",
+    "configuration": "Stage16C3 prefix-during-capture baseline versus Stage16D2 integrated lane4 Bitpacker, identical vector and latency monitor, no input or output stalls",
+    "source_ref": "2c1d9a75d2742659b604dd3f9c754096e196d132",
+    "tool": "ModelSim SE-64 2020.4",
+    "evidence": [EVIDENCE_ID],
+    "status": "verified",
+    "caveat": "The metric is the inclusive first-payload-valid to accepted-TLAST interval for one historical fixed RTL workload; it is not whole-block latency, Multi-Engine throughput, current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.",
+    "public": True,
+}
+EXPECTED_REGISTRATION = {
+    "id": EVIDENCE_ID,
+    "path": EVIDENCE_PATH,
+    "type": "historical_fixed_workload_rtl_pipeline_ab",
+    "source_ref": "2c1d9a75d2742659b604dd3f9c754096e196d132",
+    "source_visibility": "private_fixed_commits",
+    "public_evidence_scope": "curated two-point CSV, fixed identities, metric derivation, and fresh ModelSim replay hashes",
+    "tool": "ModelSim SE-64 2020.4",
+    "claims": [CLAIM_ID],
+    "public": True,
+    "maturity": "verified",
+}
+EXPECTED_METRIC_DEFINITION = {
+    "name": "payload_stream_cycles",
+    "formula": "packet_last_cycle - payload_first_valid_cycle + 1",
+    "interval": "inclusive",
+    "packet_last_event": "accepted packet TLAST",
+}
+EXPECTED_CAVEATS = [
+    "The 10.6699x value is the inclusive first-payload-valid to accepted-TLAST interval on one fixed historical RTL workload.",
+    "It is not whole-block latency, Multi-Engine throughput, Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.",
+    "Historical source commits and raw ModelSim logs remain private; this public record publishes curated values and immutable identities only.",
+]
+EXPECTED_EVIDENCE_FIELDS = {
+    "title",
+    "status",
+    "source_visibility",
+    "public_evidence_scope",
+    "curated_data",
+    "curated_data_sha256",
+    "tool",
+    "workload",
+    "metric_definition",
+    "points",
+    "equivalence",
+    "derivation",
+    "fresh_replay",
+    "result",
+    "caveats",
+}
 
 
 def sha256(path):
@@ -130,7 +210,12 @@ def require_exact_mapping(actual, expected, context):
     require(isinstance(actual, dict), context + " must be a mapping")
     require(set(actual) == set(expected), context + " fields mismatch")
     for field, value in expected.items():
-        require(actual.get(field) == value, context + " " + field + " mismatch")
+        actual_value = actual.get(field)
+        require(type(actual_value) is type(value), context + " " + field + " type mismatch")
+        if isinstance(value, dict):
+            require_exact_mapping(actual_value, value, context + " " + field)
+        else:
+            require(actual_value == value, context + " " + field + " mismatch")
 
 
 def validate(root):
@@ -139,22 +224,36 @@ def validate(root):
     csv_path = root / CSV_PATH
     evidence = load_yaml(evidence_path)
 
+    require(set(evidence) == EXPECTED_EVIDENCE_FIELDS, "evidence fields mismatch")
+    require(evidence.get("title") == "RDTC v1 historical Bitpacker pipeline fixed-workload RTL A/B", "evidence title mismatch")
     require(evidence.get("status") == "verified", "evidence status must be verified")
     require(evidence.get("result") == "pass", "evidence result must be pass")
+    require(evidence.get("source_visibility") == "private_fixed_commits", "evidence source visibility mismatch")
+    require(
+        evidence.get("public_evidence_scope")
+        == "curated two-point CSV, fixed source and vector identities, metric derivation, and fresh ModelSim replay hashes",
+        "public evidence scope mismatch",
+    )
     require(evidence.get("curated_data") == CSV_PATH, "curated CSV path mismatch")
     require(evidence.get("curated_data_sha256") == sha256(csv_path), "curated CSV hash mismatch")
-    require(evidence.get("metric_definition", {}).get("interval") == "inclusive", "metric interval must be inclusive")
-    require(
-        evidence.get("metric_definition", {}).get("formula")
-        == "packet_last_cycle - payload_first_valid_cycle + 1",
-        "metric formula mismatch",
-    )
+    require_exact_mapping(evidence.get("metric_definition"), EXPECTED_METRIC_DEFINITION, "metric definition")
+    require(evidence.get("caveats") == EXPECTED_CAVEATS, "evidence caveats mismatch")
 
     workload = evidence.get("workload", {})
-    require(workload.get("baseline_monitor_git_blob") == EXPECTED_MONITOR_BLOB, "baseline monitor identity mismatch")
-    require(workload.get("optimized_monitor_git_blob") == EXPECTED_MONITOR_BLOB, "optimized monitor identity mismatch")
+    require_exact_mapping(workload, EXPECTED_WORKLOAD, "workload")
+    require(workload["baseline_monitor_git_blob"] == EXPECTED_MONITOR_BLOB, "baseline monitor identity mismatch")
+    require(workload["optimized_monitor_git_blob"] == EXPECTED_MONITOR_BLOB, "optimized monitor identity mismatch")
     for relative, digest in EXPECTED_FILE_HASHES.items():
+        yaml_hash_field = {
+            EXPECTED_WORKLOAD["input"]: "input_sha256",
+            EXPECTED_WORKLOAD["manifest"]: "manifest_sha256",
+            EXPECTED_WORKLOAD["expected_packet"]: "expected_packet_sha256",
+        }[relative]
+        require(workload[yaml_hash_field] == digest, "workload published hash mismatch: " + relative)
         require(sha256(root / relative) == digest, "workload file hash mismatch: " + relative)
+
+    equivalence = evidence.get("equivalence", {})
+    require_exact_mapping(equivalence, EXPECTED_EQUIVALENCE, "equivalence")
 
     points = evidence.get("points", {})
     require(set(points) == set(EXPECTED_POINTS), "evidence point roles mismatch")
@@ -196,6 +295,21 @@ def validate(root):
             require(int(row[field]) == value, role + " " + field + " mismatch")
         require(row["workload"] == "smoke_zero_sparse", role + " workload mismatch")
         require(row["fresh_replay_status"] == "pass", role + " replay did not pass")
+        for field in (
+            "selected_k",
+            "payload_bits",
+            "payload_bytes",
+            "packet_bytes",
+            "input_stall_cycles",
+            "output_stall_cycles",
+        ):
+            require(int(row[field]) == equivalence[field], role + " CSV/equivalence " + field + " mismatch")
+        require(bool(int(row["payload_byte_exact"])) == equivalence["payload_byte_exact"], role + " CSV/equivalence payload exactness mismatch")
+        require(bool(int(row["packet_byte_exact"])) == equivalence["packet_byte_exact"], role + " CSV/equivalence packet exactness mismatch")
+        require(
+            ("pass" if int(row["decoder_loopback"]) else "fail") == equivalence[role + "_decoder_loopback"],
+            role + " CSV/equivalence decoder loopback mismatch",
+        )
         point = points[role]
         for csv_field, point_field in (
             ("source_branch", "branch"),
@@ -216,9 +330,16 @@ def validate(root):
     speedup = baseline / optimized
     reduction = 100.0 * (baseline - optimized) / baseline
     derivation = evidence.get("derivation", {})
-    require(int(derivation.get("cycle_reduction")) == 6972, "cycle reduction mismatch")
-    require(math.isclose(float(derivation.get("speedup")), speedup, rel_tol=0.0, abs_tol=1.0e-12), "speedup mismatch")
-    require(math.isclose(float(derivation.get("cycle_reduction_percent")), reduction, rel_tol=0.0, abs_tol=1.0e-12), "cycle reduction percentage mismatch")
+    require(set(derivation) == {"cycle_reduction", "cycle_reduction_percent", "speedup"}, "derivation fields mismatch")
+    cycle_reduction = derivation.get("cycle_reduction")
+    require(type(cycle_reduction) is int, "cycle reduction must be an integer")
+    require(cycle_reduction == int(baseline - optimized) == 6972, "cycle reduction mismatch")
+    published_speedup = derivation.get("speedup")
+    published_reduction = derivation.get("cycle_reduction_percent")
+    require(type(published_speedup) is float and math.isfinite(published_speedup), "speedup must be a finite float")
+    require(type(published_reduction) is float and math.isfinite(published_reduction), "cycle reduction percentage must be a finite float")
+    require(math.isclose(published_speedup, speedup, rel_tol=0.0, abs_tol=1.0e-12), "speedup mismatch")
+    require(math.isclose(published_reduction, reduction, rel_tol=0.0, abs_tol=1.0e-12), "cycle reduction percentage mismatch")
 
     require(evidence.get("tool") == "ModelSim SE-64 2020.4", "evidence tool identity mismatch")
     replay = evidence.get("fresh_replay", {})
@@ -232,9 +353,10 @@ def validate(root):
     require(EVIDENCE_ID in evidence_index, "missing Bitpacker A/B evidence registration")
     claim = claims[CLAIM_ID]
     registration = evidence_index[EVIDENCE_ID]
-    require(claim.get("evidence") == [EVIDENCE_ID], "claim evidence link mismatch")
-    require(registration.get("claims") == [CLAIM_ID], "evidence claim link mismatch")
-    require(registration.get("path") == EVIDENCE_PATH, "registered evidence path mismatch")
+    require_exact_mapping(claim, EXPECTED_CLAIM, "claim")
+    require(set(registration) == set(EXPECTED_REGISTRATION) | {"sha256"}, "evidence registration fields mismatch")
+    for field, value in EXPECTED_REGISTRATION.items():
+        require(registration.get(field) == value, "evidence registration " + field + " mismatch")
     require(registration.get("sha256") == sha256(evidence_path), "registered evidence hash mismatch")
     require(math.isclose(float(claim.get("value")), speedup, rel_tol=0.0, abs_tol=1.0e-12), "claim speedup mismatch")
     return {"rows": len(rows), "speedup": speedup, "reduction_percent": reduction}
