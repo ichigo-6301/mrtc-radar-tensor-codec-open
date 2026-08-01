@@ -15,8 +15,31 @@ import yaml
 
 EVIDENCE_ID = "rdtc_v1_bitpacker_pipeline_ab_public"
 CLAIM_ID = "rdtc_v1_bitpacker_pipeline_cycle_speedup"
+NONCLAIM_ID = "rdtc_v1_bitpacker_ab_no_system_speedup"
 EVIDENCE_PATH = "evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"
 CSV_PATH = "evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv"
+EXPECTED_CSV_FIELDS = [
+    "point",
+    "role",
+    "source_branch",
+    "source_commit",
+    "mode",
+    "scenario",
+    "workload",
+    "payload_first_valid_cycle",
+    "packet_last_cycle",
+    "payload_stream_cycles",
+    "selected_k",
+    "payload_bits",
+    "payload_bytes",
+    "packet_bytes",
+    "input_stall_cycles",
+    "output_stall_cycles",
+    "payload_byte_exact",
+    "packet_byte_exact",
+    "decoder_loopback",
+    "fresh_replay_status",
+]
 EXPECTED_MONITOR_BLOB = "f994a0b4f820b698bcc229d2cd6f4f0d06075f18"
 EXPECTED_ROWS = {
     "baseline": {
@@ -158,6 +181,14 @@ EXPECTED_REGISTRATION = {
     "public": True,
     "maturity": "verified",
 }
+EXPECTED_NONCLAIM = {
+    "id": NONCLAIM_ID,
+    "profile": "rdtc_v1_historical_lane4_bitpacker",
+    "statement": "The historical 10.6699x Bitpacker result is not a whole-block, Multi-Engine, Direct-AXIS sustained-throughput, FPGA-performance, ASIC-frequency, or Fmax claim.",
+    "reason": "It measures only the inclusive interval from first payload valid to accepted packet TLAST on one fixed smoke_zero_sparse RTL workload.",
+    "status": "not_claimed",
+    "public": True,
+}
 EXPECTED_METRIC_DEFINITION = {
     "name": "payload_stream_cycles",
     "formula": "packet_last_cycle - payload_first_valid_cycle + 1",
@@ -264,8 +295,12 @@ def validate(root):
     require(points["optimized"]["source_packet_compare_csv_sha256"] == EXPECTED_SOURCE_HASHES["optimized_packet_compare"], "packet compare source hash mismatch")
 
     with csv_path.open("r", encoding="utf-8", newline="") as stream:
-        rows = list(csv.DictReader(stream))
+        reader = csv.DictReader(stream)
+        require(reader.fieldnames == EXPECTED_CSV_FIELDS, "curated CSV header mismatch")
+        rows = list(reader)
     require(len(rows) == 2, "curated CSV must contain exactly two rows")
+    for row in rows:
+        require(set(row) == set(EXPECTED_CSV_FIELDS), "curated CSV row fields mismatch")
     by_role = {row["role"]: row for row in rows}
     require(set(by_role) == set(EXPECTED_ROWS), "curated CSV roles must be baseline and optimized")
     require(len({row["point"] for row in rows}) == 2, "point identities must be unique")
@@ -347,10 +382,19 @@ def validate(root):
 
     claims_doc = load_yaml(root / "provenance/claims.yaml")
     evidence_doc = load_yaml(root / "provenance/evidence.yaml")
-    claims = {item["id"]: item for item in claims_doc.get("claims", [])}
-    evidence_index = {item["id"]: item for item in evidence_doc.get("evidence", [])}
+    nonclaims_doc = load_yaml(root / "provenance/nonclaims.yaml")
+    claim_items = claims_doc.get("claims", [])
+    evidence_items = evidence_doc.get("evidence", [])
+    claims = {item["id"]: item for item in claim_items}
+    evidence_index = {item["id"]: item for item in evidence_items}
+    nonclaim_items = nonclaims_doc.get("nonclaims", [])
+    nonclaims = {item["id"]: item for item in nonclaim_items}
+    require(len(claims) == len(claim_items), "duplicate claim identity")
+    require(len(evidence_index) == len(evidence_items), "duplicate evidence identity")
+    require(len(nonclaims) == len(nonclaim_items), "duplicate nonclaim identity")
     require(CLAIM_ID in claims, "missing Bitpacker A/B claim")
     require(EVIDENCE_ID in evidence_index, "missing Bitpacker A/B evidence registration")
+    require(NONCLAIM_ID in nonclaims, "missing Bitpacker A/B nonclaim")
     claim = claims[CLAIM_ID]
     registration = evidence_index[EVIDENCE_ID]
     require_exact_mapping(claim, EXPECTED_CLAIM, "claim")
@@ -358,6 +402,7 @@ def validate(root):
     for field, value in EXPECTED_REGISTRATION.items():
         require(registration.get(field) == value, "evidence registration " + field + " mismatch")
     require(registration.get("sha256") == sha256(evidence_path), "registered evidence hash mismatch")
+    require_exact_mapping(nonclaims[NONCLAIM_ID], EXPECTED_NONCLAIM, "nonclaim")
     require(math.isclose(float(claim.get("value")), speedup, rel_tol=0.0, abs_tol=1.0e-12), "claim speedup mismatch")
     return {"rows": len(rows), "speedup": speedup, "reduction_percent": reduction}
 

@@ -29,6 +29,7 @@ class BitpackerPipelineAbEvidenceTest(unittest.TestCase):
             VALIDATOR.CSV_PATH,
             "provenance/claims.yaml",
             "provenance/evidence.yaml",
+            "provenance/nonclaims.yaml",
         ) + tuple(VALIDATOR.EXPECTED_FILE_HASHES):
             source = SOURCE_ROOT / relative
             target = self.root / relative
@@ -45,6 +46,13 @@ class BitpackerPipelineAbEvidenceTest(unittest.TestCase):
         registration = next(item for item in data["evidence"] if item["id"] == VALIDATOR.EVIDENCE_ID)
         registration["sha256"] = VALIDATOR.sha256(evidence_path)
         index_path.write_text(yaml.safe_dump(data), encoding="utf-8")
+
+    def rewrite_curated_csv_and_registration_hashes(self):
+        evidence_path = self.root / VALIDATOR.EVIDENCE_PATH
+        data = yaml.safe_load(evidence_path.read_text(encoding="utf-8"))
+        data["curated_data_sha256"] = VALIDATOR.sha256(self.root / VALIDATOR.CSV_PATH)
+        evidence_path.write_text(yaml.safe_dump(data), encoding="utf-8")
+        self.rewrite_evidence_registration_hash()
 
     def test_published_evidence_passes(self):
         result = VALIDATOR.validate(self.root)
@@ -143,6 +151,23 @@ class BitpackerPipelineAbEvidenceTest(unittest.TestCase):
         path.write_text(yaml.safe_dump(data), encoding="utf-8")
         self.rewrite_evidence_registration_hash()
         with self.assertRaisesRegex(RuntimeError, "metric definition packet_last_event mismatch"):
+            VALIDATOR.validate(self.root)
+
+    def test_unexpected_csv_column_fails_after_hash_refresh(self):
+        path = self.root / VALIDATOR.CSV_PATH
+        lines = path.read_text(encoding="utf-8").splitlines()
+        path.write_text("\n".join(line + ",unexpected" for line in lines) + "\n", encoding="utf-8")
+        self.rewrite_curated_csv_and_registration_hashes()
+        with self.assertRaisesRegex(RuntimeError, "curated CSV header mismatch"):
+            VALIDATOR.validate(self.root)
+
+    def test_nonclaim_semantic_mutation_fails(self):
+        path = self.root / "provenance/nonclaims.yaml"
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        nonclaim = next(item for item in data["nonclaims"] if item["id"] == VALIDATOR.NONCLAIM_ID)
+        nonclaim["status"] = "verified"
+        path.write_text(yaml.safe_dump(data), encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeError, "nonclaim status mismatch"):
             VALIDATOR.validate(self.root)
 
 
