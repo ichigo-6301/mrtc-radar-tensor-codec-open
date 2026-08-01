@@ -17,7 +17,7 @@ RDTC compresses I16Q16 samples block by block while preserving bit-exact reconst
 | Lossless algorithm | `RAW_BYPASS`, `ZERO_RICE`, and `DELTA_RICE`; bit-exact I/Q reconstruction |
 | Single Engine | `1024` I16Q16 samples/block, `4096` raw bytes, 64-byte header, 128-bit AXI-Stream |
 | Multi-Engine | Existing DDR/packet-buffer wrapper plus an opt-in Direct-AXIS dual-Engine path with strict 0/1 block rotation and ordered packet output |
-| Bitpacker A/B | On the fixed `smoke_zero_sparse` RTL workload, the payload stream interval falls from `7693` to `721 cycles`, a `10.67x` speedup |
+| Bitpacker A/B | In the historical fixed `smoke_zero_sparse` RTL workload, the inclusive interval from first payload valid through accepted packet `TLAST` falls from `7693` to `721 cycles`, a `10.67x` speedup |
 | RTL throughput | 1/2/4 Engines: `785 / 397.52 / 197.41 cycles/block` on the fixed 256-block simulation workload |
 | FPGA | Historical single-`s0` AXIS32 XSim `3/3`; Direct-AXIS completes Vivado 2022.2 OOC post-route at 200 MHz on `xc7z100ffg900-2`, with setup/hold WNS `+0.001/+0.062 ns` and `32,672 LUT / 18,519 FF / 0 BRAM` |
 | ASIC | Same-library 315 MHz register-expanded DC A/B: Direct-AXIS reduces cell area `72.53%` and cell count `71.98%`; Direct register 600 MHz / eight-macro SRAM 300 MHz complete academic post-route PT closure |

@@ -38,6 +38,14 @@ class BitpackerPipelineAbEvidenceTest(unittest.TestCase):
     def tearDown(self):
         self.temp.cleanup()
 
+    def rewrite_evidence_registration_hash(self):
+        evidence_path = self.root / VALIDATOR.EVIDENCE_PATH
+        index_path = self.root / "provenance/evidence.yaml"
+        data = yaml.safe_load(index_path.read_text(encoding="utf-8"))
+        registration = next(item for item in data["evidence"] if item["id"] == VALIDATOR.EVIDENCE_ID)
+        registration["sha256"] = VALIDATOR.sha256(evidence_path)
+        index_path.write_text(yaml.safe_dump(data), encoding="utf-8")
+
     def test_published_evidence_passes(self):
         result = VALIDATOR.validate(self.root)
         self.assertEqual(2, result["rows"])
@@ -63,6 +71,24 @@ class BitpackerPipelineAbEvidenceTest(unittest.TestCase):
         claim["evidence"] = []
         path.write_text(yaml.safe_dump(data), encoding="utf-8")
         with self.assertRaisesRegex(RuntimeError, "claim evidence link mismatch"):
+            VALIDATOR.validate(self.root)
+
+    def test_yaml_point_mutation_fails_after_registration_rehash(self):
+        path = self.root / VALIDATOR.EVIDENCE_PATH
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        data["points"]["baseline"]["payload_stream_cycles"] = 7692
+        path.write_text(yaml.safe_dump(data), encoding="utf-8")
+        self.rewrite_evidence_registration_hash()
+        with self.assertRaisesRegex(RuntimeError, "baseline evidence point payload_stream_cycles mismatch"):
+            VALIDATOR.validate(self.root)
+
+    def test_replay_identity_mutation_fails_after_registration_rehash(self):
+        path = self.root / VALIDATOR.EVIDENCE_PATH
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        data["fresh_replay"]["optimized"]["commands"].pop()
+        path.write_text(yaml.safe_dump(data), encoding="utf-8")
+        self.rewrite_evidence_registration_hash()
+        with self.assertRaisesRegex(RuntimeError, "fresh replay optimized mismatch"):
             VALIDATOR.validate(self.root)
 
 
