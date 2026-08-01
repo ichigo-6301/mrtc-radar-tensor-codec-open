@@ -67,6 +67,8 @@ fresh_replay:
   tool_version: Model Technology ModelSim SE-64 vsim 2020.4 Simulator 2020.10 Oct 13 2020
   tool_executable_sha256: 011f110291dc69707d7118e8f8d712b91438e0c837f9bc10ce6bf53c1d048cfd
   baseline:
+    source_commit: 327c463896bda94c60eb2b47d3c3dfc61a183367
+    worktree_status: clean
     commands:
       - tb/scripts/run_stage16c3_latency_smoke.bat
       - tb/scripts/run_rdtc_encoder_prefix_during_capture_smoke.bat
@@ -76,6 +78,8 @@ fresh_replay:
     latency_log_sha256: 89f4095435284820bdb79514f52ecb179074a44d6bb7c92b552fb55aaa5809ac
     loopback_log_sha256: 7853c1a791d59cea8566c0e736c1a0b22397ac6c3c22bd227d39a1d13c33e2ae
   optimized:
+    source_commit: 2c1d9a75d2742659b604dd3f9c754096e196d132
+    worktree_status: clean
     commands:
       - tb/scripts/run_stage16d2_lane4_latency_smoke.bat
       - tb/scripts/run_rdtc_encoder_prefix_lane4_active_smoke.bat
