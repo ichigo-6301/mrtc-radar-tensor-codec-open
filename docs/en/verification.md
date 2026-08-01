@@ -46,6 +46,18 @@ It compiles and invokes the same published C encoder and decoder, emits the fixe
 
 The point-cloud comparison on the MATLAB page is not PointCloud RTL and does not replace the executable C cross-check.
 
+## Bitpacker Pipeline A/B
+
+Fresh ModelSim 2020.4 replay at the fixed historical commits runs Stage16C3 latency/loopback plus Stage16D2 lane4 latency, packet-compare, and loopback smoke. Both points use the same `smoke_zero_sparse` vector and the same latency monitor with Git blob `f994a0b4...`. The cycle metric is defined identically at both points:
+
+```text
+payload_stream_cycles = packet_last_cycle - payload_first_valid_cycle + 1
+```
+
+The baseline endpoints are `1169 -> 8861`, yielding `7693 cycles`; the optimized endpoints are `706 -> 1426`, yielding `721 cycles`. The gate also fixes `selected_k=0`, `payload_bits=2158`, `payload_bytes=270`, `packet_bytes=334`, zero input/output stalls, packet byte exactness, and decoder loopback. The public validator checks the input, manifest, expected packet, historical CSV, and fresh replay summary hashes.
+
+Public entrypoint: `make bitpacker-pipeline-ab-validate`. See the [Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml).
+
 ## Multi-Engine Regression
 
 The historical fixed-commit 256-block prefix workload checks byte-exact payloads, `selected_k`, compression ratio, packet completeness, and absence of beat interleaving. One beam is defined as 256 blocks, and `beam/s` is calculated from the unrounded total cycles per beam. Performance is:
@@ -91,6 +103,7 @@ make multiengine-smoke
 make fpga-wrapper-smoke
 make bounded-direct-rtl-smoke
 make bounded-direct-rtl-identity-check
+make bitpacker-pipeline-ab-validate
 make showcase-assets-check
 ```
 

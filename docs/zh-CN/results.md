@@ -19,6 +19,14 @@ Synthetic SNR 从 `-20` 到 `30 dB` 时，ZERO_RICE compression ratio 为 `1.581
 
 来源：[MATLAB evidence](../../evidence/rdtc_v1_matlab_algorithm_study.yaml) · [公开 CSV](../../evidence/data/rdtc_v1_matlab_lossless_snr.csv)
 
+## Bitpacker Pipeline A/B
+
+历史 Stage16C3 与 Stage16D2 使用相同的 `smoke_zero_sparse` 输入、相同 latency monitor、相同 `selected_k=0` 和相同 `2158-bit / 270-byte` payload。把逐 sample compressed path 替换为集成四路 word Bitpacker 后，从首个 payload valid 到 accepted packet `TLAST` 的 inclusive interval 从 `7693` 降至 `721 cycles`，减少 `90.63%`，提升 `10.67x`。两点 input/output stall 均为0，334-byte packet逐字节一致，decoder loopback通过。
+
+该结果只衡量固定历史RTL workload的payload stream interval，不是整块延迟、Multi-Engine吞吐、Direct-AXIS持续吞吐、FPGA性能、ASIC频率或Fmax。
+
+来源：[Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [公开两点 CSV](../../evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv)
+
 ## Multi-Engine RTL Scaling
 
 历史 fixed-commit 256-block prefix workload 使用 simulated DDR feeder，检查 payload byte-exact、`selected_k`、compression ratio、packet 完整性和无 beat interleaving。该记录把一个 beam 定义为 256 个 block；`beam/s` 由公开 CSV 中未舍入的 `estimated_cycles_per_beam` 计算，不能仅由表中两位小数的 cycles/block 精确反推。

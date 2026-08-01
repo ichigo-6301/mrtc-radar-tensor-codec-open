@@ -46,6 +46,18 @@ make codec-demo
 
 MATLAB 页面中的 point-cloud comparison 不是 PointCloud RTL，也不是替代 C executable cross-check 的证据。
 
+## Bitpacker Pipeline A/B
+
+历史固定提交的fresh ModelSim 2020.4重放分别运行Stage16C3 latency/loopback与Stage16D2 lane4 latency、packet compare和loopback smoke。两点使用相同 `smoke_zero_sparse` vector以及Git blob为 `f994a0b4...` 的同一 latency monitor，周期统一按下式计算：
+
+```text
+payload_stream_cycles = packet_last_cycle - payload_first_valid_cycle + 1
+```
+
+Baseline端点为 `1169 -> 8861`，得到 `7693 cycles`；optimized端点为 `706 -> 1426`，得到 `721 cycles`。校验同时固定 `selected_k=0`、`payload_bits=2158`、`payload_bytes=270`、`packet_bytes=334`、零input/output stall、packet byte-exact与decoder loopback。公开validator还检查输入、manifest、expected packet、历史CSV和fresh replay摘要哈希。
+
+公开入口：`make bitpacker-pipeline-ab-validate`。证据见[Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml)。
+
 ## Multi-Engine Regression
 
 历史 fixed-commit 256-block prefix workload 检查 payload byte-exact、`selected_k`、压缩比、packet 完整性与无 beat interleaving。该记录把一个 beam 定义为 256 个 block，`beam/s` 由未舍入的 beam 总周期计算。性能结果为：
@@ -91,6 +103,7 @@ make multiengine-smoke
 make fpga-wrapper-smoke
 make bounded-direct-rtl-smoke
 make bounded-direct-rtl-identity-check
+make bitpacker-pipeline-ab-validate
 make showcase-assets-check
 ```
 

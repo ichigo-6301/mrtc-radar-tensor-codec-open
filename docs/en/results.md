@@ -19,6 +19,14 @@ Across synthetic SNR points from `-20` to `30 dB`, the ZERO_RICE compression rat
 
 Sources: [MATLAB evidence](../../evidence/rdtc_v1_matlab_algorithm_study.yaml) · [public CSV](../../evidence/data/rdtc_v1_matlab_lossless_snr.csv)
 
+## Bitpacker Pipeline A/B
+
+Historical Stage16C3 and Stage16D2 use the same `smoke_zero_sparse` input, the same latency monitor, the same `selected_k=0`, and the same `2158-bit / 270-byte` payload. Replacing the per-sample compressed path with the integrated four-lane word Bitpacker reduces the inclusive interval from first payload valid to accepted packet `TLAST` from `7693` to `721 cycles`: a `90.63%` reduction and `10.67x` speedup. Both points have zero input/output stalls, byte-identical 334-byte packets, and passing decoder loopback.
+
+This result measures only the payload stream interval on one fixed historical RTL workload. It is not whole-block latency, Multi-Engine throughput, current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.
+
+Sources: [Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [public two-point CSV](../../evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv)
+
 ## Multi-Engine RTL Scaling
 
 The historical fixed-commit 256-block prefix workload uses a simulated DDR feeder and checks byte-exact payloads, `selected_k`, compression ratio, packet completeness, and absence of beat interleaving. This record defines one beam as 256 blocks. `beam/s` is calculated from the unrounded `estimated_cycles_per_beam` values in the public CSV and cannot be reproduced exactly from the displayed two-decimal cycles/block values alone.

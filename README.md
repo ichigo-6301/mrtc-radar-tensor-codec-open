@@ -17,6 +17,7 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 | 无损算法 | `RAW_BYPASS`、`ZERO_RICE`、`DELTA_RICE`；I/Q bit-exact reconstruction |
 | 单 Engine | `1024` 个 I16Q16 sample/block，`4096` byte raw，64-byte header，128-bit AXI-Stream |
 | Multi-Engine | 既有 DDR/packet-buffer wrapper；另有 opt-in Direct-AXIS 双 Engine、严格 0/1 block 轮转与有序 packet output |
+| Bitpacker A/B | 固定 `smoke_zero_sparse` RTL workload 下，payload stream interval 从 `7693` 降至 `721 cycles`，提升 `10.67x` |
 | RTL 吞吐 | 1/2/4 Engine：`785 / 397.52 / 197.41 cycles/block`，固定 256-block simulation workload |
 | FPGA | 历史 single-`s0` AXIS32 XSim `3/3`；Direct-AXIS 在 `xc7z100ffg900-2` 上完成 Vivado 2022.2 OOC post-route 200 MHz，setup/hold WNS `+0.001/+0.062 ns`，`32,672 LUT / 18,519 FF / 0 BRAM` |
 | ASIC | 同库 315 MHz 全寄存器 DC A/B：Direct-AXIS 的 cell area 减少 `72.53%`、cell count 减少 `71.98%`；Direct 寄存器 600 MHz / 8 宏 SRAM 300 MHz 完成 academic post-route PT 闭合 |
@@ -111,6 +112,7 @@ make integration-smoke
 make multiengine-smoke
 make fpga-wrapper-smoke
 make bounded-direct-rtl-identity-check
+make bitpacker-pipeline-ab-validate
 make bounded-direct-register-modelsim-regression
 make bounded-dc-ab-validate
 make showcase-assets-check
