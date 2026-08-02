@@ -10,11 +10,11 @@
 - bit-exact PASS applies to the recorded finite vector/regression set, not exhaustive formal proof or coverage closure;
 - ZERO_RICE or DELTA_RICE is configured per block; internal policy selects `k`, not the predictor mode. RAW fallback exists only on encoder paths that implement payload-cost fallback;
 - where RAW fallback is supported, it avoids a larger coded payload, but the packet still carries a `64`-byte header, so payload ratio is not automatically an end-to-end bandwidth ratio.
-- the historical `7693 -> 721 cycles`, `10.67x` result measures only the inclusive first-payload-valid to accepted-`TLAST` interval on the fixed `smoke_zero_sparse` RTL workload. It is not whole-block latency, Multi-Engine throughput, current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.
+- the historical `7693 -> 721 cycles`, `10.67×` result measures only the inclusive first-payload-valid to accepted-`TLAST` interval on the fixed `smoke_zero_sparse` RTL workload. It is not whole-block latency, Multi-Engine throughput, current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.
 
 ## Multi-Engine And Ordering
 
-- The `785 / 397.52 / 197.41 cycles/block`, `0.987368 / 0.994115` efficiency, and `1965.3022 / 3957.4642 beam/s` at an assumed 200 MHz are RTL simulation projections with a simulated DDR feeder; one beam is 256 blocks in this record and throughput uses unrounded total cycles, not FPGA timing, board DDR, or network measurements;
+- The `785 / 397.52 / 197.41 cycles/block`, `98.7368% / 99.4115%` efficiency, and `1965.3022 / 3957.4642 beam/s` at an assumed 200 MHz are RTL simulation projections with a simulated DDR feeder; one beam is 256 blocks in this record and throughput uses unrounded total cycles, not FPGA timing, board DDR, or network measurements;
 - arbitration guarantees packet atomicity and no beat interleaving, but does not guarantee output in input-block order;
 - Frame/Block metadata enables indexed software reconstruction, but no software reorder-program PASS is claimed, and recorded scenarios do not directly demonstrate an observed reordered event;
 - `OUTPUT_IN_ORDER` is not an implemented mode and must not be presented as a hardware Reorder Buffer or strict-order guarantee.

@@ -21,7 +21,7 @@ Sources: [MATLAB evidence](../../evidence/rdtc_v1_matlab_algorithm_study.yaml) Â
 
 ## Bitpacker Pipeline A/B
 
-Historical Stage16C3 and Stage16D2 use the same `smoke_zero_sparse` input, the same latency monitor, the same `selected_k=0`, and the same `2158-bit / 270-byte` payload. Replacing the per-sample compressed path with the integrated four-lane word Bitpacker reduces the inclusive interval from first payload valid to accepted packet `TLAST` from `7693` to `721 cycles`: a `90.63%` reduction and `10.67x` speedup. Both points have zero input/output stalls, byte-identical 334-byte packets, and passing decoder loopback.
+Historical Stage16C3 and Stage16D2 use the same `smoke_zero_sparse` input, the same latency monitor, the same `selected_k=0`, and the same `2158-bit / 270-byte` payload. Replacing the per-sample compressed path with the integrated four-lane word Bitpacker reduces the inclusive interval from first payload valid to accepted packet `TLAST` from `7693` to `721 cycles`: a `90.63%` reduction and `10.67Ã—` speedup. Both points have zero input/output stalls, byte-identical 334-byte packets, and passing decoder loopback.
 
 This result measures only the payload stream interval on one fixed historical RTL workload. It is not whole-block latency, Multi-Engine throughput, current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.
 
@@ -34,8 +34,8 @@ The historical fixed-commit 256-block prefix workload uses a simulated DDR feede
 | Engines | Cycles/block | Scaling efficiency | Beam/s at assumed 200 MHz |
 |---:|---:|---:|---:|
 | 1 | 785 | baseline | - |
-| 2 | 397.52 | 0.987368 | 1965.3022 |
-| 4 | 197.41 | 0.994115 | 3957.4642 |
+| 2 | 397.52 | 98.7368% | 1965.3022 |
+| 4 | 197.41 | 99.4115% | 3957.4642 |
 
 ![Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
 

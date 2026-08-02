@@ -10,17 +10,40 @@ RDTC compresses I16Q16 samples block by block while preserving bit-exact reconst
 
 ![MRTC-RDTC end-to-end overview](docs/assets/rdtc_overview.svg)
 
+<a id="resume-results"></a>
+
 ## 60-Second Overview
 
-| Dimension | Implemented and verified content |
-|---|---|
-| Lossless algorithm | `RAW_BYPASS`, `ZERO_RICE`, and `DELTA_RICE`; bit-exact I/Q reconstruction |
-| Single Engine | `1024` I16Q16 samples/block, `4096` raw bytes, 64-byte header, 128-bit AXI-Stream |
-| Multi-Engine | Existing DDR/packet-buffer wrapper plus an opt-in Direct-AXIS dual-Engine path with strict 0/1 block rotation and ordered packet output |
-| Bitpacker A/B | In the historical fixed `smoke_zero_sparse` RTL workload, the inclusive interval from first payload valid through accepted packet `TLAST` falls from `7693` to `721 cycles`, a `10.67x` speedup |
-| RTL throughput | 1/2/4 Engines: `785 / 397.52 / 197.41 cycles/block` on the fixed 256-block simulation workload |
-| FPGA | Historical single-`s0` AXIS32 XSim `3/3`; Direct-AXIS completes Vivado 2022.2 OOC post-route at 200 MHz on `xc7z100ffg900-2`, with setup/hold WNS `+0.001/+0.062 ns` and `32,672 LUT / 18,519 FF / 0 BRAM` |
-| ASIC | Same-library 315 MHz register-expanded DC A/B: Direct-AXIS reduces cell area `72.53%` and cell count `71.98%`; Direct register 600 MHz / eight-macro SRAM 300 MHz complete academic post-route PT closure |
+| Result | Verified content and applicability | Direct evidence |
+|---|---|---|
+| Codec and verification | `RAW_BYPASS`, `ZERO_RICE`, and `DELTA_RICE`; `1024` I16Q16 samples/block, a 64-byte header, and 128-bit AXI-Stream; finite-vector MATLAB/C/DPI-C/RTL bit-exact agreement | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [verification matrix](docs/en/verification.md) |
+| Bitpacker A/B | Fixed historical `smoke_zero_sparse` RTL workload; inclusive first-payload-valid to accepted-packet-`TLAST` interval `7693 -> 721 cycles`, a `10.67×` speedup; not whole-block latency or system throughput | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
+| Multi-Engine scaling | Fixed 256-block RTL workload with a simulated DDR feeder; 1/2/4 Engines reach `785 / 397.52 / 197.41 cycles/block`, with 2/4-Engine efficiency `98.7368% / 99.4115%` | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
+| Direct-AXIS DC A/B | One Nangate45 library, one 315 MHz SDC, two Engines, register-expanded storage, and disabled retiming; cell area/count fall `72.53% / 71.98%`; DC-only architecture A/B | [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
+| ASIC post-route STA | Direct register-expanded / eight-macro OpenRAM profiles complete fixed academic post-route PrimeTime setup/hold closure at `600/300 MHz`; not Fmax or foundry signoff | [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [result matrix](docs/en/results.md) |
+| FPGA OOC | Direct-AXIS completes Vivado 2022.2 OOC post-route at 200 MHz on `xc7z100ffg900-2`; WNS `+0.001/+0.062 ns` and `32,672 LUT / 18,519 FF / 0 BRAM`; no bitstream or board-throughput claim | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) |
+
+<p align="center">
+  <a href="evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"><img src="docs/assets/bitpacker_pipeline_ab.svg" width="760" alt="Fixed-workload Bitpacker RTL pipeline A/B"></a>
+</p>
+<p align="center">
+  <a href="evidence/rdtc_v1_multiengine_rtl.yaml"><img src="docs/assets/engine_scaling.svg" width="760" alt="Multi-Engine RTL simulation scaling"></a>
+</p>
+
+<a id="rtl-reading-path"></a>
+
+## 10-Minute RTL Reading Path
+
+| Order | File | Read for |
+|---:|---|---|
+| 1 | [`mrtc_top.sv`](rtl/top/mrtc_top.sv) | Start with the complete AXI4-Lite configuration, status, and bidirectional AXIS128 IP boundary. |
+| 2 | [`mrtc_rdtc_codec_top.sv`](rtl/rdtc/mrtc_rdtc_codec_top.sv) | See how one Engine integrates the encoder and decoder around shared configuration. |
+| 3 | [`mrtc_prefix_k_accum_stream.sv`](rtl/rdtc/mrtc_prefix_k_accum_stream.sv) | Follow ZERO/DELTA prediction, signed-residual mapping, 16 candidate costs, and the `k` reduction tree. |
+| 4 | [`mrtc_rice_bitpacker_lane_axis.sv`](rtl/rdtc/mrtc_rice_bitpacker_lane_axis.sv) | Read the lane-parallel quotient/remainder token, normalization, and AXIS128 packing pipeline. |
+| 5 | [`mrtc_header_gen.sv`](rtl/rdtc/mrtc_header_gen.sv) · [`mrtc_header_axis_streamer.sv`](rtl/rdtc/mrtc_header_axis_streamer.sv) · [`mrtc_rdtc_decoder_top.sv`](rtl/rdtc/mrtc_rdtc_decoder_top.sv) | Connect the 64-byte header, header/payload framing, and bit-exact reconstruction path. |
+| 6 | [`mrtc_rdtc_ddr_multiengine_wrapper.sv`](rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) · [`mrtc_axis_packet_buffer.sv`](rtl/rdtc/mrtc_axis_packet_buffer.sv) | Locate the block dispatcher, per-Engine packet buffers, and output grant held through `tlast`. |
+| 7 | [`mrtc_rdtc_bounded_axis_multiengine_wrapper.sv`](rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) | Contrast the final Direct-AXIS dual-Engine job table, ordered packet mux, and bounded output credit. |
+| 8 | [`mrtc_dpi_pkg.sv`](tb/dpi/mrtc_dpi_pkg.sv) · [`tb_rdtc_dpi_smoke.sv`](sv/tb_rdtc_dpi_smoke.sv) · [`tb_rdtc_codec_top_smoke.sv`](tb/sv/tb_rdtc_codec_top_smoke.sv) | Inspect the C/DPI-C boundary and the public RTL AXIS128 encode/decode smoke. |
 
 ### Choose an integration entrypoint
 
@@ -34,16 +57,33 @@ RDTC compresses I16Q16 samples block by block while preserving bit-exact reconst
 
 [See parameters, ports, transactions, and the ordering contract](docs/en/interfaces.md)
 
+<a id="technical-review-path"></a>
+
+## Technical Review Quick Path (No Commercial EDA)
+
+```bash
+make rdtc_v1_public_preflight_defconfig
+make codec-demo
+make -C ref_model/c test
+make rtl-smoke
+make multiengine-smoke
+make bitpacker-pipeline-ab-validate
+make bounded-dc-ab-validate
+```
+
+The first command creates the public-safe configuration; the next four compile or run published C/RTL entrypoints. The final two only validate sanitized public evidence, identities, and metric contracts; they do not rerun Design Compiler, P&R, or PrimeTime.
+
+<a id="public-scope-provenance"></a>
+
+## Public Scope / Provenance
+
+This repository contains synthesizable RTL, public adaptations, verification entrypoints, and sanitized evidence. It excludes collaborator data, commercial-tool products, PDK payloads, and private system-integration assets. [Public Scope](PUBLIC_SCOPE.md), [Claims](provenance/claims.yaml), [Evidence](provenance/evidence.yaml), and [Nonclaims](provenance/nonclaims.yaml) jointly define the published boundary.
+
 ## 1. Algorithm: Why RDTC
 
 The ZERO/DELTA paths map prediction residuals to non-negative integers, evaluate candidate Rice `k` values over each block, and emit a variable-length payload through a lane-parallel bitpacker. Encoder paths that implement fallback retain RAW payload when coding provides no benefit. Mode and fallback behavior remain explicit properties of each integration path rather than an unsupported universal auto-selection claim.
 
 The MATLAB synthetic study compares ZERO_RICE and DELTA_RICE on controlled Range-Doppler-like scenes and checks `NMSE=0`, `max_abs_error=0`, and point-cloud match ratio `1` for the recorded cases. These are not measured radar captures, and PointCloud is not an RTL feature.
-
-<p align="center">
-  <img src="docs/assets/compression_vs_snr.svg" width="49%" alt="Synthetic compression ratio versus SNR">
-  <img src="docs/assets/engine_scaling.svg" width="49%" alt="Multi-Engine RTL simulation scaling">
-</p>
 
 Data and boundaries: [algorithm theory and original MATLAB output](docs/en/algorithm.md) · [MATLAB evidence](evidence/rdtc_v1_matlab_algorithm_study.yaml) · [Multi-Engine evidence](evidence/rdtc_v1_multiengine_rtl.yaml)
 
@@ -76,7 +116,7 @@ A fixed visible demo invokes the published C encoder and decoder: a 1024-sample 
 
 ## 4. FPGA: Layered Maturity
 
-**FPGA emulation verified** still refers specifically to the fixed-source Vivado 2018.3 AXIS32 XSim `3/3` result, whose testbench drives only `s0`. Separately, the Direct-AXIS profile completes Vivado 2022.2 OOC post-route at 200 MHz on `xc7z100ffg900-2`: setup/hold WNS is `+0.001/+0.062 ns`, the structure contains two Engines, eight ways, and `1024 x RAM32X1S`, and utilization is `32,672 LUT / 18,519 FF / 0 BRAM`. This is an internal OOC fixed closure point, not Fmax, and it makes no bitstream, board-console, MCDMA/DDR runtime, or measured-throughput claim.
+**FPGA emulation verified** still refers specifically to the fixed-source Vivado 2018.3 AXIS32 XSim `3/3` result from a single-`s0` testbench. Separately, the Direct-AXIS profile completes Vivado 2022.2 OOC post-route at 200 MHz on `xc7z100ffg900-2`: setup/hold WNS is `+0.001/+0.062 ns`, the structure contains two Engines, eight ways, and `1024 x RAM32X1S`, and utilization is `32,672 LUT / 18,519 FF / 0 BRAM`. This is an internal OOC fixed closure point, not Fmax, and it makes no bitstream, board-console, MCDMA/DDR runtime, or measured-throughput claim.
 
 [See FPGA emulation and Zynq integration boundaries](docs/en/fpga_implementation.md)
 
@@ -101,24 +141,15 @@ These frequencies are fixed verified closure points for the stated profiles, not
 
 [See the ASIC flow contract](docs/en/asic_implementation.md) · [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) · [complete result matrix](docs/en/results.md) · [limitations and nonclaims](docs/en/limitations.md)
 
-## Quick Reproduction
+## Complete Public Gate
 
 ```bash
 make rdtc_v1_public_preflight_defconfig
-make codec-demo
-make -C ref_model/c test
-make rtl-smoke
-make integration-smoke
-make multiengine-smoke
-make fpga-wrapper-smoke
-make bounded-direct-rtl-identity-check
-make bitpacker-pipeline-ab-validate
-make bounded-direct-register-modelsim-regression
+make public-preflight
 make bounded-dc-ab-validate
-make showcase-assets-check
 ```
 
-Questa/ModelSim environments can additionally run `make sim` and `make sim-full`. Commercial-tool, PDK, library, and macro paths are allowed only in ignored `flows/local/` files.
+This gate aggregates published C/RTL smoke tests, documentation, schemas, identities, checksums, assets, and leakage scans; `bounded-dc-ab-validate` remains evidence-only. Configured Questa/ModelSim environments can additionally run `make sim` and `make sim-full`. Commercial-tool, PDK, library, and macro paths are allowed only in ignored `flows/local/` files.
 
 ## Documentation and Release Boundary
 

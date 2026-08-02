@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
+  <title id="title">Fixed-workload Bitpacker RTL pipeline A/B</title>
+  <desc id="desc">On one fixed smoke_zero_sparse RTL workload, the inclusive first-payload-valid to accepted-packet-TLAST interval falls from 7693 to 721 cycles. This is not whole-block or system throughput.</desc>
+  <style>.title{font:700 31px Arial,sans-serif;fill:#0f172a}.sub{font:400 17px Arial,sans-serif;fill:#475569}.label{font:700 20px Arial,sans-serif;fill:#0f172a}.value{font:700 24px Arial,sans-serif;fill:#0f172a}.callout{font:700 34px Arial,sans-serif;fill:#166534}.note{font:400 16px Arial,sans-serif;fill:#334155}</style>
+  <rect width="1000" height="620" fill="#f8fafc"/>
+  <text x="55" y="48" class="title">Lane-parallel Bitpacker RTL A/B</text>
+  <text x="55" y="76" class="sub">Fixed smoke_zero_sparse workload; identical payload, packet, selected k, and zero stalls.</text>
+
+  <text x="55" y="154" class="label">Stage16C3 baseline</text>
+  <rect x="260" y="120" width="650" height="58" rx="6" fill="#2563eb"/>
+  <text x="894" y="157" text-anchor="end" fill="#fff" class="value">7693 cycles</text>
+
+  <text x="55" y="264" class="label">Stage16D2 lane4</text>
+  <rect x="260" y="230" width="61" height="58" rx="6" fill="#16a34a"/>
+  <text x="337" y="267" class="value">721 cycles</text>
+
+  <rect x="230" y="340" width="680" height="132" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text x="570" y="395" text-anchor="middle" class="callout">10.67&#215; speedup</text>
+  <text x="570" y="432" text-anchor="middle" class="label">90.63% fewer payload-interval cycles</text>
+
+  <text x="55" y="525" class="note">Metric: packet_last_cycle - payload_first_valid_cycle + 1.</text>
+  <text x="55" y="554" class="note">Both packets are byte-identical and decoder loopback passes.</text>
+  <text x="55" y="587" class="sub">Payload interval only - not whole-block latency, sustained throughput, FPGA performance, or Fmax.</text>
+</svg>

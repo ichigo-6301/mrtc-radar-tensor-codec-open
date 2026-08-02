@@ -65,8 +65,8 @@ The historical fixed-commit 256-block prefix workload checks byte-exact payloads
 | Engines | Cycles/block | Scaling efficiency | Beam/s at assumed 200 MHz |
 |---:|---:|---:|---:|
 | 1 | 785 | baseline | - |
-| 2 | 397.52 | 0.987368 | 1965.3022 |
-| 4 | 197.41 | 0.994115 | 3957.4642 |
+| 2 | 397.52 | 98.7368% | 1965.3022 |
+| 4 | 197.41 | 99.4115% | 3957.4642 |
 
 These values are RTL simulation projections with a simulated DDR model, not FPGA timing or measured board throughput. The current public adaptation has a separate two-Engine, two-block correctness smoke plus packet-buffer overlength fail-stop/reset recovery, two-slot simultaneous queue push/pop, one-slot turnover, completion-coincident status clearing, and `OUTPUT_IN_ORDER=1` fail-fast boundary tests; it does not recompute this matrix. Arbitration guarantees packet atomicity and no beat interleaving, while completion order is not guaranteed. Recorded evidence checks block identity but does not directly observe an actual reordered event. Metadata enables reconstruction by Frame/Block index; no software reorder-program PASS is claimed.
 

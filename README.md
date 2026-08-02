@@ -10,17 +10,40 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 
 ![MRTC-RDTC end-to-end overview](docs/assets/rdtc_overview.svg)
 
+<a id="resume-results"></a>
+
 ## 60 秒总览
 
-| 维度 | 已实现与已验证内容 |
-|---|---|
-| 无损算法 | `RAW_BYPASS`、`ZERO_RICE`、`DELTA_RICE`；I/Q bit-exact reconstruction |
-| 单 Engine | `1024` 个 I16Q16 sample/block，`4096` byte raw，64-byte header，128-bit AXI-Stream |
-| Multi-Engine | 既有 DDR/packet-buffer wrapper；另有 opt-in Direct-AXIS 双 Engine、严格 0/1 block 轮转与有序 packet output |
-| Bitpacker A/B | 历史固定 `smoke_zero_sparse` RTL workload 下，从首个 payload valid 到 accepted packet `TLAST` 的 inclusive interval 由 `7693` 降至 `721 cycles`，提升 `10.67x` |
-| RTL 吞吐 | 1/2/4 Engine：`785 / 397.52 / 197.41 cycles/block`，固定 256-block simulation workload |
-| FPGA | 历史 single-`s0` AXIS32 XSim `3/3`；Direct-AXIS 在 `xc7z100ffg900-2` 上完成 Vivado 2022.2 OOC post-route 200 MHz，setup/hold WNS `+0.001/+0.062 ns`，`32,672 LUT / 18,519 FF / 0 BRAM` |
-| ASIC | 同库 315 MHz 全寄存器 DC A/B：Direct-AXIS 的 cell area 减少 `72.53%`、cell count 减少 `71.98%`；Direct 寄存器 600 MHz / 8 宏 SRAM 300 MHz 完成 academic post-route PT 闭合 |
+| 结果 | 已核验内容与适用范围 | 直接 Evidence |
+|---|---|---|
+| 编解码与验证 | `RAW_BYPASS`、`ZERO_RICE`、`DELTA_RICE` 三模式；`1024` 个 I16Q16 sample/block、64-byte header、128-bit AXI-Stream；MATLAB/C/DPI-C/RTL 有限向量 bit-exact | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [验证矩阵](docs/zh-CN/verification.md) |
+| Bitpacker A/B | 固定 `smoke_zero_sparse` 历史 RTL workload；首个 payload valid 到 accepted packet `TLAST` 的 inclusive interval `7693 -> 721 cycles`，提升 `10.67×`；不是 whole-block latency 或系统吞吐 | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
+| Multi-Engine scaling | simulated DDR feeder 的固定 256-block RTL workload；1/2/4 Engine 为 `785 / 397.52 / 197.41 cycles/block`，2/4 Engine efficiency 为 `98.7368% / 99.4115%` | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
+| Direct-AXIS DC A/B | 同一 Nangate45 library、315 MHz SDC、双 Engine、全寄存器、禁止 retime；cell area/count 减少 `72.53% / 71.98%`，仅为 DC-only 架构 A/B | [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
+| ASIC post-route STA | Direct register-expanded / 8-macro OpenRAM profile 分别在 `600/300 MHz` 完成 fixed academic post-route PrimeTime setup/hold 闭合；不是 Fmax 或 foundry signoff | [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [结果矩阵](docs/zh-CN/results.md) |
+| FPGA OOC | Direct-AXIS 在 `xc7z100ffg900-2` 上完成 Vivado 2022.2 OOC post-route 200 MHz；WNS `+0.001/+0.062 ns`，`32,672 LUT / 18,519 FF / 0 BRAM`；不声明 bitstream 或板级吞吐 | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) |
+
+<p align="center">
+  <a href="evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"><img src="docs/assets/bitpacker_pipeline_ab.svg" width="760" alt="Fixed-workload Bitpacker RTL pipeline A/B"></a>
+</p>
+<p align="center">
+  <a href="evidence/rdtc_v1_multiengine_rtl.yaml"><img src="docs/assets/engine_scaling.svg" width="760" alt="Multi-Engine RTL simulation scaling"></a>
+</p>
+
+<a id="rtl-reading-path"></a>
+
+## 10 分钟代码阅读路径
+
+| 顺序 | 文件 | 阅读重点 |
+|---:|---|---|
+| 1 | [`mrtc_top.sv`](rtl/top/mrtc_top.sv) | 从 AXI4-Lite 配置、状态寄存器和双向 AXIS128 端口理解完整 IP 边界。 |
+| 2 | [`mrtc_rdtc_codec_top.sv`](rtl/rdtc/mrtc_rdtc_codec_top.sv) | 查看单 Engine encoder/decoder 如何共享配置并形成 loopback datapath。 |
+| 3 | [`mrtc_prefix_k_accum_stream.sv`](rtl/rdtc/mrtc_prefix_k_accum_stream.sv) | 跟踪 ZERO/DELTA 预测、signed residual 映射、16 个候选代价累加与 `k` reduction。 |
+| 4 | [`mrtc_rice_bitpacker_lane_axis.sv`](rtl/rdtc/mrtc_rice_bitpacker_lane_axis.sv) | 阅读 lane-parallel quotient/remainder token 生成、归一化和 AXIS128 拼接流水。 |
+| 5 | [`mrtc_header_gen.sv`](rtl/rdtc/mrtc_header_gen.sv) · [`mrtc_header_axis_streamer.sv`](rtl/rdtc/mrtc_header_axis_streamer.sv) · [`mrtc_rdtc_decoder_top.sv`](rtl/rdtc/mrtc_rdtc_decoder_top.sv) | 串起 64-byte header、header/payload framing 与 bit-exact 解码恢复。 |
+| 6 | [`mrtc_rdtc_ddr_multiengine_wrapper.sv`](rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) · [`mrtc_axis_packet_buffer.sv`](rtl/rdtc/mrtc_axis_packet_buffer.sv) | 定位 block dispatcher、per-Engine packet buffer 与锁定到 `tlast` 的输出仲裁。 |
+| 7 | [`mrtc_rdtc_bounded_axis_multiengine_wrapper.sv`](rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) | 对照最终 Direct-AXIS 双 Engine job table、有序 packet mux 和有限 output credit。 |
+| 8 | [`mrtc_dpi_pkg.sv`](tb/dpi/mrtc_dpi_pkg.sv) · [`tb_rdtc_dpi_smoke.sv`](sv/tb_rdtc_dpi_smoke.sv) · [`tb_rdtc_codec_top_smoke.sv`](tb/sv/tb_rdtc_codec_top_smoke.sv) | 查看 C/DPI-C 函数边界以及公开 RTL AXIS128 encode/decode smoke。 |
 
 ### 选择集成入口
 
@@ -34,16 +57,33 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 
 [查看参数、端口、transaction 和 ordering contract](docs/zh-CN/interfaces.md)
 
+<a id="technical-review-path"></a>
+
+## 技术审阅快速路径（无需商业 EDA）
+
+```bash
+make rdtc_v1_public_preflight_defconfig
+make codec-demo
+make -C ref_model/c test
+make rtl-smoke
+make multiengine-smoke
+make bitpacker-pipeline-ab-validate
+make bounded-dc-ab-validate
+```
+
+首项生成 public-safe 配置，随后四项编译或运行公开 C/RTL 入口；末两项只校验脱敏的公开 Evidence、身份和计算合同，不会重新执行 Design Compiler、P&R 或 PrimeTime。
+
+<a id="public-scope-provenance"></a>
+
+## Public Scope / Provenance
+
+本仓包含可综合 RTL、公开适配、验证入口与脱敏 Evidence；不包含合作方数据、商业工具产物、PDK 或私有系统集成资产。公开边界由 [Public Scope](PUBLIC_SCOPE.md)、[Claims](provenance/claims.yaml)、[Evidence](provenance/evidence.yaml) 与 [Nonclaims](provenance/nonclaims.yaml) 共同约束。
+
 ## 1. 算法：为什么选择 RDTC
 
 ZERO/DELTA 路径把预测残差映射为非负整数，在 block 内评估候选 Rice `k`，再由 lane-parallel bitpacker 输出变长 payload。支持 fallback 的 encoder path 会在编码无收益时保留 RAW payload；模式与 fallback 边界由具体集成路径决定，不被包装成未经证明的自动算法选择器。
 
 MATLAB synthetic study 在受控 Range-Doppler-like 场景中比较 ZERO_RICE 与 DELTA_RICE，并对记录用例检查 `NMSE=0`、`max_abs_error=0` 和 point-cloud match ratio `1`。这些数据不是实测雷达采集，PointCloud 也不是 RTL 功能。
-
-<p align="center">
-  <img src="docs/assets/compression_vs_snr.svg" width="49%" alt="Synthetic compression ratio versus SNR">
-  <img src="docs/assets/engine_scaling.svg" width="49%" alt="Multi-Engine RTL simulation scaling">
-</p>
 
 数据与边界：[算法理论及 MATLAB 原图](docs/zh-CN/algorithm.md) · [MATLAB evidence](evidence/rdtc_v1_matlab_algorithm_study.yaml) · [Multi-Engine evidence](evidence/rdtc_v1_multiengine_rtl.yaml)
 
@@ -76,7 +116,7 @@ MATLAB synthetic study
 
 ## 4. FPGA：分层陈述成熟度
 
-**FPGA emulation verified** 仍专指固定 source commit `43deb9f` 的 Vivado 2018.3 AXIS32 XSim `3/3`，且 testbench 只驱动 `s0`。独立的 Direct-AXIS profile 已在 `xc7z100ffg900-2` 上完成 Vivado 2022.2 OOC post-route 200 MHz：setup/hold WNS 为 `+0.001/+0.062 ns`，结构为 2 Engine、8 way、`1024 x RAM32X1S`，资源为 `32,672 LUT / 18,519 FF / 0 BRAM`。这是内部 OOC fixed closure point，不是 Fmax，也不声明 bitstream、板上 console PASS、MCDMA/DDR runtime 或实测吞吐。
+**FPGA emulation verified** 仍专指固定 source commit `43deb9f` 的 Vivado 2018.3 AXIS32 XSim `3/3`，且为 single-`s0` testbench。独立的 Direct-AXIS profile 已在 `xc7z100ffg900-2` 上完成 Vivado 2022.2 OOC post-route 200 MHz：setup/hold WNS 为 `+0.001/+0.062 ns`，结构为 2 Engine、8 way、`1024 x RAM32X1S`，资源为 `32,672 LUT / 18,519 FF / 0 BRAM`。这是内部 OOC fixed closure point，不是 Fmax，也不声明 bitstream、板上 console PASS、MCDMA/DDR runtime 或实测吞吐。
 
 [查看 FPGA emulation 与 Zynq 集成边界](docs/zh-CN/fpga_implementation.md)
 
@@ -101,24 +141,15 @@ MATLAB synthetic study
 
 [查看 ASIC flow contract](docs/zh-CN/asic_implementation.md) · [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) · [完整结果矩阵](docs/zh-CN/results.md) · [限制与未声明项](docs/zh-CN/limitations.md)
 
-## 快速复现
+## 完整公开门禁
 
 ```bash
 make rdtc_v1_public_preflight_defconfig
-make codec-demo
-make -C ref_model/c test
-make rtl-smoke
-make integration-smoke
-make multiengine-smoke
-make fpga-wrapper-smoke
-make bounded-direct-rtl-identity-check
-make bitpacker-pipeline-ab-validate
-make bounded-direct-register-modelsim-regression
+make public-preflight
 make bounded-dc-ab-validate
-make showcase-assets-check
 ```
 
-Questa/ModelSim 环境可继续运行 `make sim` 与 `make sim-full`。商业工具、PDK、library 和 macro 路径仅允许出现在 ignored `flows/local/`。
+该门禁聚合公开 C/RTL smoke、文档、schema、identity、checksum、asset 与泄漏扫描；`bounded-dc-ab-validate` 仍只验证 Evidence。配置完整的 Questa/ModelSim 环境可继续运行 `make sim` 与 `make sim-full`。商业工具、PDK、library 和 macro 路径仅允许出现在 ignored `flows/local/`。
 
 ## 文档与发行边界
 

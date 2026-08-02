@@ -59,6 +59,78 @@ README_MARKERS = {
     ),
 }
 
+REVIEW_README_MARKERS = {
+    "README.md": (
+        '<a id="resume-results"></a>',
+        '<a id="rtl-reading-path"></a>',
+        '<a id="technical-review-path"></a>',
+        '<a id="public-scope-provenance"></a>',
+        "7693 -> 721 cycles",
+        "10.67×",
+        "785 / 397.52 / 197.41 cycles/block",
+        "98.7368% / 99.4115%",
+        "72.53% / 71.98%",
+        "600/300 MHz",
+        "make bitpacker-pipeline-ab-validate",
+        "make bounded-dc-ab-validate",
+        "不会重新执行 Design Compiler、P&R 或 PrimeTime",
+        "docs/assets/bitpacker_pipeline_ab.svg",
+        "docs/assets/engine_scaling.svg",
+        'width="760"',
+        "PUBLIC_SCOPE.md",
+        "provenance/claims.yaml",
+        "provenance/evidence.yaml",
+        "provenance/nonclaims.yaml",
+    ),
+    "README.en.md": (
+        '<a id="resume-results"></a>',
+        '<a id="rtl-reading-path"></a>',
+        '<a id="technical-review-path"></a>',
+        '<a id="public-scope-provenance"></a>',
+        "7693 -> 721 cycles",
+        "10.67×",
+        "785 / 397.52 / 197.41 cycles/block",
+        "98.7368% / 99.4115%",
+        "72.53% / 71.98%",
+        "600/300 MHz",
+        "make bitpacker-pipeline-ab-validate",
+        "make bounded-dc-ab-validate",
+        "do not rerun Design Compiler, P&R, or PrimeTime",
+        "docs/assets/bitpacker_pipeline_ab.svg",
+        "docs/assets/engine_scaling.svg",
+        'width="760"',
+        "PUBLIC_SCOPE.md",
+        "provenance/claims.yaml",
+        "provenance/evidence.yaml",
+        "provenance/nonclaims.yaml",
+    ),
+}
+
+REVIEW_EVIDENCE_LINKS = {
+    "README.md": (
+        "evidence/rdtc_v1_reference_validation.yaml",
+        "evidence/rdtc_v1_bitpacker_pipeline_ab.yaml",
+        "evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv",
+        "evidence/rdtc_v1_multiengine_rtl.yaml",
+        "evidence/data/rdtc_v1_multiengine_scaling.csv",
+        "evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml",
+        "evidence/rdtc_v1_bounded_direct_asic.yaml",
+        "docs/zh-CN/results.md",
+        "evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml",
+    ),
+    "README.en.md": (
+        "evidence/rdtc_v1_reference_validation.yaml",
+        "evidence/rdtc_v1_bitpacker_pipeline_ab.yaml",
+        "evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv",
+        "evidence/rdtc_v1_multiengine_rtl.yaml",
+        "evidence/data/rdtc_v1_multiengine_scaling.csv",
+        "evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml",
+        "evidence/rdtc_v1_bounded_direct_asic.yaml",
+        "docs/en/results.md",
+        "evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml",
+    ),
+}
+
 DIRECT_DOC_MARKERS = {
     "docs/en/limitations.md": (
         "277 cycles/block",
@@ -128,6 +200,12 @@ def check(root):
         for marker in README_MARKERS[name]:
             if marker not in text:
                 errors.append("{} missing showcase boundary {}".format(name, marker))
+        for marker in REVIEW_README_MARKERS[name]:
+            if marker not in text:
+                errors.append("{} missing reviewer entrypoint {}".format(name, marker))
+        for target in REVIEW_EVIDENCE_LINKS[name]:
+            if "]({})".format(target) not in text and 'href="{}"'.format(target) not in text:
+                errors.append("{} missing direct reviewer link {}".format(name, target))
     for name, markers in DIRECT_DOC_MARKERS.items():
         text = (root / name).read_text(encoding="utf-8")
         for marker in markers:

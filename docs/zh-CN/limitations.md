@@ -10,11 +10,11 @@
 - bit-exact PASS 适用于记录的 finite vector/regression set，不是 formal exhaustive proof 或 coverage closure；
 - ZERO_RICE 或 DELTA_RICE 按 block 配置；内部 policy 选择 `k`，不选择 predictor mode。只有实现 payload-cost fallback 的 encoder path 才具备 RAW fallback；
 - 在支持 RAW fallback 的路径上，它可避免更大的 coded payload，但 packet 仍携带 `64`-byte header，不能把 payload ratio 直接当作完整链路带宽比。
-- 历史 `7693 -> 721 cycles`、`10.67x` 指标只测量固定 `smoke_zero_sparse` RTL workload中首个payload valid到accepted `TLAST`的inclusive interval；它不是整块延迟、Multi-Engine吞吐、Direct-AXIS持续吞吐、FPGA性能、ASIC频率或Fmax。
+- 历史 `7693 -> 721 cycles`、`10.67×` 指标只测量固定 `smoke_zero_sparse` RTL workload中首个payload valid到accepted `TLAST`的inclusive interval；它不是整块延迟、Multi-Engine吞吐、Direct-AXIS持续吞吐、FPGA性能、ASIC频率或Fmax。
 
 ## Multi-Engine 与顺序
 
-- `785 / 397.52 / 197.41 cycles/block`、`0.987368 / 0.994115` efficiency 和假设 200 MHz 下的 `1965.3022 / 3957.4642 beam/s` 均为 simulated DDR feeder 下的 RTL simulation projection；一个 beam 在该记录中是 256 个 block，吞吐使用未舍入总周期计算，不是 FPGA timing、board DDR 或 network measurement；
+- `785 / 397.52 / 197.41 cycles/block`、`98.7368% / 99.4115%` efficiency 和假设 200 MHz 下的 `1965.3022 / 3957.4642 beam/s` 均为 simulated DDR feeder 下的 RTL simulation projection；一个 beam 在该记录中是 256 个 block，吞吐使用未舍入总周期计算，不是 FPGA timing、board DDR 或 network measurement；
 - arbiter 保证 packet atomic 与无 beat interleaving，但不保证输入 block 顺序输出；
 - Frame/Block metadata 支持软件 indexed reconstruction，但没有软件 reorder program PASS；记录场景也没有直接证明一次实际乱序事件；
 - `OUTPUT_IN_ORDER` 不是已实现模式，不得作为硬件 Reorder Buffer 或严格保序 claim。
