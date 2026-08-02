@@ -83,7 +83,7 @@ opt-in Direct profile 面向受约束信号域，以更少存储完成双 Engine
 
 ## 吞吐扩展
 
-历史 fixed-commit 256-block workload 使用 simulated DDR feeder，1/2/4 Engine 分别达到 `785 / 397.52 / 197.41 cycles/block`。2/4 Engine efficiency 为 `0.987368 / 0.994115`；一个 beam 在该记录中定义为 256 个 block。
+历史 fixed-commit 256-block workload 使用 simulated DDR feeder，1/2/4 Engine 分别达到 `785 / 397.52 / 197.41 cycles/block`。2/4 Engine efficiency 为 `98.7368% / 99.4115%`；一个 beam 在该记录中定义为 256 个 block。
 
 ![Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
 

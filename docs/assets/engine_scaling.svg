@@ -25,8 +25,8 @@
   <g class="label" text-anchor="middle"><text x="270" y="528">1 Engine</text><text x="515" y="528">2 Engines</text><text x="760" y="528">4 Engines</text></g>
   <g class="axis" text-anchor="middle">
     <text x="270" y="552">baseline</text>
-    <text x="515" y="552">efficiency 0.987368</text>
-    <text x="760" y="552">efficiency 0.994115</text>
+    <text x="515" y="552">efficiency 98.7368%</text>
+    <text x="760" y="552">efficiency 99.4115%</text>
     <text x="515" y="576">1965.3022 beam/s at assumed 200 MHz</text>
     <text x="760" y="596">3957.4642 beam/s at assumed 200 MHz</text>
   </g>

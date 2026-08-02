@@ -65,8 +65,8 @@ Baseline端点为 `1169 -> 8861`，得到 `7693 cycles`；optimized端点为 `70
 | Engines | Cycles/block | Scaling efficiency | Beam/s at assumed 200 MHz |
 |---:|---:|---:|---:|
 | 1 | 785 | baseline | - |
-| 2 | 397.52 | 0.987368 | 1965.3022 |
-| 4 | 197.41 | 0.994115 | 3957.4642 |
+| 2 | 397.52 | 98.7368% | 1965.3022 |
+| 4 | 197.41 | 99.4115% | 3957.4642 |
 
 这些数字是 simulated DDR model 下的 RTL simulation projection，不是 FPGA 时序或板上吞吐。当前公开 adaptation 另有 2-Engine、2-block correctness smoke，以及 packet-buffer overlength fail-stop/reset recovery、双 slot 同周期 queue push/pop、单 slot turnover、completion 同周期状态清零和 `OUTPUT_IN_ORDER=1` fail-fast 边界测试，但不重算该性能矩阵。Arbiter 保证 packet atomic、无 beat interleaving，但完成顺序不保证。现有记录验证 block identity，没有直接观察到一次实际乱序事件；metadata 允许软件按 Frame/Block index 重建，不声明软件 reorder PASS。
 

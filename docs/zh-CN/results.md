@@ -21,7 +21,7 @@ Synthetic SNR 从 `-20` 到 `30 dB` 时，ZERO_RICE compression ratio 为 `1.581
 
 ## Bitpacker Pipeline A/B
 
-历史 Stage16C3 与 Stage16D2 使用相同的 `smoke_zero_sparse` 输入、相同 latency monitor、相同 `selected_k=0` 和相同 `2158-bit / 270-byte` payload。把逐 sample compressed path 替换为集成四路 word Bitpacker 后，从首个 payload valid 到 accepted packet `TLAST` 的 inclusive interval 从 `7693` 降至 `721 cycles`，减少 `90.63%`，提升 `10.67x`。两点 input/output stall 均为0，334-byte packet逐字节一致，decoder loopback通过。
+历史 Stage16C3 与 Stage16D2 使用相同的 `smoke_zero_sparse` 输入、相同 latency monitor、相同 `selected_k=0` 和相同 `2158-bit / 270-byte` payload。把逐 sample compressed path 替换为集成四路 word Bitpacker 后，从首个 payload valid 到 accepted packet `TLAST` 的 inclusive interval 从 `7693` 降至 `721 cycles`，减少 `90.63%`，提升 `10.67×`。两点 input/output stall 均为0，334-byte packet逐字节一致，decoder loopback通过。
 
 该结果只衡量固定历史RTL workload的payload stream interval，不是整块延迟、Multi-Engine吞吐、Direct-AXIS持续吞吐、FPGA性能、ASIC频率或Fmax。
 
@@ -34,8 +34,8 @@ Synthetic SNR 从 `-20` 到 `30 dB` 时，ZERO_RICE compression ratio 为 `1.581
 | Engines | Cycles/block | Scaling efficiency | Beam/s at assumed 200 MHz |
 |---:|---:|---:|---:|
 | 1 | 785 | baseline | - |
-| 2 | 397.52 | 0.987368 | 1965.3022 |
-| 4 | 197.41 | 0.994115 | 3957.4642 |
+| 2 | 397.52 | 98.7368% | 1965.3022 |
+| 4 | 197.41 | 99.4115% | 3957.4642 |
 
 ![Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
 

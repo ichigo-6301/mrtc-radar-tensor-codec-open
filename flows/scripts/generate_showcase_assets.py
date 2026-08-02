@@ -11,6 +11,7 @@ from pathlib import Path
 
 
 GENERATED_ASSETS = (
+    "bitpacker_pipeline_ab.svg",
     "compression_vs_snr.svg",
     "engine_scaling.svg",
 )
@@ -137,6 +138,44 @@ def load_scaling_data(path):
     return by_engine
 
 
+def load_bitpacker_data(path):
+    rows = read_csv(path)
+    by_role = {}
+    for row in rows:
+        role = row["role"]
+        if role not in ("baseline", "optimized"):
+            raise ValueError("unexpected Bitpacker role in {}: {}".format(path, role))
+        if role in by_role:
+            raise ValueError("duplicate Bitpacker role {} in {}".format(role, path))
+        first_cycle = int(row["payload_first_valid_cycle"])
+        last_cycle = int(row["packet_last_cycle"])
+        interval = int(row["payload_stream_cycles"])
+        if interval != last_cycle - first_cycle + 1:
+            raise ValueError("invalid inclusive Bitpacker interval in {}".format(path))
+        if row["fresh_replay_status"] != "pass":
+            raise ValueError("Bitpacker replay did not pass in {}".format(path))
+        for field in ("payload_byte_exact", "packet_byte_exact", "decoder_loopback"):
+            if row[field] != "1":
+                raise ValueError("{} must pass in {}".format(field, path))
+        by_role[role] = row
+
+    if tuple(sorted(by_role)) != ("baseline", "optimized"):
+        raise ValueError("Bitpacker chart requires one baseline and one optimized row")
+    identity_fields = (
+        "workload",
+        "selected_k",
+        "payload_bits",
+        "payload_bytes",
+        "packet_bytes",
+        "input_stall_cycles",
+        "output_stall_cycles",
+    )
+    for field in identity_fields:
+        if by_role["baseline"][field] != by_role["optimized"][field]:
+            raise ValueError("Bitpacker rows disagree on {} in {}".format(field, path))
+    return by_role
+
+
 def compression_svg(snr_values, grouped):
     x_positions = {snr: 120 + index * 160 for index, snr in enumerate(snr_values)}
 
@@ -209,6 +248,54 @@ def compression_svg(snr_values, grouped):
     )
 
 
+def bitpacker_svg(by_role):
+    baseline = Decimal(by_role["baseline"]["payload_stream_cycles"])
+    optimized = Decimal(by_role["optimized"]["payload_stream_cycles"])
+    speedup = (baseline / optimized).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    reduction = (
+        (Decimal(1) - (optimized / baseline)) * Decimal(100)
+    ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    bar_x = 260
+    baseline_width = 650
+    optimized_width = rounded_int(Decimal(baseline_width) * optimized / baseline)
+
+    return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
+  <title id="title">Fixed-workload Bitpacker RTL pipeline A/B</title>
+  <desc id="desc">On one fixed smoke_zero_sparse RTL workload, the inclusive first-payload-valid to accepted-packet-TLAST interval falls from {baseline} to {optimized} cycles. This is not whole-block or system throughput.</desc>
+  <style>.title{{font:700 31px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 17px Arial,sans-serif;fill:#475569}}.label{{font:700 20px Arial,sans-serif;fill:#0f172a}}.value{{font:700 24px Arial,sans-serif;fill:#0f172a}}.callout{{font:700 34px Arial,sans-serif;fill:#166534}}.note{{font:400 16px Arial,sans-serif;fill:#334155}}</style>
+  <rect width="1000" height="620" fill="#f8fafc"/>
+  <text x="55" y="48" class="title">Lane-parallel Bitpacker RTL A/B</text>
+  <text x="55" y="76" class="sub">Fixed smoke_zero_sparse workload; identical payload, packet, selected k, and zero stalls.</text>
+
+  <text x="55" y="154" class="label">Stage16C3 baseline</text>
+  <rect x="{bar_x}" y="120" width="{baseline_width}" height="58" rx="6" fill="#2563eb"/>
+  <text x="{baseline_text_x}" y="157" text-anchor="end" fill="#fff" class="value">{baseline} cycles</text>
+
+  <text x="55" y="264" class="label">Stage16D2 lane4</text>
+  <rect x="{bar_x}" y="230" width="{optimized_width}" height="58" rx="6" fill="#16a34a"/>
+  <text x="{optimized_text_x}" y="267" class="value">{optimized} cycles</text>
+
+  <rect x="230" y="340" width="680" height="132" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text x="570" y="395" text-anchor="middle" class="callout">{speedup}&#215; speedup</text>
+  <text x="570" y="432" text-anchor="middle" class="label">{reduction}% fewer payload-interval cycles</text>
+
+  <text x="55" y="525" class="note">Metric: packet_last_cycle - payload_first_valid_cycle + 1.</text>
+  <text x="55" y="554" class="note">Both packets are byte-identical and decoder loopback passes.</text>
+  <text x="55" y="587" class="sub">Payload interval only - not whole-block latency, sustained throughput, FPGA performance, or Fmax.</text>
+</svg>
+""".format(
+        baseline=compact_decimal(baseline),
+        optimized=compact_decimal(optimized),
+        bar_x=bar_x,
+        baseline_width=baseline_width,
+        optimized_width=optimized_width,
+        baseline_text_x=bar_x + baseline_width - 16,
+        optimized_text_x=bar_x + optimized_width + 16,
+        speedup=compact_decimal(speedup),
+        reduction=compact_decimal(reduction),
+    )
+
+
 def scaling_svg(by_engine):
     cycles = {
         engine: Decimal(by_engine[engine]["effective_cycles_per_block"])
@@ -220,8 +307,12 @@ def scaling_svg(by_engine):
     }
     heights = {engine: 500 - y_positions[engine] for engine in (1, 2, 4)}
     labels = {engine: compact_decimal(cycles[engine]) for engine in (1, 2, 4)}
-    eff2 = by_engine[2]["scaling_efficiency_vs_single_engine"]
-    eff4 = by_engine[4]["scaling_efficiency_vs_single_engine"]
+    eff2 = compact_decimal(
+        Decimal(by_engine[2]["scaling_efficiency_vs_single_engine"]) * Decimal(100)
+    ) + "%"
+    eff4 = compact_decimal(
+        Decimal(by_engine[4]["scaling_efficiency_vs_single_engine"]) * Decimal(100)
+    ) + "%"
     beam2 = by_engine[2]["beam_s_at_assumed_200mhz"]
     beam4 = by_engine[4]["beam_s_at_assumed_200mhz"]
 
@@ -314,7 +405,9 @@ def main():
         data_dir / "rdtc_v1_matlab_lossless_snr.csv"
     )
     scaling_data = load_scaling_data(data_dir / "rdtc_v1_multiengine_scaling.csv")
+    bitpacker_data = load_bitpacker_data(data_dir / "rdtc_v1_bitpacker_pipeline_ab.csv")
     expected = {
+        "bitpacker_pipeline_ab.svg": bitpacker_svg(bitpacker_data),
         "compression_vs_snr.svg": compression_svg(snr_values, compression_data),
         "engine_scaling.svg": scaling_svg(scaling_data),
     }
@@ -382,7 +475,7 @@ def main():
             print("showcase-assets: dimensions mismatch {}".format(path), file=sys.stderr)
             return 1
 
-    print("showcase-assets: PASS generated=2 authored=5 binary=1")
+    print("showcase-assets: PASS generated=3 authored=5 binary=1")
     return 0
 
 
