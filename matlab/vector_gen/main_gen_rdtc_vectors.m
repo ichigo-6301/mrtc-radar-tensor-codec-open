@@ -497,6 +497,7 @@ for idx = 1:n
     end
     x(idx) = int16(pred + r);
 end
+end
 
 function [i, q, pos] = decode_sample_major(bits, pos, n, codec, k)
 k = double(k);
@@ -542,7 +543,6 @@ if bitand(mapped, 1)
     r = -int32((mapped + 1) / 2);
 else
     r = int32(mapped / 2);
-end
 end
 end
 
