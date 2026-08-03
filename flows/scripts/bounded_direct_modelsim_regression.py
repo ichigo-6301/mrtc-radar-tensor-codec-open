@@ -70,6 +70,72 @@ DECODER_RE = re.compile(
     r"DIRECT_AXIS_PROFILE_DECODER\s+bit_exact=(\d+)\s+blocks=(\d+)\s+"
     r"words=(\d+)"
 )
+BP_RE = re.compile(
+    r"DIRECT_AXIS_TRACE_BP\s+kind=(header|payload)\s+cycle=(\d+)\s+"
+    r"packet=(\d+)\s+beat=(\d+)\s+stall_cycles=(\d+)"
+)
+CYCLE_PREFIX = "DIRECT_AXIS_CYCLE "
+CYCLE_FIELDS = (
+    "cycle",
+    "input_fire",
+    "input_owner",
+    "input_block",
+    "e0_prefix_done",
+    "e0_k_valid",
+    "e0_k",
+    "e0_ring_wr",
+    "e0_ring_wr_addr",
+    "e0_ring_wr_block",
+    "e0_ring_rd_req",
+    "e0_ring_rd_req_addr",
+    "e0_ring_rd_req_block",
+    "e0_ring_rd_rsp",
+    "e0_ring_rd_rsp_addr",
+    "e0_ring_rd_rsp_block",
+    "e0_block",
+    "e1_prefix_done",
+    "e1_k_valid",
+    "e1_k",
+    "e1_ring_wr",
+    "e1_ring_wr_addr",
+    "e1_ring_wr_block",
+    "e1_ring_rd_req",
+    "e1_ring_rd_req_addr",
+    "e1_ring_rd_req_block",
+    "e1_ring_rd_rsp",
+    "e1_ring_rd_rsp_addr",
+    "e1_ring_rd_rsp_block",
+    "e1_block",
+    "m_tvalid",
+    "m_tready",
+    "m_tdata",
+    "m_tuser",
+    "m_tlast",
+    "output_owner",
+    "output_block",
+    "wrapper_error",
+    "e0_error",
+    "e1_error",
+)
+CYCLE_HEX_FIELDS = frozenset(("m_tdata", "m_tuser"))
+CYCLE_BINARY_FIELDS = frozenset(
+    (
+        "input_fire",
+        "e0_prefix_done",
+        "e0_k_valid",
+        "e0_ring_wr",
+        "e0_ring_rd_req",
+        "e0_ring_rd_rsp",
+        "e1_prefix_done",
+        "e1_k_valid",
+        "e1_ring_wr",
+        "e1_ring_rd_req",
+        "e1_ring_rd_rsp",
+        "m_tvalid",
+        "m_tready",
+        "m_tlast",
+    )
+)
 PROFILE_DIRECTORY_SENTINEL = ".bounded_direct_modelsim_owned.json"
 PROFILE_DIRECTORY_OWNER = "bounded-direct-modelsim-regression"
 
@@ -600,6 +666,8 @@ def verify_testbench_contract(testbench):
         "DIRECT_AXIS_PROFILE_BEAT",
         "DIRECT_AXIS_PROFILE_PACKET",
         "DIRECT_AXIS_PROFILE_DECODER",
+        "DIRECT_AXIS_CYCLE cycle=",
+        "DIRECT_AXIS_TRACE_BP kind=",
         "PASS tb_mrtc_bounded_axis_multiengine_wrapper",
     )
     missing = [marker for marker in required if marker not in text]
@@ -642,6 +710,7 @@ def build_profile_plan(
     model_path,
     testbench,
     clock_half_period_ns,
+    short_backpressure=False,
 ):
     if profile not in PROFILE_DEFINES:
         raise RuntimeError("unknown direct ModelSim profile: {}".format(profile))
@@ -671,7 +740,7 @@ def build_profile_plan(
             "-lib",
             library_name,
             "-gBLOCK_COUNT={}".format(BLOCK_COUNT),
-            "-gSHORT_BACKPRESSURE=0",
+            "-gSHORT_BACKPRESSURE={}".format(int(bool(short_backpressure))),
             "-gEXPECT_SCHEDULER_FAILURE=0",
             "-gCLOCK_HALF_PERIOD_NS={:.6f}".format(clock_half_period_ns),
             TOP,
@@ -723,11 +792,196 @@ def _reject_bad_run_markers(text, profile):
         raise RuntimeError("{} two-block run entered scheduler-limit mode".format(profile))
 
 
-def parse_profile_trace(text, profile):
+def _require_event_identity(row, valid_field, address_field, block_field, profile):
+    valid = row[valid_field]
+    address = row[address_field]
+    block = row[block_field]
+    if valid:
+        if not (0 <= address < BLOCK_WORDS) or block < 0:
+            raise RuntimeError(
+                "{} cycle trace has an invalid {} identity".format(
+                    profile, valid_field
+                )
+            )
+    elif address != -1 or block != -1:
+        raise RuntimeError(
+            "{} cycle trace {} sentinel must be -1".format(profile, valid_field)
+        )
+
+
+def parse_cycle_trace(text, profile):
+    rows = []
+    for raw_line in text.splitlines():
+        marker_at = raw_line.find(CYCLE_PREFIX)
+        if marker_at < 0:
+            continue
+        fields = []
+        for token in raw_line[marker_at + len(CYCLE_PREFIX) :].strip().split():
+            if "=" not in token:
+                raise RuntimeError(
+                    "{} cycle trace contains a malformed token".format(profile)
+                )
+            fields.append(tuple(token.split("=", 1)))
+        names = tuple(name for name, _value in fields)
+        if names != CYCLE_FIELDS:
+            raise RuntimeError(
+                "{} cycle trace field contract mismatch".format(profile)
+            )
+        row = {}
+        for name, value in fields:
+            if re.search(r"[xXzZ]", value):
+                raise RuntimeError(
+                    "{} cycle trace contains X/Z in {}".format(profile, name)
+                )
+            if name in CYCLE_HEX_FIELDS:
+                expected_width = 32 if name == "m_tdata" else 2
+                if len(value) != expected_width or not re.fullmatch(
+                    r"[0-9a-fA-F]+", value
+                ):
+                    raise RuntimeError(
+                        "{} cycle trace has malformed {}".format(profile, name)
+                    )
+                row[name] = value.lower()
+            else:
+                try:
+                    row[name] = int(value, 10)
+                except ValueError:
+                    raise RuntimeError(
+                        "{} cycle trace has non-integer {}".format(profile, name)
+                    )
+        if any(row[name] not in (0, 1) for name in CYCLE_BINARY_FIELDS):
+            raise RuntimeError("{} cycle trace has a non-binary signal".format(profile))
+        if row["cycle"] < 0:
+            raise RuntimeError("{} cycle trace has a negative cycle".format(profile))
+        if rows and row["cycle"] != rows[-1]["cycle"] + 1:
+            raise RuntimeError(
+                "{} cycle trace is not contiguous at cycle {}".format(
+                    profile, row["cycle"]
+                )
+            )
+        if row["input_fire"]:
+            if row["input_owner"] not in (0, 1) or row["input_block"] < 0:
+                raise RuntimeError("{} cycle trace has invalid input identity".format(profile))
+        elif row["input_owner"] != -1 or row["input_block"] != -1:
+            raise RuntimeError("{} cycle trace input sentinel must be -1".format(profile))
+        for engine in range(2):
+            prefix = "e{}_".format(engine)
+            if row[prefix + "k_valid"]:
+                if not (0 <= row[prefix + "k"] <= 15):
+                    raise RuntimeError(
+                        "{} cycle trace has invalid engine {} selected-k".format(
+                            profile, engine
+                        )
+                    )
+            elif row[prefix + "k"] != -1:
+                raise RuntimeError(
+                    "{} cycle trace engine {} selected-k sentinel must be -1".format(
+                        profile, engine
+                    )
+                )
+            if row[prefix + "block"] < -1:
+                raise RuntimeError(
+                    "{} cycle trace has invalid engine {} block".format(profile, engine)
+                )
+            for event in ("ring_wr", "ring_rd_req", "ring_rd_rsp"):
+                _require_event_identity(
+                    row,
+                    prefix + event,
+                    prefix + event + "_addr",
+                    prefix + event + "_block",
+                    profile,
+                )
+        if row["m_tvalid"]:
+            if row["output_owner"] not in (0, 1) or row["output_block"] < 0:
+                raise RuntimeError("{} cycle trace has invalid output identity".format(profile))
+        elif (
+            row["output_owner"] != -1
+            or row["output_block"] != -1
+            or row["m_tdata"] != ("0" * 32)
+            or row["m_tuser"] != "00"
+            or row["m_tlast"] != 0
+        ):
+            raise RuntimeError("{} cycle trace output sentinel is malformed".format(profile))
+        if min(row["wrapper_error"], row["e0_error"], row["e1_error"]) < 0:
+            raise RuntimeError("{} cycle trace has a negative error code".format(profile))
+        if rows and rows[-1]["m_tvalid"] and not rows[-1]["m_tready"]:
+            held_fields = (
+                "m_tvalid",
+                "m_tdata",
+                "m_tuser",
+                "m_tlast",
+                "output_owner",
+                "output_block",
+            )
+            if any(row[name] != rows[-1][name] for name in held_fields):
+                raise RuntimeError(
+                    "{} cycle trace output changed under backpressure".format(profile)
+                )
+        rows.append(row)
+    if not rows:
+        raise RuntimeError("{} cycle trace marker is missing".format(profile))
+    if rows[-1]["m_tvalid"] and not rows[-1]["m_tready"]:
+        raise RuntimeError("{} cycle trace ends during backpressure".format(profile))
+    return rows
+
+
+def validate_backpressure_cycles(rows, markers, short_backpressure, profile):
+    stalled_cycles = {
+        row["cycle"]
+        for row in rows
+        if row["m_tvalid"] and not row["m_tready"]
+    }
+    if not short_backpressure:
+        if stalled_cycles:
+            raise RuntimeError("{} nominal cycle trace contains an output stall".format(profile))
+        return
+    by_cycle = {row["cycle"]: row for row in rows}
+    expected_stalled_cycles = set()
+    held_fields = (
+        "m_tvalid",
+        "m_tdata",
+        "m_tuser",
+        "m_tlast",
+        "output_owner",
+        "output_block",
+    )
+    for marker in markers:
+        cycle = marker["cycle"]
+        stall_rows = (by_cycle.get(cycle), by_cycle.get(cycle + 1))
+        accepted = by_cycle.get(cycle + 2)
+        if (
+            any(row is None for row in stall_rows)
+            or accepted is None
+            or any(not row["m_tvalid"] or row["m_tready"] for row in stall_rows)
+            or not accepted["m_tvalid"]
+            or not accepted["m_tready"]
+        ):
+            raise RuntimeError(
+                "{} backpressure marker does not describe exactly two stalled cycles".format(
+                    profile
+                )
+            )
+        if any(
+            row[name] != stall_rows[0][name]
+            for row in (stall_rows[1], accepted)
+            for name in held_fields
+        ):
+            raise RuntimeError(
+                "{} backpressure marker does not preserve output hold".format(profile)
+            )
+        expected_stalled_cycles.update((cycle, cycle + 1))
+    if stalled_cycles != expected_stalled_cycles:
+        raise RuntimeError(
+            "{} cycle trace contains an unplanned output stall".format(profile)
+        )
+
+
+def parse_profile_trace(text, profile, short_backpressure=False):
     _reject_bad_run_markers(text, profile)
+    expected_bp = int(bool(short_backpressure))
     pass_marker = (
-        "PASS tb_mrtc_bounded_axis_multiengine_wrapper blocks={} bp=0".format(
-            BLOCK_COUNT
+        "PASS tb_mrtc_bounded_axis_multiengine_wrapper blocks={} bp={}".format(
+            BLOCK_COUNT, expected_bp
         )
     )
     if text.count(pass_marker) != 1:
@@ -738,9 +992,44 @@ def parse_profile_trace(text, profile):
     streams = list(STREAM_RE.finditer(text))
     if len(streams) != 1 or tuple(map(int, streams[0].groups()[:2])) != (
         BLOCK_COUNT,
-        0,
+        expected_bp,
     ):
         raise RuntimeError("{} stream summary is missing or malformed".format(profile))
+
+    bp_markers = [
+        {
+            "kind": kind,
+            "cycle": int(cycle),
+            "packet": int(packet),
+            "beat": int(beat),
+            "stall_cycles": int(stall_cycles),
+        }
+        for kind, cycle, packet, beat, stall_cycles in BP_RE.findall(text)
+    ]
+    expected_bp_markers = [
+        {"kind": "header", "packet": 0, "beat": 1, "stall_cycles": 2},
+        {"kind": "payload", "packet": 0, "beat": 4, "stall_cycles": 2},
+    ]
+    observed_bp_markers = [
+        {key: marker[key] for key in ("kind", "packet", "beat", "stall_cycles")}
+        for marker in bp_markers
+    ]
+    if short_backpressure:
+        if observed_bp_markers != expected_bp_markers:
+            raise RuntimeError(
+                "{} deterministic backpressure markers are missing or malformed".format(
+                    profile
+                )
+            )
+        if int(streams[0].group(6)) <= 0:
+            raise RuntimeError("{} backpressure run has no hold checks".format(profile))
+    elif bp_markers:
+        raise RuntimeError("{} nominal run contains backpressure markers".format(profile))
+
+    cycle_trace = parse_cycle_trace(text, profile)
+    validate_backpressure_cycles(
+        cycle_trace, bp_markers, short_backpressure, profile
+    )
 
     decoder_markers = list(DECODER_RE.finditer(text))
     expected_decoder = (1, BLOCK_COUNT, BLOCK_COUNT * BLOCK_WORDS)
@@ -905,8 +1194,10 @@ def parse_profile_trace(text, profile):
     return {
         "trace": trace,
         "trace_sha256": canonical_sha256(trace),
+        "cycle_trace": cycle_trace,
         "selected_k": [packet["selected_k"] for packet in normalized_packets],
         "packet_beats": [packet["beat_count"] for packet in normalized_packets],
+        "backpressure_markers": bp_markers,
     }
 
 
@@ -987,6 +1278,7 @@ def run_regression(
     clock_half_period_ns=DEFAULT_CLOCK_HALF_PERIOD_NS,
     sram_target_period_ns=DEFAULT_SRAM_TARGET_PERIOD_NS,
     profiles=("register", "sram"),
+    short_backpressure=False,
 ):
     if timeout_seconds <= 0:
         raise RuntimeError("timeout must be positive")
@@ -1049,6 +1341,7 @@ def run_regression(
             candidate["model_path"] if candidate is not None else None,
             testbench,
             clock_half_period_ns,
+            short_backpressure,
         )
         for profile in profiles
     }
@@ -1073,11 +1366,12 @@ def run_regression(
                 print("{}: {}".format(stage, command_text(plans[profile][stage])))
         print(
             "bounded-direct-modelsim: DRY-RUN profiles={} candidate={} "
-            "manifest_sha256={} clock_period_ns={:.6f}".format(
+                "manifest_sha256={} clock_period_ns={:.6f} short_backpressure={}".format(
                 ",".join(profiles),
                 candidate["candidate_id"] if candidate is not None else "not_applicable",
                 candidate["manifest_sha256"] if candidate is not None else "not_applicable",
                 clock_half_period_ns * 2.0,
+                int(bool(short_backpressure)),
             )
         )
         return {
@@ -1106,9 +1400,13 @@ def run_regression(
         run_text = run_logged(
             plan["simulate"], profile_dir, run_log, timeout_seconds
         )
-        parsed = parse_profile_trace(run_text, profile)
+        parsed = parse_profile_trace(
+            run_text, profile, short_backpressure=short_backpressure
+        )
         trace_path = profile_dir / "normalized_trace.json"
+        cycle_trace_path = profile_dir / "cycle_trace.json"
         _write_json(trace_path, parsed["trace"])
+        _write_json(cycle_trace_path, parsed["cycle_trace"])
         parsed_results[profile] = parsed
         profile_results[profile] = {
             "define": PROFILE_DEFINES[profile],
@@ -1130,8 +1428,15 @@ def run_regression(
                 "sha256": sha256_file(trace_path),
                 "canonical_sha256": parsed["trace_sha256"],
             },
+            "cycle_trace": {
+                "path": str(cycle_trace_path),
+                "sha256": sha256_file(cycle_trace_path),
+                "rows": len(parsed["cycle_trace"]),
+            },
             "selected_k": parsed["selected_k"],
             "packet_beats": parsed["packet_beats"],
+            "short_backpressure": bool(short_backpressure),
+            "backpressure_markers": parsed["backpressure_markers"],
         }
 
     if set(profiles) == {"register", "sram"}:
@@ -1153,6 +1458,7 @@ def run_regression(
         "profiles_requested": list(profiles),
         "block_count": BLOCK_COUNT,
         "functional_clock_period_ns": clock_half_period_ns * 2.0,
+        "short_backpressure": bool(short_backpressure),
         "timing_claim": "not_applicable_behavioral_functional_simulation",
         "source_identity": source_identity,
         "sram_candidate": (
@@ -1207,6 +1513,7 @@ def build_argument_parser():
     parser.add_argument("--build-dir")
     parser.add_argument("--clock-half-period-ns", type=float, default=DEFAULT_CLOCK_HALF_PERIOD_NS)
     parser.add_argument("--timeout-seconds", type=int, default=2700)
+    parser.add_argument("--short-backpressure", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     return parser
 
@@ -1242,6 +1549,7 @@ def main(argv=None):
         clock_half_period_ns=args.clock_half_period_ns,
         sram_target_period_ns=args.sram_target_period_ns,
         profiles=("register", "sram") if args.profiles == "both" else (args.profiles,),
+        short_backpressure=args.short_backpressure,
     )
     return 0
 

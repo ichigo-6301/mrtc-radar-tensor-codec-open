@@ -78,6 +78,12 @@ module tb_mrtc_bounded_axis_multiengine_wrapper #(
   logic [AXIS_DATA_W-1:0] output_hold_data;
   logic output_hold_last;
   logic [7:0] output_hold_user;
+  integer bp_stall_count;
+  logic bp_stall_header;
+  logic bp_header_done;
+  logic bp_payload_done;
+  logic bp_header_target;
+  logic bp_payload_target;
 
   logic [AXIS_DATA_W-1:0] captured_data [0:1][0:MAX_PACKET_BEATS-1];
   logic [7:0] captured_user [0:1][0:MAX_PACKET_BEATS-1];
@@ -106,10 +112,15 @@ module tb_mrtc_bounded_axis_multiengine_wrapper #(
   initial clk = 1'b0;
   always #(CLOCK_HALF_PERIOD_NS) clk = ~clk;
 
+  assign bp_header_target = SHORT_BACKPRESSURE && !bp_header_done &&
+                            (packet_count == 0) &&
+                            (packet_beat_index == 1) && out_tvalid;
+  assign bp_payload_target = SHORT_BACKPRESSURE && !bp_payload_done &&
+                             (packet_count == 0) &&
+                             (packet_beat_index == 4) && out_tvalid;
   assign out_tready = !SHORT_BACKPRESSURE ||
-                      !((cycle_count % 53) == 17 ||
-                        (cycle_count % 53) == 18 ||
-                        (cycle_count % 53) == 19);
+                      !((bp_stall_count != 0) || bp_header_target ||
+                        bp_payload_target);
 
   assign bpack_req[0] = u_dut.g_engine[0].u_engine.bpack_word_rd_req;
   assign bpack_req[1] = u_dut.g_engine[1].u_engine.bpack_word_rd_req;
@@ -120,6 +131,169 @@ module tb_mrtc_bounded_axis_multiengine_wrapper #(
   assign ring_rsp_valid[1] = u_dut.g_engine[1].u_engine.ring_rd_valid;
   assign ring_rsp_addr[0] = u_dut.g_engine[0].u_engine.ring_rd_word_index;
   assign ring_rsp_addr[1] = u_dut.g_engine[1].u_engine.ring_rd_word_index;
+`endif
+
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      bp_stall_count <= 0;
+      bp_stall_header <= 1'b0;
+      bp_header_done <= 1'b0;
+      bp_payload_done <= 1'b0;
+    end else if (!SHORT_BACKPRESSURE) begin
+      bp_stall_count <= 0;
+      bp_stall_header <= 1'b0;
+      bp_header_done <= 1'b0;
+      bp_payload_done <= 1'b0;
+    end else if (bp_stall_count != 0) begin
+      if (bp_stall_count == 1) begin
+        bp_stall_count <= 0;
+        if (bp_stall_header) begin
+          bp_header_done <= 1'b1;
+        end else begin
+          bp_payload_done <= 1'b1;
+        end
+      end else begin
+        bp_stall_count <= bp_stall_count - 1;
+      end
+    end else if (bp_header_target || bp_payload_target) begin
+      // The target cycle is already stalled; retain one more cycle here.
+      bp_stall_count <= 1;
+      bp_stall_header <= bp_header_target;
+`ifdef RDTC_DIRECT_PROFILE_TRACE
+      $display(
+        "DIRECT_AXIS_TRACE_BP kind=%s cycle=%0d packet=0 beat=%0d stall_cycles=2",
+        bp_header_target ? "header" : "payload", cycle_count + 1,
+        bp_header_target ? 1 : 4);
+`endif
+    end
+  end
+
+`ifdef RDTC_DIRECT_PROFILE_TRACE
+  // Capture edge events before NBA, then emit one row after NBA settles.
+  always @(posedge clk) begin : direct_axis_cycle_trace
+    integer trace_cycle;
+    integer trace_input_fire;
+    integer trace_input_owner;
+    integer trace_input_block;
+    integer trace_e0_prefix_done;
+    integer trace_e0_k_valid;
+    integer trace_e0_k;
+    integer trace_e0_ring_wr;
+    integer trace_e0_ring_wr_addr;
+    integer trace_e0_ring_wr_block;
+    integer trace_e0_ring_rd_req;
+    integer trace_e0_ring_rd_req_addr;
+    integer trace_e0_ring_rd_req_block;
+    integer trace_e0_ring_rd_rsp;
+    integer trace_e0_ring_rd_rsp_addr;
+    integer trace_e0_ring_rd_rsp_block;
+    integer trace_e0_block;
+    integer trace_e1_prefix_done;
+    integer trace_e1_k_valid;
+    integer trace_e1_k;
+    integer trace_e1_ring_wr;
+    integer trace_e1_ring_wr_addr;
+    integer trace_e1_ring_wr_block;
+    integer trace_e1_ring_rd_req;
+    integer trace_e1_ring_rd_req_addr;
+    integer trace_e1_ring_rd_req_block;
+    integer trace_e1_ring_rd_rsp;
+    integer trace_e1_ring_rd_rsp_addr;
+    integer trace_e1_ring_rd_rsp_block;
+    integer trace_e1_block;
+    integer trace_m_tvalid;
+    integer trace_m_tready;
+    logic [AXIS_DATA_W-1:0] trace_m_tdata;
+    logic [7:0] trace_m_tuser;
+    integer trace_m_tlast;
+    integer trace_output_owner;
+    integer trace_output_block;
+    integer trace_wrapper_error;
+    integer trace_e0_error;
+    integer trace_e1_error;
+
+    if (rst_n) begin
+      trace_cycle = cycle_count + 1;
+      trace_input_fire = u_dut.input_fire;
+      trace_input_owner = u_dut.input_fire ?
+                          int'(u_dut.job_engine_reg[u_dut.input_rd_ptr_reg]) : -1;
+      trace_input_block = u_dut.input_fire ?
+                          int'(u_dut.job_block_id_reg[u_dut.input_rd_ptr_reg]) : -1;
+
+      trace_e0_prefix_done = u_dut.g_engine[0].u_engine.prefix_done;
+      trace_e0_k_valid = u_dut.g_engine[0].u_engine.selected_k_valid_reg;
+      trace_e0_k = trace_e0_k_valid ?
+                   int'(u_dut.g_engine[0].u_engine.selected_k_reg) : -1;
+      trace_e0_ring_wr = u_dut.g_engine[0].u_engine.ring_wr_en;
+      trace_e0_ring_wr_addr = trace_e0_ring_wr ?
+        int'(u_dut.g_engine[0].u_engine.capture_word_count_reg) : -1;
+      trace_e0_ring_wr_block = trace_e0_ring_wr ?
+        int'(u_dut.g_engine[0].u_engine.block_id_reg) : -1;
+      trace_e0_ring_rd_req = u_dut.g_engine[0].u_engine.ring_rd_req;
+      trace_e0_ring_rd_req_addr = trace_e0_ring_rd_req ?
+        int'(u_dut.g_engine[0].u_engine.bpack_word_rd_addr) : -1;
+      trace_e0_ring_rd_req_block = trace_e0_ring_rd_req ?
+        int'(u_dut.g_engine[0].u_engine.block_id_reg) : -1;
+      trace_e0_ring_rd_rsp = u_dut.g_engine[0].u_engine.ring_rd_valid;
+      trace_e0_ring_rd_rsp_addr = trace_e0_ring_rd_rsp ?
+        int'(u_dut.g_engine[0].u_engine.ring_rd_word_index) : -1;
+      trace_e0_ring_rd_rsp_block = trace_e0_ring_rd_rsp ?
+        int'(u_dut.g_engine[0].u_engine.block_id_reg) : -1;
+      trace_e0_block = u_dut.g_engine[0].u_engine.block_active_reg ?
+                       int'(u_dut.g_engine[0].u_engine.block_id_reg) : -1;
+
+      trace_e1_prefix_done = u_dut.g_engine[1].u_engine.prefix_done;
+      trace_e1_k_valid = u_dut.g_engine[1].u_engine.selected_k_valid_reg;
+      trace_e1_k = trace_e1_k_valid ?
+                   int'(u_dut.g_engine[1].u_engine.selected_k_reg) : -1;
+      trace_e1_ring_wr = u_dut.g_engine[1].u_engine.ring_wr_en;
+      trace_e1_ring_wr_addr = trace_e1_ring_wr ?
+        int'(u_dut.g_engine[1].u_engine.capture_word_count_reg) : -1;
+      trace_e1_ring_wr_block = trace_e1_ring_wr ?
+        int'(u_dut.g_engine[1].u_engine.block_id_reg) : -1;
+      trace_e1_ring_rd_req = u_dut.g_engine[1].u_engine.ring_rd_req;
+      trace_e1_ring_rd_req_addr = trace_e1_ring_rd_req ?
+        int'(u_dut.g_engine[1].u_engine.bpack_word_rd_addr) : -1;
+      trace_e1_ring_rd_req_block = trace_e1_ring_rd_req ?
+        int'(u_dut.g_engine[1].u_engine.block_id_reg) : -1;
+      trace_e1_ring_rd_rsp = u_dut.g_engine[1].u_engine.ring_rd_valid;
+      trace_e1_ring_rd_rsp_addr = trace_e1_ring_rd_rsp ?
+        int'(u_dut.g_engine[1].u_engine.ring_rd_word_index) : -1;
+      trace_e1_ring_rd_rsp_block = trace_e1_ring_rd_rsp ?
+        int'(u_dut.g_engine[1].u_engine.block_id_reg) : -1;
+      trace_e1_block = u_dut.g_engine[1].u_engine.block_active_reg ?
+                       int'(u_dut.g_engine[1].u_engine.block_id_reg) : -1;
+
+      trace_m_tvalid = out_tvalid;
+      trace_m_tready = out_tready;
+      trace_m_tdata = out_tvalid ? out_tdata : '0;
+      trace_m_tuser = out_tvalid ? out_tuser : '0;
+      trace_m_tlast = out_tvalid ? out_tlast : 0;
+      trace_output_owner = out_tvalid ? (packet_count & 1) : -1;
+      trace_output_block = out_tvalid ? packet_count : -1;
+      trace_wrapper_error = stat_error;
+      trace_e0_error = u_dut.eng_stat_error[0];
+      trace_e1_error = u_dut.eng_stat_error[1];
+
+      #1step;
+      $display(
+        "DIRECT_AXIS_CYCLE cycle=%0d input_fire=%0d input_owner=%0d input_block=%0d e0_prefix_done=%0d e0_k_valid=%0d e0_k=%0d e0_ring_wr=%0d e0_ring_wr_addr=%0d e0_ring_wr_block=%0d e0_ring_rd_req=%0d e0_ring_rd_req_addr=%0d e0_ring_rd_req_block=%0d e0_ring_rd_rsp=%0d e0_ring_rd_rsp_addr=%0d e0_ring_rd_rsp_block=%0d e0_block=%0d e1_prefix_done=%0d e1_k_valid=%0d e1_k=%0d e1_ring_wr=%0d e1_ring_wr_addr=%0d e1_ring_wr_block=%0d e1_ring_rd_req=%0d e1_ring_rd_req_addr=%0d e1_ring_rd_req_block=%0d e1_ring_rd_rsp=%0d e1_ring_rd_rsp_addr=%0d e1_ring_rd_rsp_block=%0d e1_block=%0d m_tvalid=%0d m_tready=%0d m_tdata=%032h m_tuser=%02h m_tlast=%0d output_owner=%0d output_block=%0d wrapper_error=%0d e0_error=%0d e1_error=%0d",
+        trace_cycle, trace_input_fire, trace_input_owner, trace_input_block,
+        trace_e0_prefix_done, trace_e0_k_valid, trace_e0_k,
+        trace_e0_ring_wr, trace_e0_ring_wr_addr, trace_e0_ring_wr_block,
+        trace_e0_ring_rd_req, trace_e0_ring_rd_req_addr,
+        trace_e0_ring_rd_req_block, trace_e0_ring_rd_rsp,
+        trace_e0_ring_rd_rsp_addr, trace_e0_ring_rd_rsp_block, trace_e0_block,
+        trace_e1_prefix_done, trace_e1_k_valid, trace_e1_k,
+        trace_e1_ring_wr, trace_e1_ring_wr_addr, trace_e1_ring_wr_block,
+        trace_e1_ring_rd_req, trace_e1_ring_rd_req_addr,
+        trace_e1_ring_rd_req_block, trace_e1_ring_rd_rsp,
+        trace_e1_ring_rd_rsp_addr, trace_e1_ring_rd_rsp_block, trace_e1_block,
+        trace_m_tvalid, trace_m_tready, trace_m_tdata, trace_m_tuser,
+        trace_m_tlast, trace_output_owner, trace_output_block,
+        trace_wrapper_error, trace_e0_error, trace_e1_error);
+    end
+  end
 `endif
 
   function automatic logic [AXIS_DATA_W-1:0] block_word(

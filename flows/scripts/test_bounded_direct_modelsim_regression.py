@@ -173,8 +173,88 @@ def packet_data(selected_k, packet, beat):
     return "{:032x}".format(value)
 
 
-def valid_trace_log(cycle_shift=0, payload_xor=0):
+def cycle_trace_marker(cycle, **overrides):
+    row = {name: 0 for name in REGRESSION.CYCLE_FIELDS}
+    row.update(
+        {
+            "cycle": cycle,
+            "input_owner": -1,
+            "input_block": -1,
+            "e0_k": -1,
+            "e0_ring_wr_addr": -1,
+            "e0_ring_wr_block": -1,
+            "e0_ring_rd_req_addr": -1,
+            "e0_ring_rd_req_block": -1,
+            "e0_ring_rd_rsp_addr": -1,
+            "e0_ring_rd_rsp_block": -1,
+            "e0_block": -1,
+            "e1_k": -1,
+            "e1_ring_wr_addr": -1,
+            "e1_ring_wr_block": -1,
+            "e1_ring_rd_req_addr": -1,
+            "e1_ring_rd_req_block": -1,
+            "e1_ring_rd_rsp_addr": -1,
+            "e1_ring_rd_rsp_block": -1,
+            "e1_block": -1,
+            "m_tdata": "0" * 32,
+            "m_tuser": "00",
+            "output_owner": -1,
+            "output_block": -1,
+        }
+    )
+    row.update(overrides)
+    return REGRESSION.CYCLE_PREFIX + " ".join(
+        "{}={}".format(name, row[name]) for name in REGRESSION.CYCLE_FIELDS
+    )
+
+
+def cycle_trace_lines(cycle_shift=0, short_backpressure=False):
+    base = 20 + cycle_shift
+    if not short_backpressure:
+        return [
+            cycle_trace_marker(base),
+            cycle_trace_marker(
+                base + 1,
+                m_tvalid=1,
+                m_tready=1,
+                m_tdata="1" * 32,
+                m_tuser="0f",
+                output_owner=0,
+                output_block=0,
+            ),
+            cycle_trace_marker(base + 2),
+        ]
+    header = {
+        "m_tvalid": 1,
+        "m_tready": 0,
+        "m_tdata": "2" * 32,
+        "m_tuser": "0f",
+        "output_owner": 0,
+        "output_block": 0,
+    }
+    payload = {
+        "m_tvalid": 1,
+        "m_tready": 0,
+        "m_tdata": "3" * 32,
+        "m_tuser": "0f",
+        "output_owner": 0,
+        "output_block": 0,
+    }
+    return [
+        cycle_trace_marker(base, **header),
+        cycle_trace_marker(base + 1, **header),
+        cycle_trace_marker(base + 2, **dict(header, m_tready=1)),
+        cycle_trace_marker(base + 3),
+        cycle_trace_marker(base + 4, **payload),
+        cycle_trace_marker(base + 5, **payload),
+        cycle_trace_marker(base + 6, **dict(payload, m_tready=1)),
+        cycle_trace_marker(base + 7),
+    ]
+
+
+def valid_trace_log(cycle_shift=0, payload_xor=0, short_backpressure=False):
     lines = []
+    lines.extend(cycle_trace_lines(cycle_shift, short_backpressure))
     for engine in range(2):
         base = 1000 + cycle_shift + (engine * 500)
         for address in range(REGRESSION.BLOCK_WORDS):
@@ -212,13 +292,28 @@ def valid_trace_log(cycle_shift=0, payload_xor=0):
                 packet, selected_k, selected_k
             )
         )
+    if short_backpressure:
+        lines.extend(
+            (
+                "DIRECT_AXIS_TRACE_BP kind=header cycle={} packet=0 beat=1 stall_cycles=2".format(
+                    20 + cycle_shift
+                ),
+                "DIRECT_AXIS_TRACE_BP kind=payload cycle={} packet=0 beat=4 stall_cycles=2".format(
+                    24 + cycle_shift
+                ),
+            )
+        )
     lines.append(
-        "DIRECT_AXIS_STREAM blocks=2 bp=0 cycles=700 cycles_per_block=350.000 "
-        "fifo_max=2 hold_checks=0 k_cycle=39/39 first_read=47/47"
+        "DIRECT_AXIS_STREAM blocks=2 bp={} cycles=700 cycles_per_block=350.000 "
+        "fifo_max=2 hold_checks={} k_cycle=39/39 first_read=47/47".format(
+            int(short_backpressure), 4 if short_backpressure else 0
+        )
     )
     lines.append("DIRECT_AXIS_PROFILE_DECODER bit_exact=1 blocks=2 words=512")
     lines.append(
-        "PASS tb_mrtc_bounded_axis_multiengine_wrapper blocks=2 bp=0"
+        "PASS tb_mrtc_bounded_axis_multiengine_wrapper blocks=2 bp={}".format(
+            int(short_backpressure)
+        )
     )
     return "\n".join(lines) + "\n"
 
@@ -404,6 +499,11 @@ class BoundedDirectModelsimRegressionTests(unittest.TestCase):
         )
         self.assertIn(str(Path("candidate.v").resolve()), sram["compile"])
         self.assertIn("-gCLOCK_HALF_PERIOD_NS=5.000000", sram["simulate"])
+        self.assertIn("-gSHORT_BACKPRESSURE=0", register["simulate"])
+        backpressure = REGRESSION.build_profile_plan(
+            profile="register", short_backpressure=True, **common
+        )
+        self.assertIn("-gSHORT_BACKPRESSURE=1", backpressure["simulate"])
 
     def test_direct_filelist_requires_the_bounded_output_fifo(self):
         include_args, source_files = REGRESSION.parse_filelist(SOURCE_ROOT, FILELIST)
@@ -426,6 +526,55 @@ class BoundedDirectModelsimRegressionTests(unittest.TestCase):
             2,
         )
         self.assertTrue(result["trace"]["decoder_bit_exact"])
+        self.assertEqual(len(result["cycle_trace"]), 3)
+        self.assertEqual(result["cycle_trace"][0]["cycle"], 20)
+
+    def test_cycle_trace_requires_continuity_and_rejects_unknowns(self):
+        text = valid_trace_log().replace("cycle=21 input_fire=", "cycle=22 input_fire=", 1)
+        with self.assertRaisesRegex(RuntimeError, "not contiguous"):
+            REGRESSION.parse_profile_trace(text, "register")
+
+        text = valid_trace_log().replace("m_tdata=1111", "m_tdata=x111", 1)
+        with self.assertRaisesRegex(RuntimeError, "contains X/Z"):
+            REGRESSION.parse_profile_trace(text, "register")
+
+    def test_cycle_trace_rejects_malformed_sentinels(self):
+        text = valid_trace_log().replace(
+            "input_fire=0 input_owner=-1 input_block=-1",
+            "input_fire=0 input_owner=0 input_block=-1",
+            1,
+        )
+        with self.assertRaisesRegex(RuntimeError, "input sentinel"):
+            REGRESSION.parse_profile_trace(text, "register")
+
+    def test_backpressure_trace_requires_both_markers_and_proves_hold(self):
+        result = REGRESSION.parse_profile_trace(
+            valid_trace_log(short_backpressure=True),
+            "register",
+            short_backpressure=True,
+        )
+        self.assertEqual(
+            [marker["kind"] for marker in result["backpressure_markers"]],
+            ["header", "payload"],
+        )
+        self.assertEqual(len(result["cycle_trace"]), 8)
+
+        missing = valid_trace_log(short_backpressure=True).replace(
+            "DIRECT_AXIS_TRACE_BP kind=payload cycle=24 packet=0 beat=4 stall_cycles=2\n",
+            "",
+        )
+        with self.assertRaisesRegex(RuntimeError, "backpressure markers"):
+            REGRESSION.parse_profile_trace(
+                missing, "register", short_backpressure=True
+            )
+
+        changed = valid_trace_log(short_backpressure=True).replace(
+            "cycle=21 input_fire=0", "cycle=21 input_fire=0", 1
+        ).replace("m_tdata=22222222222222222222222222222222", "m_tdata=42222222222222222222222222222222", 1)
+        with self.assertRaisesRegex(RuntimeError, "changed under backpressure"):
+            REGRESSION.parse_profile_trace(
+                changed, "register", short_backpressure=True
+            )
 
     def test_trace_rejects_non_two_cycle_response(self):
         text = valid_trace_log().replace(
@@ -470,6 +619,11 @@ class BoundedDirectModelsimRegressionTests(unittest.TestCase):
         )
         equivalence = REGRESSION.compare_profile_traces(register, sram)
         self.assertEqual(equivalence["status"], "verified")
+        self.assertNotEqual(
+            register["cycle_trace"][0]["cycle"],
+            sram["cycle_trace"][0]["cycle"],
+        )
+        self.assertEqual(register["trace_sha256"], sram["trace_sha256"])
 
         changed = REGRESSION.parse_profile_trace(
             valid_trace_log(cycle_shift=77, payload_xor=1), "sram"
@@ -599,6 +753,9 @@ class BoundedDirectModelsimRegressionTests(unittest.TestCase):
         self.assertIn("DIRECT_AXIS_PROFILE_MEMORY kind=req", testbench)
         self.assertIn("DIRECT_AXIS_PROFILE_BEAT", testbench)
         self.assertIn("DIRECT_AXIS_PROFILE_DECODER", testbench)
+        self.assertIn("DIRECT_AXIS_CYCLE cycle=", testbench)
+        self.assertIn("DIRECT_AXIS_TRACE_BP kind=", testbench)
+        self.assertIn("#1step;", testbench)
         self.assertIn("parameter real CLOCK_HALF_PERIOD_NS = 2.5", testbench)
         makefile = MAKEFILE.read_text(encoding="utf-8")
         self.assertIn("bounded-direct-modelsim-regression:", makefile)
