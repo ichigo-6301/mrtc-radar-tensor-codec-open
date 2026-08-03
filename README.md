@@ -36,9 +36,9 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 ## 数据合同：4096B 原始 Block 如何变成变长 Packet
 
 ```text
-Raw Tensor Block / 原始张量块
+Raw Tensor Block
 [1 beam x 64 Doppler x 16 Range]
-             | range fastest / Range 最快
+             | range fastest
              v
        256 x AXIS128
              |

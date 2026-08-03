@@ -36,9 +36,9 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 ## Data Contract: From A 4096-Byte Raw Block To A Variable-Length Packet
 
 ```text
-Raw Tensor Block / 原始张量块
+Raw Tensor Block
 [1 beam x 64 Doppler x 16 Range]
-             | range fastest / Range 最快
+             | range fastest
              v
        256 x AXIS128
              |
