@@ -11,13 +11,21 @@ published_figure:
   source_path: matlab/compressed_pointcloud_consistency/results/figures/rdb_before_after_rdtc_zero_rice.png
   source_git_blob: 593fa31e6fe06bf3f166617040fdbc60d36ad390
   public_path: docs/assets/matlab/rdb_before_after_rdtc_zero_rice.png
-  transfer: byte_for_byte_unmodified
+  transfer: title_only_presentation_derivative
+  source_original_sha256: 005d1e9e03784faa9655633b203f6c4917bb84e9aaf02a7a47ae866a2f857d8b
+  source_original_size_bytes: 56847
   media_type: image/png
-  size_bytes: 56847
+  size_bytes: 49094
   dimensions_px:
     width: 875
     height: 656
-  sha256: 005d1e9e03784faa9655633b203f6c4917bb84e9aaf02a7a47ae866a2f857d8b
+  sha256: 773c320c15225425ae37f884e6d92bbc49df499ded4d894613e50aa7bf458f68
+  presentation_edit:
+    reason: render the literal algorithm identifier without MATLAB TeX underscore interpretation
+    replacement_title: rdtc_zero_rice
+    changed_region_px: {x: 485, y: 10, width: 320, height: 38}
+    changed_pixels_inside_region: 1054
+    changed_pixels_outside_region: 0
   semantic_scope: synthetic ZERO_RICE raw-versus-reconstructed illustration
 configuration: Synthetic Range-Doppler-beam scenes at -20, -10, 0, 10, 20, and 30 dB SNR
 tool: MATLAB R2024b

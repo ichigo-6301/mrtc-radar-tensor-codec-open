@@ -17,6 +17,7 @@ GENERATED_ASSETS = (
 )
 
 AUTHORED_ASSETS = (
+    "bounded_direct_dual_engine.svg",
     "rdtc_overview.svg",
     "system_context.svg",
     "single_engine_pipeline.svg",
@@ -26,13 +27,29 @@ AUTHORED_ASSETS = (
 
 BINARY_ASSETS = {
     "matlab/rdb_before_after_rdtc_zero_rice.png": {
-        "sha256": "005d1e9e03784faa9655633b203f6c4917bb84e9aaf02a7a47ae866a2f857d8b",
-        "size_bytes": 56847,
+        "sha256": "773c320c15225425ae37f884e6d92bbc49df499ded4d894613e50aa7bf458f68",
+        "size_bytes": 49094,
         "dimensions_px": (875, 656),
     },
 }
 
 AUTHORED_ASSET_RULES = {
+    "bounded_direct_dual_engine.svg": {
+        "required": (
+            "Current bounded Direct-AXIS dual-Engine profile",
+            "256 beats / block",
+            "~277-cycle ordered service &gt; 256-cycle zero-gap arrival",
+            "Register-expanded: 600 MHz",
+            "OpenRAM: 8 macros, 300 MHz",
+            "not Fmax",
+        ),
+        "forbidden": (
+            "785",
+            "397.52",
+            "197.41",
+            "beam/s",
+        ),
+    },
     "rdtc_overview.svg": {
         "required": (
             "MRTC-RDTC: sensing tensor to bit-exact reconstruction",
@@ -60,6 +77,7 @@ AUTHORED_ASSET_RULES = {
     },
     "multi_engine_wrapper.svg": {
         "required": (
+            "Historical DDR-backed",
             "Round-Robin",
             "dispatcher",
             "Packet-locked",
@@ -67,7 +85,7 @@ AUTHORED_ASSET_RULES = {
             "completion order may vary",
             "no software reorder PASS claimed",
         ),
-        "forbidden": (),
+        "forbidden": ("Current bounded Direct-AXIS",),
     },
     "zynq_emulation_path.svg": {
         "required": (
@@ -475,7 +493,7 @@ def main():
             print("showcase-assets: dimensions mismatch {}".format(path), file=sys.stderr)
             return 1
 
-    print("showcase-assets: PASS generated=3 authored=5 binary=1")
+    print("showcase-assets: PASS generated=3 authored=6 binary=1")
     return 0
 
 

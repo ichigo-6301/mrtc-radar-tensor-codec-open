@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
+  <title id="title">Bounded Direct-AXIS dual-Engine implementation snapshot</title>
+  <desc id="desc">The current opt-in bounded Direct-AXIS profile rotates 256-beat blocks strictly between two Engines, uses four 32 by 128 one-read-write ways per Engine, preserves ordered packet output through a 16-beat FIFO, and has fixed register-expanded 600 MHz and eight-macro OpenRAM 300 MHz post-route PrimeTime closure points. Ordered packet service is approximately 277 cycles, so sustained zero-gap operation is not claimed.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
+    <style>
+      .title{font:700 29px Arial,sans-serif;fill:#0f172a}.sub{font:400 15px Arial,sans-serif;fill:#475569}.heading{font:700 18px Arial,sans-serif;fill:#0f172a}.body{font:400 14px Arial,sans-serif;fill:#334155}.small{font:400 13px Arial,sans-serif;fill:#475569}.metric{font:700 22px Arial,sans-serif;fill:#0f172a}.box{stroke:#334155;stroke-width:2}.arrow{stroke:#334155;stroke-width:2.5;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="680" fill="#f8fafc"/>
+  <text x="48" y="48" class="title">Current bounded Direct-AXIS dual-Engine profile</text>
+  <text x="48" y="76" class="sub">Opt-in ZERO_RICE + prefix-128 datapath; current architecture and fixed implementation points.</text>
+
+  <rect x="45" y="135" width="150" height="150" rx="6" class="box" fill="#dbeafe"/>
+  <text x="120" y="174" text-anchor="middle" class="heading">AXIS128 input</text>
+  <text x="120" y="208" text-anchor="middle" class="body">single stream</text>
+  <text x="120" y="232" text-anchor="middle" class="body">256 beats / block</text>
+  <text x="120" y="260" text-anchor="middle" class="small">descriptor + data</text>
+  <path d="M195 210 H240" class="arrow"/>
+
+  <rect x="245" y="135" width="175" height="150" rx="6" class="box" fill="#dcfce7"/>
+  <text x="332" y="174" text-anchor="middle" class="heading">Two-entry job table</text>
+  <text x="332" y="208" text-anchor="middle" class="body">strict block rotation</text>
+  <text x="332" y="234" text-anchor="middle" class="metric">0 -&gt; 1</text>
+  <text x="332" y="262" text-anchor="middle" class="small">one job per Engine</text>
+  <path d="M420 180 H465" class="arrow"/>
+  <path d="M420 240 H445 V355 H465" class="arrow"/>
+
+  <rect x="470" y="105" width="365" height="210" rx="6" class="box" fill="#fef3c7"/>
+  <text x="652" y="140" text-anchor="middle" class="heading">Engine 0</text>
+  <rect x="495" y="164" width="145" height="78" rx="5" fill="#fff" stroke="#d97706"/>
+  <text x="567" y="190" text-anchor="middle" class="body">4 x 32x128 1RW</text>
+  <text x="567" y="214" text-anchor="middle" class="small">way-ring</text>
+  <rect x="665" y="164" width="145" height="78" rx="5" fill="#fff" stroke="#d97706"/>
+  <text x="737" y="190" text-anchor="middle" class="body">prefix-128 k</text>
+  <text x="737" y="214" text-anchor="middle" class="small">bounded II=1 packer</text>
+  <text x="652" y="278" text-anchor="middle" class="small">16,384 ring bits | independent codec state</text>
+
+  <rect x="470" y="335" width="365" height="210" rx="6" class="box" fill="#fee2e2"/>
+  <text x="652" y="370" text-anchor="middle" class="heading">Engine 1</text>
+  <rect x="495" y="394" width="145" height="78" rx="5" fill="#fff" stroke="#dc2626"/>
+  <text x="567" y="420" text-anchor="middle" class="body">4 x 32x128 1RW</text>
+  <text x="567" y="444" text-anchor="middle" class="small">way-ring</text>
+  <rect x="665" y="394" width="145" height="78" rx="5" fill="#fff" stroke="#dc2626"/>
+  <text x="737" y="420" text-anchor="middle" class="body">prefix-128 k</text>
+  <text x="737" y="444" text-anchor="middle" class="small">bounded II=1 packer</text>
+  <text x="652" y="508" text-anchor="middle" class="small">16,384 ring bits | independent codec state</text>
+
+  <path d="M835 210 H875" class="arrow"/>
+  <path d="M835 440 H855 V270 H875" class="arrow"/>
+  <rect x="880" y="155" width="150" height="165" rx="6" class="box" fill="#ede9fe"/>
+  <text x="955" y="191" text-anchor="middle" class="heading">Ordered mux</text>
+  <text x="955" y="220" text-anchor="middle" class="body">packet lock</text>
+  <text x="955" y="244" text-anchor="middle" class="small">through TLAST</text>
+  <rect x="905" y="265" width="100" height="36" rx="5" fill="#fff" stroke="#7c3aed"/>
+  <text x="955" y="288" text-anchor="middle" class="small">16-beat FIFO</text>
+  <path d="M1030 238 H1070" class="arrow"/>
+  <rect x="1075" y="175" width="90" height="125" rx="6" class="box" fill="#cffafe"/>
+  <text x="1120" y="212" text-anchor="middle" class="heading">AXIS128</text>
+  <text x="1120" y="241" text-anchor="middle" class="body">ordered</text>
+  <text x="1120" y="265" text-anchor="middle" class="body">packets</text>
+
+  <rect x="45" y="570" width="525" height="90" rx="6" fill="#fff7ed" stroke="#f59e0b" stroke-width="2"/>
+  <text x="68" y="599" class="heading">Scheduler boundary</text>
+  <text x="68" y="626" class="body">~277-cycle ordered service &gt; 256-cycle zero-gap arrival.</text>
+  <text x="68" y="648" class="small">Sustained zero-gap scheduling is not claimed.</text>
+
+  <rect x="600" y="570" width="565" height="90" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text x="623" y="597" class="heading">Fixed post-route PrimeTime closure points</text>
+  <text x="1142" y="597" text-anchor="end" class="small">not Fmax</text>
+  <text x="623" y="624" class="small">Register-expanded: 600 MHz | setup/hold +0.03/+0.02 ns</text>
+  <text x="623" y="647" class="small">OpenRAM: 8 macros, 300 MHz | setup/hold +0.16/+0.02 ns</text>
+
+  <text x="880" y="360" class="small">Removed from Direct profile:</text>
+  <text x="880" y="384" class="small">DDR feeder | payload commit</text>
+  <text x="880" y="408" class="small">payload BRAM | legacy packet buffer</text>
+  <text x="880" y="452" class="small">Total ring storage: 32,768 bit</text>
+  <text x="880" y="476" class="small">SRAM 600 MHz: MACRO_MODEL_BLOCKED</text>
+</svg>

@@ -18,7 +18,7 @@ RDTC compresses I16Q16 samples block by block while preserving bit-exact reconst
 |---|---|---|
 | Codec and verification | `RAW_BYPASS`, `ZERO_RICE`, and `DELTA_RICE`; `1024` I16Q16 samples/block, a 64-byte header, and 128-bit AXI-Stream; finite-vector MATLAB/C/DPI-C/RTL bit-exact agreement | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [verification matrix](docs/en/verification.md) |
 | Bitpacker A/B | Fixed historical `smoke_zero_sparse` RTL workload; inclusive first-payload-valid to accepted-packet-`TLAST` interval `7693 -> 721 cycles`, a `10.67×` speedup; not whole-block latency or system throughput | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
-| Multi-Engine scaling | Fixed 256-block RTL workload with a simulated DDR feeder; 1/2/4 Engines reach `785 / 397.52 / 197.41 cycles/block`, with 2/4-Engine efficiency `98.7368% / 99.4115%` | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
+| Bounded Direct dual Engine | One AXIS128 input, strict Engine `0 -> 1` block rotation, and an ordered packet mux; the two-block regression matches packet/sideband/selected-k and decodes bit-exactly; `~277 > 256 cycles/block`, so sustained zero-gap scheduling is not claimed | [Direct RTL evidence](evidence/rdtc_v1_bounded_direct_rtl.yaml) |
 | Direct-AXIS DC A/B | One Nangate45 library, one 315 MHz SDC, two Engines, register-expanded storage, and disabled retiming; cell area/count fall `72.53% / 71.98%`; DC-only architecture A/B | [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
 | ASIC post-route STA | Direct register-expanded / eight-macro OpenRAM profiles complete fixed academic post-route PrimeTime setup/hold closure at `600/300 MHz`; not Fmax or foundry signoff | [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [result matrix](docs/en/results.md) |
 | FPGA OOC | Direct-AXIS completes Vivado 2022.2 OOC post-route at 200 MHz on `xc7z100ffg900-2`; WNS `+0.001/+0.062 ns` and `32,672 LUT / 18,519 FF / 0 BRAM`; no bitstream or board-throughput claim | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) |
@@ -27,7 +27,7 @@ RDTC compresses I16Q16 samples block by block while preserving bit-exact reconst
   <a href="evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"><img src="docs/assets/bitpacker_pipeline_ab.svg" width="760" alt="Fixed-workload Bitpacker RTL pipeline A/B"></a>
 </p>
 <p align="center">
-  <a href="evidence/rdtc_v1_multiengine_rtl.yaml"><img src="docs/assets/engine_scaling.svg" width="760" alt="Multi-Engine RTL simulation scaling"></a>
+  <a href="evidence/rdtc_v1_bounded_direct_rtl.yaml"><img src="docs/assets/bounded_direct_dual_engine.svg" width="760" alt="Current bounded Direct-AXIS dual-Engine architecture and fixed closure points"></a>
 </p>
 
 <a id="rtl-reading-path"></a>

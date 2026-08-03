@@ -37,7 +37,7 @@ Synthetic SNR 从 `-20` 到 `30 dB` 时，ZERO_RICE compression ratio 为 `1.581
 | 2 | 397.52 | 98.7368% | 1965.3022 |
 | 4 | 197.41 | 99.4115% | 3957.4642 |
 
-![Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
+![历史 buffered Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
 
 这些是 RTL simulation projection，不是 FPGA timing closure、implemented clock 或板级 DDR 吞吐。当前公开 adaptation 另有 2-Engine、2-block correctness smoke，但不重算该性能矩阵。输出 packet 保持 atomic，不同 packet 的 beat 不交织；完成顺序不保证。Frame/Block metadata 支持软件 indexed reconstruction，但没有软件 reorder PASS claim，记录场景也没有直接证明一次实际乱序事件。
 
