@@ -418,26 +418,28 @@ def direct_stream_timing_svg(trace):
     )
     e0_end = trace["e0_output"][-1]["cycle"]
     backpressure_display = (
-        '<rect x="236" y="608" width="58" height="34" class="accepted"/>'
-        '<rect x="294" y="608" width="116" height="34" class="hold"/>'
-        '<rect x="410" y="608" width="58" height="34" class="accepted"/>'
-        '<text x="352" y="634" text-anchor="middle" class="inside">H1 hold</text>'
-        '<rect x="590" y="608" width="58" height="34" class="accepted"/>'
-        '<rect x="648" y="608" width="116" height="34" class="hold"/>'
-        '<rect x="764" y="608" width="58" height="34" class="accepted"/>'
-        '<text x="706" y="634" text-anchor="middle" class="inside">P0 hold</text>'
+        '<rect x="252" y="608" width="58" height="34" class="accepted"/>'
+        '<rect x="310" y="608" width="116" height="34" class="hold"/>'
+        '<rect x="426" y="608" width="58" height="34" class="accepted"/>'
+        '<text x="368" y="634" text-anchor="middle" class="inside">H1 hold</text>'
+        '<rect x="606" y="608" width="58" height="34" class="accepted"/>'
+        '<rect x="664" y="608" width="116" height="34" class="hold"/>'
+        '<rect x="780" y="608" width="58" height="34" class="accepted"/>'
+        '<text x="722" y="634" text-anchor="middle" class="inside">P0 hold</text>'
     )
+    marker_cycles = (first_cycle, prefix_end + 1, trace["requests"][0], e0_end)
+    marker_label_offsets = (0, -18, 18, 0)
     markers = "".join(
         '<line x1="{0:.2f}" y1="140" x2="{0:.2f}" y2="590" class="marker"/><text x="{1:.2f}" y="132" class="tiny" text-anchor="middle">c{2}</text>'.format(
-            x(cycle), x(cycle), cycle
+            x(cycle), x(cycle) + label_offset, cycle
         )
-        for cycle in (first_cycle, prefix_end + 1, trace["requests"][0], e0_end)
+        for cycle, label_offset in zip(marker_cycles, marker_label_offsets)
     )
-    return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="930" viewBox="0 0 1000 930" role="img" aria-labelledby="title desc">
+    return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="1020" viewBox="0 0 1000 1020" role="img" aria-labelledby="title desc">
   <title id="title">Direct wrapper stream trace: Engine 0 / Block 0</title>
   <desc id="desc">Fixed ModelSim functional trace from the final two-Engine Direct wrapper. The diagram derives input, prefix, ring, output, and deterministic backpressure events from public nominal and backpressure CSV files.</desc>
   <style>.title{{font:700 36px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 28px Arial,sans-serif;fill:#475569}}.lane{{font:700 29px Arial,sans-serif;fill:#0f172a}}.note{{font:400 28px Arial,sans-serif;fill:#334155}}.tiny{{font:400 28px Arial,sans-serif;fill:#475569}}.hash{{font:400 28px 'Courier New',monospace;fill:#475569}}.inside{{font:700 28px Arial,sans-serif;fill:#0f172a}}.axis{{stroke:#64748b;stroke-width:2}}.marker{{stroke:#cbd5e1;stroke-width:1.5;stroke-dasharray:5 6}}.input{{fill:#bfdbfe;stroke:#2563eb;stroke-width:1}}.prefix{{fill:#dbeafe;stroke:#2563eb;stroke-width:1}}.write{{fill:#dcfce7;stroke:#16a34a;stroke-width:1}}.request{{fill:#fef3c7;stroke:#d97706;stroke-width:1}}.response{{fill:#ffedd5;stroke:#ea580c;stroke-width:1}}.header{{fill:#ddd6fe;stroke:#7c3aed;stroke-width:1}}.payload{{fill:#cffafe;stroke:#0891b2;stroke-width:1}}.hold{{fill:#fecaca;stroke:#dc2626;stroke-width:1}}.accepted{{fill:#bbf7d0;stroke:#16a34a;stroke-width:1}}.panel{{fill:#ffffff;stroke:#cbd5e1;stroke-width:1.5}}</style>
-  <rect width="1000" height="930" fill="#f8fafc"/>
+  <rect width="1000" height="1020" fill="#f8fafc"/>
   <text x="42" y="45" class="title">Direct wrapper stream trace: Engine 0 / Block 0</text>
   <text x="42" y="80" class="sub">Fixed ModelSim functional trace: 2-Engine / 2-block Direct wrapper</text>
   <text x="42" y="112" class="sub">Register-expanded profile; not a frequency, throughput, or duty claim.</text>
@@ -446,24 +448,26 @@ def direct_stream_timing_svg(trace):
   <text x="42" y="260" class="lane">prefix / k</text><line x1="{prefix_x:.2f}" y1="225" x2="{prefix_x:.2f}" y2="275" stroke="#7c3aed" stroke-width="4"/><text x="{prefix_label_x:.2f}" y="245" class="tiny">prefix done</text><line x1="{k_x:.2f}" y1="225" x2="{k_x:.2f}" y2="275" stroke="#be123c" stroke-width="4"/><text x="{k_label_x:.2f}" y="275" class="tiny">selected k valid</text>
   <text x="42" y="320" class="lane">ring write</text>{writes}
   <text x="42" y="370" class="lane">ring read req</text>{requests}<text x="{req_x:.2f}" y="342" class="tiny">continuous addresses 0..255; II=1</text>
-  <text x="42" y="425" class="lane">ring read rsp</text>{responses}<text x="{rsp_x:.2f}" y="468" class="tiny">fixed response +2 cycles</text>
+  <text x="42" y="425" class="lane">ring read rsp</text>{responses}<text x="{right}" y="468" class="tiny" text-anchor="end">fixed response +2 cycles</text>
   <line x1="{left}" y1="485" x2="{right}" y2="485" class="axis"/>
   <text x="42" y="530" class="lane">m_axis TVALID</text>{headers}{payload}
   <text x="300" y="578" class="tiny" text-anchor="middle">4 accepted header beats</text><text x="705" y="578" class="tiny" text-anchor="middle">payload TVALID bubbles</text>
-  <text x="42" y="630" class="lane">backpressure</text><rect x="214" y="608" width="632" height="34" class="panel"/>{backpressure_display}
-  <text x="352" y="684" class="tiny" text-anchor="middle">header hold: 2 cycles</text><text x="706" y="684" class="tiny" text-anchor="middle">payload hold: 2 cycles</text>
-  <rect x="42" y="720" width="916" height="190" rx="5" class="panel"/>
+  <rect x="244" y="608" width="602" height="34" class="panel"/><text x="42" y="630" class="lane">backpressure</text>{backpressure_display}
+  <text x="368" y="684" class="tiny" text-anchor="middle">header hold: 2 cycles</text><text x="722" y="684" class="tiny" text-anchor="middle">payload hold: 2 cycles</text>
+  <rect x="42" y="720" width="916" height="285" rx="5" class="panel"/>
   <text x="58" y="752" class="note">TVALID &amp;&amp; !TREADY holds TDATA / TUSER / TLAST stable.</text>
   <text x="58" y="784" class="note">Red cells are deterministic two-cycle holds.</text>
-  <text x="58" y="818" class="tiny">nominal CSV SHA256</text><text x="365" y="818" class="hash">{nominal_hash_a}</text><text x="365" y="850" class="hash">{nominal_hash_b}</text>
-  <text x="58" y="882" class="tiny">backpressure CSV SHA256</text><text x="365" y="882" class="hash">{backpressure_hash_a}</text><text x="365" y="914" class="hash">{backpressure_hash_b}</text>
+  <text x="58" y="824" class="tiny">nominal CSV SHA256</text>
+  <text x="58" y="856" class="hash">{nominal_hash_a}</text><text x="58" y="888" class="hash">{nominal_hash_b}</text>
+  <text x="58" y="928" class="tiny">backpressure CSV SHA256</text>
+  <text x="58" y="960" class="hash">{backpressure_hash_a}</text><text x="58" y="992" class="hash">{backpressure_hash_b}</text>
 </svg>
 """.format(
         markers=markers, input0=input_blocks[0], input1=input_blocks[1],
         prefix_x=x(trace["prefix_cycle"]), prefix_label_x=x(trace["prefix_cycle"]) + 8,
         k_x=x(trace["selected_k_cycle"]), k_label_x=x(trace["selected_k_cycle"]) + 8,
         writes=_rect_for_cycles(first_cycle, trace["e0_input"][-1], 300, 28, first_cycle, last_cycle, left, right, "write"),
-        requests=requests, req_x=x(trace["requests"][0]), responses=responses, rsp_x=x(trace["responses"][-1]) - 120,
+        requests=requests, req_x=x(trace["requests"][0]), responses=responses,
         left=left, right=right, headers=headers, payload=payload,
         backpressure_display=backpressure_display,
         nominal_hash_a=trace["nominal_sha256"][:32], nominal_hash_b=trace["nominal_sha256"][32:],
@@ -474,7 +478,7 @@ def direct_stream_timing_svg(trace):
 def direct_multiengine_packet_timing_svg(trace):
     first_cycle = trace["e0_input"][0]
     last_cycle = trace["e1_output"][-1]["cycle"]
-    left, right = 196, 950
+    left, right = 250, 950
     e0_out = trace["e0_output"]
     e1_out = trace["e1_output"]
     lanes = []
@@ -497,9 +501,9 @@ def direct_multiengine_packet_timing_svg(trace):
   <text x="42" y="170" class="lane">input dispatch</text>
   <rect x="{b0_x:.2f}" y="145" width="{b0_w:.2f}" height="38" class="dispatch0"/><text x="{b0_t:.2f}" y="173" text-anchor="middle" class="inside">B0 -&gt; E0</text>
   <rect x="{b1_x:.2f}" y="145" width="{b1_w:.2f}" height="38" class="dispatch1"/><text x="{b1_t:.2f}" y="173" text-anchor="middle" class="inside">B1 -&gt; E1</text>
-  <text x="42" y="250" class="lane">Engine 0</text><rect x="{p0_x:.2f}" y="220" width="{p0_w:.2f}" height="58" class="window0"/><text x="{p0_t:.2f}" y="247" text-anchor="middle" class="inside">P0 packet window</text><text x="{p0_t:.2f}" y="274" text-anchor="middle" class="tiny">accepted beats + bubbles</text>
+  <text x="42" y="250" class="lane">Engine 0</text><rect x="{p0_x:.2f}" y="215" width="{p0_w:.2f}" height="65" class="window0"/><text x="{p0_t:.2f}" y="242" text-anchor="middle" class="inside">P0 packet window</text><text x="{p0_t:.2f}" y="269" text-anchor="middle" class="tiny">accepted beats + bubbles</text>
   <text x="42" y="312" class="lane">E0 output</text>{e0_lanes}
-  <text x="42" y="390" class="lane">Engine 1</text><rect x="{p1_x:.2f}" y="360" width="{p1_w:.2f}" height="58" class="window1"/><text x="{p1_t:.2f}" y="387" text-anchor="middle" class="inside">P1 packet window</text><text x="{p1_t:.2f}" y="414" text-anchor="middle" class="tiny">accepted beats + bubbles</text>
+  <text x="42" y="390" class="lane">Engine 1</text><rect x="{p1_x:.2f}" y="355" width="{p1_w:.2f}" height="65" class="window1"/><text x="{p1_t:.2f}" y="382" text-anchor="middle" class="inside">P1 packet window</text><text x="{p1_t:.2f}" y="409" text-anchor="middle" class="tiny">accepted beats + bubbles</text>
   <text x="42" y="452" class="lane">E1 output</text>{e1_lanes}
   <line x1="{left}" y1="500" x2="{right}" y2="500" class="axis"/>
   <text x="42" y="570" class="lane">shared AXIS</text><rect x="{p0_x:.2f}" y="545" width="{p0_w:.2f}" height="34" class="window0"/><rect x="{p1_x:.2f}" y="545" width="{p1_w:.2f}" height="34" class="window1"/>{shared}

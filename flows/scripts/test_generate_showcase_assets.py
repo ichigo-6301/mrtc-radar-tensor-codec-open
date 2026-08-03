@@ -64,6 +64,16 @@ class DirectTimingAssetTests(unittest.TestCase):
         payload_start = min(float(item.attrib["x"]) for item in payload)
         self.assertLessEqual(header_end, payload_start)
 
+        self.assertIn('height="1020" viewBox="0 0 1000 1020"', stream)
+        self.assertIn('x="950" y="468" class="tiny" text-anchor="end"', stream)
+        self.assertIn('<rect x="244" y="608" width="602"', stream)
+        self.assertIn('<text x="58" y="928" class="tiny">backpressure CSV SHA256</text>', stream)
+        self.assertRegex(stream, r'<text x="[0-9.]+" y="132" class="tiny" text-anchor="middle">c38</text>')
+        self.assertRegex(stream, r'<text x="[0-9.]+" y="132" class="tiny" text-anchor="middle">c56</text>')
+        self.assertGreaterEqual(float(re.search(r'<rect x="([0-9.]+)" y="145"', packet).group(1)), 250.0)
+        self.assertIn('y="215" width=', packet)
+        self.assertIn('y="269" text-anchor="middle" class="tiny">accepted beats + bubbles</text>', packet)
+
     def test_rejects_a_trace_with_noncontiguous_cycles(self):
         with tempfile.TemporaryDirectory() as directory:
             broken = Path(directory) / "nominal.csv"
