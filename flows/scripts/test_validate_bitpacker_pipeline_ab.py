@@ -27,6 +27,8 @@ class BitpackerPipelineAbEvidenceTest(unittest.TestCase):
         for relative in (
             VALIDATOR.EVIDENCE_PATH,
             VALIDATOR.CSV_PATH,
+            VALIDATOR.MULTIENGINE_CSV_PATH,
+            VALIDATOR.EXPECTED_STEADY_STATE_WORKLOAD_IDENTITY["source_vector_path"],
             "provenance/claims.yaml",
             "provenance/evidence.yaml",
             "provenance/nonclaims.yaml",
@@ -72,6 +74,13 @@ class BitpackerPipelineAbEvidenceTest(unittest.TestCase):
         text = path.read_text(encoding="utf-8")
         path.write_text(text.replace(",256,8220,", ",256,8219,"), encoding="utf-8")
         with self.assertRaisesRegex(RuntimeError, "curated CSV hash mismatch"):
+            VALIDATOR.validate(self.root)
+
+    def test_multiengine_reference_mutation_fails(self):
+        path = self.root / VALIDATOR.MULTIENGINE_CSV_PATH
+        text = path.read_text(encoding="utf-8")
+        path.write_text(text.replace("1,256,785.00,", "1,256,784.00,"), encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeError, "Multi-Engine single-Engine reference mismatch"):
             VALIDATOR.validate(self.root)
 
     def test_workload_mutation_fails(self):

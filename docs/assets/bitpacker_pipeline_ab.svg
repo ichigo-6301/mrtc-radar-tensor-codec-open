@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
   <title id="title">Single-Engine RTL block-interval pipeline A/B</title>
-  <desc id="desc">On fixed 256-block zero-sparse streams, average single-Engine packet-completion spacing falls from 8220 to 785 cycles per block. The optimized 785-cycle block interval contains a separately measured 721-cycle payload interval.</desc>
+  <desc id="desc">On fixed 256-block zero-sparse streams, average single-Engine packet-completion spacing falls from 8220 to 785 cycles per block. A separate smoke_zero_sparse measurement records the 721-cycle payload-valid-to-TLAST interval.</desc>
   <style>.title{font:700 31px Arial,sans-serif;fill:#0f172a}.sub{font:400 17px Arial,sans-serif;fill:#475569}.label{font:700 20px Arial,sans-serif;fill:#0f172a}.value{font:700 24px Arial,sans-serif;fill:#0f172a}.callout{font:700 30px Arial,sans-serif;fill:#166534}.note{font:400 16px Arial,sans-serif;fill:#334155}.small{font:400 15px Arial,sans-serif;fill:#475569}</style>
   <rect width="1000" height="620" fill="#f8fafc"/>
   <text x="55" y="48" class="title">Single-Engine steady-state pipeline A/B</text>
@@ -18,11 +18,11 @@
   <text x="275" y="375" text-anchor="middle" class="callout">10.47&#215; block service rate</text>
   <text x="275" y="408" text-anchor="middle" class="label">90.45% fewer cycles/block</text>
   <line x1="500" y1="350" x2="500" y2="427" stroke="#86efac" stroke-width="2"/>
-  <text x="720" y="370" text-anchor="middle" class="label">Payload sub-interval</text>
+  <text x="720" y="370" text-anchor="middle" class="label">Separate payload metric</text>
   <text x="720" y="404" text-anchor="middle" class="callout">7693 -&gt; 721 cycles</text>
   <text x="720" y="430" text-anchor="middle" class="small">10.67&#215;; identical 334-byte packet</text>
 
-  <text x="55" y="493" class="note">785 cycles/block = average packet-completion spacing; 721 cycles = payload-valid-to-TLAST interval.</text>
+  <text x="55" y="493" class="note">Block spacing uses 256-block streams; payload-valid-to-TLAST uses a separate smoke_zero_sparse run.</text>
   <text x="55" y="525" class="note">Both A/B points already use prefix-during-capture; the measured delta isolates the Lane4 packer.</text>
   <text x="55" y="557" class="note">Packet byte-exactness and decoder loopback pass.</text>
   <text x="55" y="590" class="sub">Historical ModelSim RTL metrics - not one-block latency, Direct-AXIS throughput, FPGA timing, or Fmax.</text>

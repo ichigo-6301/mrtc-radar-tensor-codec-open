@@ -23,7 +23,7 @@ Synthetic SNR 从 `-20` 到 `30 dB` 时，ZERO_RICE compression ratio 为 `1.581
 
 历史 Stage16C3 与 Stage16D2 使用相同的 `smoke_zero_sparse` 输入、相同 latency monitor、相同 `selected_k=0` 和相同 `2158-bit / 270-byte` payload。把逐 sample compressed path 替换为集成四路 word Bitpacker 后，从首个 payload valid 到 accepted packet `TLAST` 的 inclusive interval 从 `7693` 降至 `721 cycles`，减少 `90.63%`，提升 `10.67×`。两点 input/output stall 均为0，334-byte packet逐字节一致，decoder loopback通过。
 
-在同样的 ZERO_RICE 数据上，256-block 单 Engine steady-state stream 的平均 packet-completion spacing 从 `8220` 降至 `785 cycles/block`，减少 `90.45%`，提升 `10.47×`。`721` 是 optimized payload 子区间，`785` 是 packet-to-packet 平均块间隔，因此两者并不冲突。两版都已启用 prefix-during-capture；该 A/B 的差值主要隔离集成 Lane4 Bitpacker，不能把全部提升归因于前端乒乓。
+在另一组固定 256-block ZERO_RICE stream 中，单 Engine 平均 packet-completion spacing 从 `8220` 降至 `785 cycles/block`，减少 `90.45%`，提升 `10.47×`。上文 `721` 来自独立 `smoke_zero_sparse` 的首个 payload valid 到 accepted `TLAST` 测量；`785` 则是 256-block stream 的 packet-to-packet 平均块间隔。两版都已启用 prefix-during-capture；该 A/B 的差值主要隔离集成 Lane4 Bitpacker，不能把全部提升归因于前端乒乓。
 
 `785 cycles/block` 是 steady-state service interval，不是单 block latency；两项指标也都不是当前 Direct-AXIS 持续吞吐、FPGA性能、ASIC频率或Fmax。
 
@@ -31,17 +31,17 @@ Synthetic SNR 从 `-20` 到 `30 dB` 时，ZERO_RICE compression ratio 为 `1.581
 
 ## Multi-Engine RTL Scaling
 
-历史 fixed-commit 256-block prefix workload 使用 simulated DDR feeder，检查 payload byte-exact、`selected_k`、compression ratio、packet 完整性和无 beat interleaving。该记录把一个 beam 定义为 256 个 block；`beam/s` 由公开 CSV 中未舍入的 `estimated_cycles_per_beam` 计算，不能仅由表中两位小数的 cycles/block 精确反推。
+历史 fixed-commit 256-block prefix workload 以同 workload 的 Stage16D2 单 Engine 结果为 reference，再通过 simulated DDR feeder 测量 2/4-Engine buffered wrapper，并检查 payload byte-exact、`selected_k`、compression ratio、packet 完整性和无 beat interleaving。该记录把一个 beam 定义为 256 个 block；`beam/s` 由公开 CSV 中未舍入的 `estimated_cycles_per_beam` 计算，不能仅由表中两位小数的 cycles/block 精确反推。
 
 | Engines | Cycles/block | Scaling efficiency | Beam/s at assumed 200 MHz |
 |---:|---:|---:|---:|
-| 1 | 785 | baseline | - |
+| 1（Stage16D2 reference） | 785 | baseline | - |
 | 2 | 397.52 | 98.7368% | 1965.3022 |
 | 4 | 197.41 | 99.4115% | 3957.4642 |
 
 ![历史 buffered Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
 
-这些是 RTL simulation projection，不是 FPGA timing closure、implemented clock 或板级 DDR 吞吐。当前公开 adaptation 另有 2-Engine、2-block correctness smoke，但不重算该性能矩阵。输出 packet 保持 atomic，不同 packet 的 beat 不交织；完成顺序不保证。Frame/Block metadata 支持软件 indexed reconstruction，但没有软件 reorder PASS claim，记录场景也没有直接证明一次实际乱序事件。
+这些是 RTL simulation projection，不是 FPGA timing closure、implemented clock 或板级 DDR 吞吐。`785` 行是导入的同 workload Stage16D2 reference，不是 wrapper `NUM_ENGINES=1` 重跑。当前公开 adaptation 另有 2-Engine、2-block correctness smoke，但不重算该性能矩阵。输出 packet 保持 atomic，不同 packet 的 beat 不交织；完成顺序不保证。Frame/Block metadata 支持软件 indexed reconstruction，但没有软件 reorder PASS claim，记录场景也没有直接证明一次实际乱序事件。
 
 来源：[Multi-Engine evidence](../../evidence/rdtc_v1_multiengine_rtl.yaml) · [公开 CSV](../../evidence/data/rdtc_v1_multiengine_scaling.csv)
 

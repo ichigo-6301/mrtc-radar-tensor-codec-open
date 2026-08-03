@@ -15,7 +15,7 @@
 
 ## Multi-Engine 与顺序
 
-- `785 / 397.52 / 197.41 cycles/block`、`98.7368% / 99.4115%` efficiency 和假设 200 MHz 下的 `1965.3022 / 3957.4642 beam/s` 均为 simulated DDR feeder 下的 RTL simulation projection；一个 beam 在该记录中是 256 个 block，吞吐使用未舍入总周期计算，不是 FPGA timing、board DDR 或 network measurement；
+- `785 / 397.52 / 197.41 cycles/block`、`98.7368% / 99.4115%` efficiency 和假设 200 MHz 下的 `1965.3022 / 3957.4642 beam/s` 均为RTL simulation projection；其中 `785` 是同 workload 的 Stage16D2 reference，不是 wrapper `NUM_ENGINES=1` 重跑，2/4-Engine run 使用 simulated DDR feeder。一个 beam 是256个block，吞吐使用未舍入总周期计算，不是FPGA timing、board DDR或network measurement；
 - arbiter 保证 packet atomic 与无 beat interleaving，但不保证输入 block 顺序输出；
 - Frame/Block metadata 支持软件 indexed reconstruction，但没有软件 reorder program PASS；记录场景也没有直接证明一次实际乱序事件；
 - `OUTPUT_IN_ORDER` 不是已实现模式，不得作为硬件 Reorder Buffer 或严格保序 claim。

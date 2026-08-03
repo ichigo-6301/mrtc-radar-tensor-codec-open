@@ -88,7 +88,7 @@ evidence:
     claims:
       - rdtc_v1_multiengine_rtl_scaling
       - rdtc_v1_multiengine_packet_atomicity
-    sha256: 48b66a5a32c7990cccf938713ee0515b8f0c1c1ddbb765fe1acd977355efb6ce
+    sha256: 13ee540753840e64a3f4f2537fcc2b3935eb32aa2a35778fb249bb15314227e3
     public: true
     maturity: verified
   - id: rdtc_v1_fpga_axis32_emulation_public
@@ -206,11 +206,11 @@ evidence:
     type: historical_fixed_workload_rtl_pipeline_ab
     source_ref: 2c1d9a75d2742659b604dd3f9c754096e196d132
     source_visibility: private_fixed_commits
-    public_evidence_scope: curated two-point payload and single-Engine steady-state CSV, fixed identities, metric derivations, and fresh ModelSim replay hashes
+    public_evidence_scope: curated two-point payload and single-Engine steady-state CSV, fixed source/workload identities, metric derivations, and fresh ModelSim replay hashes
     tool: ModelSim SE-64 2020.4
     claims:
       - rdtc_v1_bitpacker_pipeline_cycle_speedup
       - rdtc_v1_single_engine_block_interval_speedup
-    sha256: 34efbb60126675652cbba0e20d73e003317e8cf451fb8b62c3cd76df8a7234df
+    sha256: 95af9de48008eb2e262958f1de593fd8222693ba55a9ffbac883715040c871b0
     public: true
     maturity: verified

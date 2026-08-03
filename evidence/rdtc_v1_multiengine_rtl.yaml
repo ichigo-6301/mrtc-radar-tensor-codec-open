@@ -47,7 +47,8 @@ published_adaptation:
     tb/sv/tb_mrtc_axis_packet_buffer.sv: 491d9cbf8b351da3f19fc6b90482b69d58a7a2a44fccc7ad85cee725293334e7
 metric_derivation:
   beam_definition: one beam is the recorded 256-block workload
-  single_engine_baseline: scaling_comparison.csv single_engine_cycles_per_block and single_engine_beam_s_200m
+  single_engine_baseline: scaling_comparison.csv imports the same-workload Stage16D2 single_engine_cycles_per_block and single_engine_beam_s_200m reference
+  single_engine_baseline_scope: not a separate wrapper NUM_ENGINES=1 measurement
   multi_engine_authority: ddr_multiengine_throughput_summary.csv prefix_256_block_beam_f1r_x2/x4 rows
   multi_engine_fields: effective_cycles_per_block, scaling_efficiency_vs_single_engine, estimated_cycles_per_beam, beam_s_200m
   note: The similarly named after_scaling_efficiency fields in scaling_comparison.csv are not used for the published 2/4 Engine efficiency values.
@@ -80,7 +81,8 @@ ordering:
   software_indexed_reassembly_status: not_claimed
 result: pass
 caveats:
-  - Published performance values remain historical fixed-commit measurements; the adapted public RTL smoke does not recompute the 256-block 1/2/4-Engine matrix.
+  - Published performance values remain historical fixed-commit measurements; the adapted public RTL smoke does not recompute the 256-block single-Engine reference plus 2/4-Engine wrapper matrix.
+  - The 785 cycles/block row is the same-workload Stage16D2 single-Engine reference imported by the scaling summary; the wrapper was not rerun with NUM_ENGINES=1 for that row.
   - Beam/s values use unrounded estimated_cycles_per_beam values for a 256-block beam and an assumed 200 MHz arithmetic projection; they are not FPGA timing measurements.
   - The architecture permits finite packet-level out-of-order completion, but the recorded rows happened to retain ascending block IDs.
   - Header metadata enables indexed software reassembly; a completed software reorder program is not claimed.

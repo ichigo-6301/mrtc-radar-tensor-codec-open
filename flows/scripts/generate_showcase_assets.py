@@ -293,7 +293,7 @@ def bitpacker_svg(by_role):
 
     return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
   <title id="title">Single-Engine RTL block-interval pipeline A/B</title>
-  <desc id="desc">On fixed 256-block zero-sparse streams, average single-Engine packet-completion spacing falls from {block_baseline} to {block_optimized} cycles per block. The optimized 785-cycle block interval contains a separately measured 721-cycle payload interval.</desc>
+  <desc id="desc">On fixed 256-block zero-sparse streams, average single-Engine packet-completion spacing falls from {block_baseline} to {block_optimized} cycles per block. A separate smoke_zero_sparse measurement records the {payload_optimized}-cycle payload-valid-to-TLAST interval.</desc>
   <style>.title{{font:700 31px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 17px Arial,sans-serif;fill:#475569}}.label{{font:700 20px Arial,sans-serif;fill:#0f172a}}.value{{font:700 24px Arial,sans-serif;fill:#0f172a}}.callout{{font:700 30px Arial,sans-serif;fill:#166534}}.note{{font:400 16px Arial,sans-serif;fill:#334155}}.small{{font:400 15px Arial,sans-serif;fill:#475569}}</style>
   <rect width="1000" height="620" fill="#f8fafc"/>
   <text x="55" y="48" class="title">Single-Engine steady-state pipeline A/B</text>
@@ -311,11 +311,11 @@ def bitpacker_svg(by_role):
   <text x="275" y="375" text-anchor="middle" class="callout">{block_speedup}&#215; block service rate</text>
   <text x="275" y="408" text-anchor="middle" class="label">{block_reduction}% fewer cycles/block</text>
   <line x1="500" y1="350" x2="500" y2="427" stroke="#86efac" stroke-width="2"/>
-  <text x="720" y="370" text-anchor="middle" class="label">Payload sub-interval</text>
+  <text x="720" y="370" text-anchor="middle" class="label">Separate payload metric</text>
   <text x="720" y="404" text-anchor="middle" class="callout">{payload_baseline} -&gt; {payload_optimized} cycles</text>
   <text x="720" y="430" text-anchor="middle" class="small">{payload_speedup}&#215;; identical 334-byte packet</text>
 
-  <text x="55" y="493" class="note">785 cycles/block = average packet-completion spacing; 721 cycles = payload-valid-to-TLAST interval.</text>
+  <text x="55" y="493" class="note">Block spacing uses 256-block streams; payload-valid-to-TLAST uses a separate smoke_zero_sparse run.</text>
   <text x="55" y="525" class="note">Both A/B points already use prefix-during-capture; the measured delta isolates the Lane4 packer.</text>
   <text x="55" y="557" class="note">Packet byte-exactness and decoder loopback pass.</text>
   <text x="55" y="590" class="sub">Historical ModelSim RTL metrics - not one-block latency, Direct-AXIS throughput, FPGA timing, or Fmax.</text>
@@ -336,11 +336,20 @@ def bitpacker_svg(by_role):
     )
 
 
-def scaling_svg(by_engine):
+def scaling_svg(by_engine, bitpacker_by_role):
     cycles = {
         engine: Decimal(by_engine[engine]["effective_cycles_per_block"])
         for engine in (1, 2, 4)
     }
+    stage16d2_cycles = Decimal(
+        bitpacker_by_role["optimized"]["steady_state_cycles_per_block"]
+    )
+    if cycles[1] != stage16d2_cycles:
+        raise ValueError(
+            "Multi-Engine one-Engine baseline does not match Stage16D2 steady-state evidence: {} != {}".format(
+                cycles[1], stage16d2_cycles
+            )
+        )
     y_positions = {
         engine: rounded_int(Decimal(500) - cycles[engine] * Decimal(412) / Decimal(800))
         for engine in (1, 2, 4)
@@ -358,7 +367,7 @@ def scaling_svg(by_engine):
 
     return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
   <title id="title">Multi-Engine wrapper block-interval scaling</title>
-  <desc id="desc">Starting from the optimized 785-cycle single Engine, the historical buffered wrapper reduces average block interval to {label2} cycles with two Engines and {label4} cycles with four Engines.</desc>
+  <desc id="desc">Starting from the Stage16D2-matched {label1}-cycle single Engine, the historical buffered wrapper reduces average block interval to {label2} cycles with two Engines and {label4} cycles with four Engines.</desc>
   <style>.title{{font:700 31px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 17px Arial,sans-serif;fill:#475569}}.axis{{font:400 16px Arial,sans-serif;fill:#334155}}.label{{font:700 18px Arial,sans-serif;fill:#0f172a}}.value{{font:700 21px Arial,sans-serif;fill:#0f172a}}.light{{fill:#fff}}.grid{{stroke:#cbd5e1;stroke-width:1}}</style>
   <rect width="1000" height="620" fill="#f8fafc"/>
   <text x="55" y="48" class="title">Multi-Engine wrapper block-interval scaling</text>
@@ -380,17 +389,17 @@ def scaling_svg(by_engine):
   <text x="270" y="{t1}" text-anchor="middle" class="value light">{label1}</text>
   <text x="515" y="{t2}" text-anchor="middle" class="value">{label2}</text>
   <text x="760" y="{t4}" text-anchor="middle" class="value">{label4}</text>
-  <g class="label" text-anchor="middle"><text x="270" y="528">1 Engine</text><text x="515" y="528">2 Engines</text><text x="760" y="528">4 Engines</text></g>
+  <g class="label" text-anchor="middle"><text x="270" y="528">1 Engine reference</text><text x="515" y="528">2 Engines</text><text x="760" y="528">4 Engines</text></g>
   <g class="axis" text-anchor="middle">
-    <text x="270" y="552">optimized single-Engine baseline</text>
+    <text x="270" y="552">Stage16D2; not wrapper rerun</text>
     <text x="515" y="552">{scale2} throughput</text>
     <text x="760" y="552">{scale4} throughput</text>
     <text x="515" y="576">scaling efficiency {eff2}</text>
     <text x="760" y="576">scaling efficiency {eff4}</text>
   </g>
   <rect x="650" y="105" width="270" height="70" rx="6" fill="#fff7ed" stroke="#f59e0b"/>
-  <text x="785" y="132" text-anchor="middle" class="label">Starts from 785 cycles/block</text>
-  <text x="785" y="155" text-anchor="middle" class="axis">same value as Stage16D2 above</text>
+  <text x="785" y="132" text-anchor="middle" class="label">Starts from {label1} cycles/block</text>
+  <text x="785" y="155" text-anchor="middle" class="axis">validated against Stage16D2 evidence</text>
   <text x="500" y="606" text-anchor="middle" class="sub">Cycle metric only - not an implemented clock, FPGA timing, board DDR throughput, or Direct-AXIS result.</text>
 </svg>
 """.format(
@@ -450,7 +459,7 @@ def main():
     expected = {
         "bitpacker_pipeline_ab.svg": bitpacker_svg(bitpacker_data),
         "compression_vs_snr.svg": compression_svg(snr_values, compression_data),
-        "engine_scaling.svg": scaling_svg(scaling_data),
+        "engine_scaling.svg": scaling_svg(scaling_data, bitpacker_data),
     }
 
     for name, content in expected.items():

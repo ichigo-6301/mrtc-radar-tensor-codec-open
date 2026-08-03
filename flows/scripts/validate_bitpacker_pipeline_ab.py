@@ -20,6 +20,7 @@ NONCLAIM_ID = "rdtc_v1_bitpacker_ab_no_system_speedup"
 BLOCK_NONCLAIM_ID = "rdtc_v1_single_engine_interval_no_latency_or_direct"
 EVIDENCE_PATH = "evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"
 CSV_PATH = "evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv"
+MULTIENGINE_CSV_PATH = "evidence/data/rdtc_v1_multiengine_scaling.csv"
 EXPECTED_CSV_FIELDS = [
     "point",
     "role",
@@ -220,7 +221,7 @@ EXPECTED_REGISTRATION = {
     "type": "historical_fixed_workload_rtl_pipeline_ab",
     "source_ref": "2c1d9a75d2742659b604dd3f9c754096e196d132",
     "source_visibility": "private_fixed_commits",
-    "public_evidence_scope": "curated two-point payload and single-Engine steady-state CSV, fixed identities, metric derivations, and fresh ModelSim replay hashes",
+    "public_evidence_scope": "curated two-point payload and single-Engine steady-state CSV, fixed source/workload identities, metric derivations, and fresh ModelSim replay hashes",
     "tool": "ModelSim SE-64 2020.4",
     "claims": [CLAIM_ID, BLOCK_CLAIM_ID],
     "public": True,
@@ -254,11 +255,53 @@ EXPECTED_STEADY_STATE_METRIC_DEFINITION = {
     "interval": "packet_last_cycle[n] - packet_last_cycle[n-1]",
     "scope": "single Engine with prefix-during-capture enabled at both A/B points",
 }
+EXPECTED_STEADY_STATE_WORKLOAD_IDENTITY = {
+    "source_case": "smoke_zero_sparse",
+    "source_tree_git_sha": "2f361efc2ff32115d7cc2037d0bc7939da6d5d92",
+    "identical_source_tree_at_commits": {
+        "baseline": "327c463896bda94c60eb2b47d3c3dfc61a183367",
+        "optimized": "2c1d9a75d2742659b604dd3f9c754096e196d132",
+        "multiengine": "8628ee4d561bf4ee4a97a02c800e1c52c9e9a28a",
+    },
+    "source_vector_path": "vectors/rdtc_v1/smoke_zero_sparse/block_000_axis_raw_in.hex",
+    "source_vector_git_blob": "88135ef82cfb15c601964fe1d9072b19e22421f5",
+    "source_vector_sha256": "db8e83367cd0219edd004d3f1ad4e35099afd5b906d6e26f4f976ca9affe4b46",
+    "source_manifest_path": "vectors/rdtc_v1/smoke_zero_sparse/manifest.json",
+    "source_manifest_git_blob": "5f3821f7e52a15edeea5b1e37c4a6eef94f507e6",
+    "source_manifest_sha256": "1924010e24a27805b452039c62985b727b3356cc625f93539c115c3969b6c1cc",
+    "single_engine_generator": {
+        "path": "scripts/stage16c3_gen_latency_vectors.py",
+        "git_blob": "585d7372faa58af44ec8df32a9e65f6a5f1b6c8b",
+        "sha256": "42fac83943b1d13c65f1cb5d1981c0b6b31837f1182092b152c768be56c681f0",
+        "generated_case": "prefix_256_block_beam",
+        "repeat_count": 256,
+        "identical_at_baseline_and_optimized_commits": True,
+    },
+    "multiengine_generator": {
+        "source_commit": "8628ee4d561bf4ee4a97a02c800e1c52c9e9a28a",
+        "path": "scripts/stage16f1_gen_vectors.py",
+        "git_blob": "4a9ec8bc7b8b0c55b1e1277b59ba9d9f20973d60",
+        "sha256": "87eae094f9608003efbbcbd74edcbbb245aa555cea7874b94fe626fb0e0cc42f",
+        "generated_case": "prefix_256_block_beam",
+        "repeat_count": 256,
+        "reuses_source_vector_and_manifest": True,
+    },
+    "public_multiengine_binding": {
+        "evidence": "evidence/rdtc_v1_multiengine_rtl.yaml",
+        "curated_data": MULTIENGINE_CSV_PATH,
+        "engine_count": 1,
+        "workload_blocks": 256,
+        "effective_cycles_per_block": 785.0,
+        "measurement_scope": "imported Stage16D2 single-Engine reference; not a wrapper NUM_ENGINES=1 rerun",
+    },
+}
 EXPECTED_CAVEATS = [
     "The 10.6699x value is the inclusive first-payload-valid to accepted-TLAST interval on one fixed historical RTL workload.",
     "The 10.4713x value is average packet-completion spacing over fixed 256-block single-Engine streams; it is not one-block latency.",
     "Both A/B points retain prefix-during-capture, so the measured delta isolates the integrated Lane4 Bitpacker rather than attributing the full change to front-end ping-pong.",
     "Neither metric is current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.",
+    "The 256-block workload identity closes over the common source vector/manifest and deterministic repeat generators; generated runtime directories were not committed and have no independent artifact hashes.",
+    "The Multi-Engine chart's one-Engine row imports the same-workload Stage16D2 reference; it is not a separate wrapper NUM_ENGINES=1 measurement.",
     "Historical source commits and raw ModelSim logs remain private; this public record publishes curated values and immutable identities only.",
 ]
 EXPECTED_EVIDENCE_FIELDS = {
@@ -272,6 +315,7 @@ EXPECTED_EVIDENCE_FIELDS = {
     "workload",
     "metric_definition",
     "steady_state_metric_definition",
+    "steady_state_workload_identity",
     "points",
     "equivalence",
     "derivation",
@@ -324,7 +368,7 @@ def validate(root):
     require(evidence.get("source_visibility") == "private_fixed_commits", "evidence source visibility mismatch")
     require(
         evidence.get("public_evidence_scope")
-        == "curated two-point payload and single-Engine steady-state CSV, fixed source and vector identities, metric derivations, and fresh ModelSim replay hashes",
+        == "curated two-point payload and single-Engine steady-state CSV, fixed source/workload identities, metric derivations, and fresh ModelSim replay hashes",
         "public evidence scope mismatch",
     )
     require(evidence.get("curated_data") == CSV_PATH, "curated CSV path mismatch")
@@ -335,6 +379,30 @@ def validate(root):
         EXPECTED_STEADY_STATE_METRIC_DEFINITION,
         "steady-state metric definition",
     )
+    steady_state_workload = evidence.get("steady_state_workload_identity")
+    require_exact_mapping(
+        steady_state_workload,
+        EXPECTED_STEADY_STATE_WORKLOAD_IDENTITY,
+        "steady-state workload identity",
+    )
+    require(
+        sha256(root / steady_state_workload["source_vector_path"])
+        == steady_state_workload["source_vector_sha256"],
+        "steady-state source vector hash mismatch",
+    )
+    require(
+        sha256(root / steady_state_workload["source_manifest_path"])
+        == steady_state_workload["source_manifest_sha256"],
+        "steady-state source manifest hash mismatch",
+    )
+    with (root / MULTIENGINE_CSV_PATH).open("r", encoding="utf-8", newline="") as stream:
+        multiengine_rows = list(csv.DictReader(stream))
+    multiengine_single = [row for row in multiengine_rows if row.get("engine_count") == "1"]
+    require(len(multiengine_single) == 1, "Multi-Engine CSV must contain exactly one single-Engine reference row")
+    multiengine_single = multiengine_single[0]
+    multiengine_binding = steady_state_workload["public_multiengine_binding"]
+    require(int(multiengine_single["workload_blocks"]) == multiengine_binding["workload_blocks"], "Multi-Engine workload block count mismatch")
+    require(math.isclose(float(multiengine_single["effective_cycles_per_block"]), multiengine_binding["effective_cycles_per_block"], rel_tol=0.0, abs_tol=1.0e-12), "Multi-Engine single-Engine reference mismatch")
     require(evidence.get("caveats") == EXPECTED_CAVEATS, "evidence caveats mismatch")
 
     workload = evidence.get("workload", {})

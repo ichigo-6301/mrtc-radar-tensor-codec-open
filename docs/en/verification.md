@@ -56,21 +56,21 @@ payload_stream_cycles = packet_last_cycle - payload_first_valid_cycle + 1
 
 The baseline endpoints are `1169 -> 8861`, yielding `7693 cycles`; the optimized endpoints are `706 -> 1426`, yielding `721 cycles`. The gate also fixes `selected_k=0`, `payload_bits=2158`, `payload_bytes=270`, `packet_bytes=334`, zero input/output stalls, packet byte exactness, and decoder loopback. The public validator checks the input, manifest, expected packet, historical CSV, and fresh replay summary hashes.
 
-The corresponding 256-block streams also measure single-Engine steady-state throughput from adjacent packet-completion spacing: `8220 cycles/block` at Stage16C3 and `785 cycles/block` at Stage16D2. Public evidence binds the relevant `throughput_summary.csv` Git blobs and SHA256 identities. This metric is average packet-completion spacing, not one-block latency, and both revisions retain prefix-during-capture.
+Separate 256-block streams measure single-Engine steady-state throughput from adjacent packet-completion spacing: `8220 cycles/block` at Stage16C3 and `785 cycles/block` at Stage16D2. Public evidence binds the relevant `throughput_summary.csv`, common `smoke_zero_sparse` source vector/manifest, and repeated-stream generator by Git blob and SHA256; it also checks the public Multi-Engine CSV's 1-Engine row against the same `785` value. This metric is average packet-completion spacing, not one-block latency or the independently measured `smoke_zero_sparse` payload interval, and both revisions retain prefix-during-capture.
 
 Public entrypoint: `make bitpacker-pipeline-ab-validate`. See the [Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml).
 
 ## Multi-Engine Regression
 
-The historical fixed-commit 256-block prefix workload checks byte-exact payloads, `selected_k`, compression ratio, packet completeness, and absence of beat interleaving. One beam is defined as 256 blocks, and `beam/s` is calculated from the unrounded total cycles per beam. Performance is:
+The historical fixed-commit 256-block prefix workload uses the same-workload Stage16D2 single-Engine result as a reference and checks the 2/4-Engine wrapper runs for byte-exact payloads, `selected_k`, compression ratio, packet completeness, and absence of beat interleaving. One beam is defined as 256 blocks, and `beam/s` is calculated from the unrounded total cycles per beam. Performance is:
 
 | Engines | Cycles/block | Scaling efficiency | Beam/s at assumed 200 MHz |
 |---:|---:|---:|---:|
-| 1 | 785 | baseline | - |
+| 1 (Stage16D2 reference) | 785 | baseline | - |
 | 2 | 397.52 | 98.7368% | 1965.3022 |
 | 4 | 197.41 | 99.4115% | 3957.4642 |
 
-These values are RTL simulation projections with a simulated DDR model, not FPGA timing or measured board throughput. The current public adaptation has a separate two-Engine, two-block correctness smoke plus packet-buffer overlength fail-stop/reset recovery, two-slot simultaneous queue push/pop, one-slot turnover, completion-coincident status clearing, and `OUTPUT_IN_ORDER=1` fail-fast boundary tests; it does not recompute this matrix. Arbitration guarantees packet atomicity and no beat interleaving, while completion order is not guaranteed. Recorded evidence checks block identity but does not directly observe an actual reordered event. Metadata enables reconstruction by Frame/Block index; no software reorder-program PASS is claimed.
+These values are RTL simulation projections with a simulated DDR model, not FPGA timing or measured board throughput. The `785` row is an imported Stage16D2 reference, not a wrapper `NUM_ENGINES=1` rerun. The current public adaptation has a separate two-Engine, two-block correctness smoke plus packet-buffer overlength fail-stop/reset recovery, two-slot simultaneous queue push/pop, one-slot turnover, completion-coincident status clearing, and `OUTPUT_IN_ORDER=1` fail-fast boundary tests; it does not recompute this matrix. Arbitration guarantees packet atomicity and no beat interleaving, while completion order is not guaranteed. Recorded evidence checks block identity but does not directly observe an actual reordered event. Metadata enables reconstruction by Frame/Block index; no software reorder-program PASS is claimed.
 
 Public evidence summary and data: [Multi-Engine evidence](../../evidence/rdtc_v1_multiengine_rtl.yaml) · [public CSV](../../evidence/data/rdtc_v1_multiengine_scaling.csv)
 

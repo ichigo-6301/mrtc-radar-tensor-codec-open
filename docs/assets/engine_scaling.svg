@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
   <title id="title">Multi-Engine wrapper block-interval scaling</title>
-  <desc id="desc">Starting from the optimized 785-cycle single Engine, the historical buffered wrapper reduces average block interval to 397.52 cycles with two Engines and 197.41 cycles with four Engines.</desc>
+  <desc id="desc">Starting from the Stage16D2-matched 785-cycle single Engine, the historical buffered wrapper reduces average block interval to 397.52 cycles with two Engines and 197.41 cycles with four Engines.</desc>
   <style>.title{font:700 31px Arial,sans-serif;fill:#0f172a}.sub{font:400 17px Arial,sans-serif;fill:#475569}.axis{font:400 16px Arial,sans-serif;fill:#334155}.label{font:700 18px Arial,sans-serif;fill:#0f172a}.value{font:700 21px Arial,sans-serif;fill:#0f172a}.light{fill:#fff}.grid{stroke:#cbd5e1;stroke-width:1}</style>
   <rect width="1000" height="620" fill="#f8fafc"/>
   <text x="55" y="48" class="title">Multi-Engine wrapper block-interval scaling</text>
@@ -22,9 +22,9 @@
   <text x="270" y="124" text-anchor="middle" class="value light">785</text>
   <text x="515" y="285" text-anchor="middle" class="value">397.52</text>
   <text x="760" y="388" text-anchor="middle" class="value">197.41</text>
-  <g class="label" text-anchor="middle"><text x="270" y="528">1 Engine</text><text x="515" y="528">2 Engines</text><text x="760" y="528">4 Engines</text></g>
+  <g class="label" text-anchor="middle"><text x="270" y="528">1 Engine reference</text><text x="515" y="528">2 Engines</text><text x="760" y="528">4 Engines</text></g>
   <g class="axis" text-anchor="middle">
-    <text x="270" y="552">optimized single-Engine baseline</text>
+    <text x="270" y="552">Stage16D2; not wrapper rerun</text>
     <text x="515" y="552">1.97x throughput</text>
     <text x="760" y="552">3.98x throughput</text>
     <text x="515" y="576">scaling efficiency 98.7368%</text>
@@ -32,6 +32,6 @@
   </g>
   <rect x="650" y="105" width="270" height="70" rx="6" fill="#fff7ed" stroke="#f59e0b"/>
   <text x="785" y="132" text-anchor="middle" class="label">Starts from 785 cycles/block</text>
-  <text x="785" y="155" text-anchor="middle" class="axis">same value as Stage16D2 above</text>
+  <text x="785" y="155" text-anchor="middle" class="axis">validated against Stage16D2 evidence</text>
   <text x="500" y="606" text-anchor="middle" class="sub">Cycle metric only - not an implemented clock, FPGA timing, board DDR throughput, or Direct-AXIS result.</text>
 </svg>

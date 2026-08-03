@@ -85,7 +85,7 @@ The fixed regression observes about `277 cycles` of ordered packet service for a
 
 ## Historical Buffered Throughput Scaling
 
-The historical fixed-commit 256-block workload uses a simulated DDR feeder. The 1/2/4-Engine configurations achieve `785 / 397.52 / 197.41 cycles/block`, with 2/4-Engine efficiencies of `98.7368% / 99.4115%`. One beam is defined as 256 blocks in this record.
+The historical fixed-commit 256-block workload uses the Stage16D2 `785 cycles/block` single-Engine result as its same-workload reference. The 2/4-Engine buffered-wrapper runs achieve `397.52 / 197.41 cycles/block`, with efficiencies of `98.7368% / 99.4115%`. The 1-Engine reference was not rerun through the wrapper with `NUM_ENGINES=1`; one beam is defined as 256 blocks in this record.
 
 ![Historical buffered Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
 
