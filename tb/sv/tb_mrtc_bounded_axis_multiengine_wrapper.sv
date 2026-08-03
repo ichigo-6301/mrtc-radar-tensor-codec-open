@@ -12,6 +12,7 @@ module tb_mrtc_bounded_axis_multiengine_wrapper #(
   localparam int NUM_ENGINES = 2;
   localparam int BLOCK_WORDS = MRTC_BLOCK_SAMPLES / MRTC_LANES;
   localparam int MAX_PACKET_BEATS = MRTC_MAX_OUTPUT_BYTES / (AXIS_DATA_W / 8);
+  localparam int TRACE_OUTPUT_FIFO_DEPTH = 16;
   localparam int BLOCK_COUNT_CHECK = 1 / (((BLOCK_COUNT >= 2) &&
                                            ((BLOCK_COUNT % 2) == 0)) ? 1 : 0);
 
@@ -55,6 +56,9 @@ module tb_mrtc_bounded_axis_multiengine_wrapper #(
 `ifdef RDTC_DIRECT_PROFILE_TRACE
   logic [NUM_ENGINES-1:0] ring_rsp_valid;
   logic [NUM_ENGINES-1:0][7:0] ring_rsp_addr;
+  logic trace_fifo_identity_valid [0:TRACE_OUTPUT_FIFO_DEPTH-1];
+  logic trace_fifo_owner [0:TRACE_OUTPUT_FIFO_DEPTH-1];
+  logic [15:0] trace_fifo_block [0:TRACE_OUTPUT_FIFO_DEPTH-1];
 `endif
   integer read_count [0:NUM_ENGINES-1];
   integer read_last_cycle [0:NUM_ENGINES-1];
@@ -131,6 +135,29 @@ module tb_mrtc_bounded_axis_multiengine_wrapper #(
   assign ring_rsp_valid[1] = u_dut.g_engine[1].u_engine.ring_rd_valid;
   assign ring_rsp_addr[0] = u_dut.g_engine[0].u_engine.ring_rd_word_index;
   assign ring_rsp_addr[1] = u_dut.g_engine[1].u_engine.ring_rd_word_index;
+
+  // Mirror only output identity alongside the DUT FIFO; packet bytes remain in
+  // the DUT and the trace samples them directly at the external AXIS boundary.
+  always_ff @(posedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+      for (int slot = 0; slot < TRACE_OUTPUT_FIFO_DEPTH; slot = slot + 1) begin
+        trace_fifo_identity_valid[slot] <= 1'b0;
+        trace_fifo_owner[slot] <= 1'b0;
+        trace_fifo_block[slot] <= 16'd0;
+      end
+    end else begin
+      if (u_dut.output_fifo_pop) begin
+        trace_fifo_identity_valid[u_dut.u_output_fifo.rd_ptr_reg] <= 1'b0;
+      end
+      if (u_dut.output_fifo_push) begin
+        trace_fifo_identity_valid[u_dut.u_output_fifo.wr_ptr_reg] <= 1'b1;
+        trace_fifo_owner[u_dut.u_output_fifo.wr_ptr_reg] <=
+          u_dut.job_engine_reg[u_dut.output_rd_ptr_reg];
+        trace_fifo_block[u_dut.u_output_fifo.wr_ptr_reg] <=
+          u_dut.job_block_id_reg[u_dut.output_rd_ptr_reg];
+      end
+    end
+  end
 `endif
 
   always_ff @(posedge clk or negedge rst_n) begin
@@ -274,8 +301,14 @@ module tb_mrtc_bounded_axis_multiengine_wrapper #(
       trace_m_tdata = out_tvalid ? out_tdata : '0;
       trace_m_tuser = out_tvalid ? out_tuser : '0;
       trace_m_tlast = out_tvalid ? out_tlast : 0;
-      trace_output_owner = out_tvalid ? (packet_count & 1) : -1;
-      trace_output_block = out_tvalid ? packet_count : -1;
+      if (out_tvalid &&
+          !trace_fifo_identity_valid[u_dut.u_output_fifo.rd_ptr_reg]) begin
+        $fatal(1, "output trace identity is missing");
+      end
+      trace_output_owner = out_tvalid ?
+        int'(trace_fifo_owner[u_dut.u_output_fifo.rd_ptr_reg]) : -1;
+      trace_output_block = out_tvalid ?
+        int'(trace_fifo_block[u_dut.u_output_fifo.rd_ptr_reg]) : -1;
       trace_wrapper_error = stat_error;
       trace_e0_error = u_dut.eng_stat_error[0];
       trace_e1_error = u_dut.eng_stat_error[1];
