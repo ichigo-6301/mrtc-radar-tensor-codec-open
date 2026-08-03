@@ -4,7 +4,7 @@
 
 ## 系统合同
 
-RDTC 位于感知数据生成与片外存储或传输之间。Encoder 将连续 Range-Doppler block 转成带 metadata 的无损 packet；Decoder 在消费端恢复相同 I/Q 样本。
+RDTC 接收 FFT backend 产生的 Range-Doppler-Beam 数据，位于感知数据生成与片外存储或传输之间；它不实现上游 FFT。硬件实现与性能优化以 Encoder/压缩数据面为主，packet 面向 DDR、互联或 PC 上传。接收端可由 PC/C decoder 从常规 self-describing packet 恢复原始 I/Q；RTL decoder 用于协议闭环、bit-exact loopback、malformed-packet 检查及硬件解码参考，不声明生产 ASIC 必须实例化 RTL decoder。
 
 ![OFDM sensing and RDTC system context](../assets/system_context.svg)
 
@@ -12,9 +12,9 @@ RDTC 位于感知数据生成与片外存储或传输之间。Encoder 将连续 
 |---|---|
 | Block | `1024` 个 I16Q16 sample，`4096` raw byte |
 | Packet | 64-byte self-describing header + RAW/Rice payload |
-| Stream | 128-bit AXI-Stream，精确 `tkeep/tlast`，支持 backpressure |
+| Stream | 主接口为 128-bit AXI-Stream；packet 以 TLAST 结束，尾拍字节数由 TUSER 给出 |
 | Identity | Frame、Block 与 Range metadata 保留 packet 身份 |
-| Reconstruction | Decoder bit-exact 恢复 I/Q；malformed stream fail closed |
+| Reconstruction | PC/C decoder 恢复常规 header-length packet；RTL decoder 提供 bit-exact 验证与硬件参考 |
 
 接口与 packet 格式分别见[接口](interfaces.md)和[码流格式](bitstream_format.md)。
 
@@ -26,9 +26,11 @@ RDTC 位于感知数据生成与片外存储或传输之间。Encoder 将连续 
 | Bounded Direct-AXIS 双 Engine（opt-in） | [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) |
 | AXIS32 FPGA adaptation | [`mrtc_rdtc_axis32_wrapper`](../../rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) |
 
-## 单 Engine Pipeline
+## 历史 Full-Block 单 Engine Pipeline
 
-![Single-Engine encoder and decoder pipeline](../assets/single_engine_pipeline.svg)
+![Historical full-block/ping-pong Single-Engine encoder and decoder pipeline](../assets/single_engine_pipeline.svg)
+
+下图与本节描述历史 full-block/ping-pong profile，不是当前 bounded Direct-AXIS 的四路浅 ring。它用于解释 Lane4 Bitpacker 与 buffered Multi-Engine 结果所依赖的架构阶段。
 
 单 Engine 按以下阶段工作：
 
@@ -73,6 +75,40 @@ opt-in Direct profile 面向受约束信号域，以更少存储完成双 Engine
 
 每个 Engine 包含四个 `32x128` true-1RW way、两项 registered ingress queue、prefix-128 estimator 与固定速率 bounded bitpacker。Estimator 直接观察已接收输入，不占用 RAM 读端口。Wrapper 删除 DDR feeder 和每 Engine payload commit store，仅使用全局 16-beat FIFO 吸收短输出 stall。双 Engine bulk ring 共 `32,768 bit`，而之前 payload-backed 实验的 bulk storage 为 `180,224 bit`。
 
+<a id="four-way-shallow-input-ring"></a>
+
+### 四路浅输入 Ring
+
+该 ring 只属于 bounded Direct-AXIS Encoder。它位于 AXIS input capture 与 Bitpacker 之间，不是 output FIFO，也不是历史 full-block ping-pong buffer。每个 Engine 的物理容量为 `4 ways x 32 words x 128 bits = 2048 bytes`，即 4096-byte block 的一半。Prefix estimator 直接观察已握手输入；`prefix-128` 指前 128 个 complex sample，也就是前 32 个 AXIS128 beat，并不等于 128-beat ring 容量。
+
+对 zero-based global AXIS word index：
+
+```text
+way    = floor(global_word_index / 32) mod 4
+offset = global_word_index mod 32
+```
+
+| Global word | Physical way | 行为 |
+|---|---:|---|
+| `0-31` | 0 | 首次填充 |
+| `32-63` | 1 | 首次填充 |
+| `64-95` | 2 | 首次填充 |
+| `96-127` | 3 | 首次填充 |
+| `128-159` | 0 | 复用已释放 slot |
+| `160-191` | 1 | 复用已释放 slot |
+| `192-223` | 2 | 复用已释放 slot |
+| `224-255` | 3 | 复用已释放 slot |
+
+每个已接收输入 word 写入映射 slot 并设置 valid；已接受 ring read 清除该 slot 的 valid，使后续 wrap 可以复用。Read request 到对外 response 是固定两拍。不同 way 的 read/write 可以同周期重叠；true-1RW way 上同周期读写即使 offset 不同也非法，并产生 way conflict。写入仍 valid 的 slot 或读取 invalid slot 会产生 ring error，并由 bounded Encoder 上升为 sticky fatal。
+
+<a id="stream-timing-contract"></a>
+
+### Stream Timing 合同
+
+时序图是 protocol schematic，不是 measured waveform。前 32 个已接收 beat 提供 128 个 prefix sample；prefix `k` 选定后可开始四拍 header，同时后续输入仍可写 ring。Header 完成后 Bitpacker 按原始顺序发起 ring read，连续合法请求的 source cadence 为 `II=1`，response 固定延迟两拍。
+
+四个 header beat 各自在 `TVALID && TREADY` 时提交。Rice token 累加只有形成完整输出 word 时才产生 payload beat，因此 header 与 payload 之间以及 payload 内都允许 `TVALID` bubble。下游拉低 `TREADY` 时，当前 `TVALID`、`TDATA`、`TLAST` 与 `TUSER` 必须保持到握手；TLAST 只出现在物理 packet 末尾。Ring-read source `II=1` 不代表 compressed-output `TVALID` 每拍连续。
+
 该简化结构采用明确的 fail-stop 语义：
 
 - 只接受 `ZERO_RICE` 与 block-adaptive prefix `k`；
@@ -81,7 +117,7 @@ opt-in Direct profile 面向受约束信号域，以更少存储完成双 Engine
 - 同 way 读写冲突、cadence 中断、block 格式错误或 output credit 耗尽均产生 sticky fatal；
 - 因为没有 speculative payload storage，fatal 可能让外部看到半包，producer 与 receiver 必须一起 reset。
 
-固定回归测得有序 packet service 约 `277 cycles`，而连续 block 每 `256 cycles` 到达；该差额会累计并最终触发合法 way conflict。因此该 profile 验证 bounded datapath 与实现闭合，但不验证持续零间隔调度。
+固定回归测得有序 packet service 约 `277 cycles`，而连续 block 每 `256 cycles` 到达；该差额会累计并最终触发合法 way conflict。这是 workload evidence，不是协议保证周期，也不画入时序 schematic。该 profile 验证 bounded datapath 与实现闭合，但不验证持续零间隔调度。
 
 ## 历史 Buffered 吞吐扩展
 

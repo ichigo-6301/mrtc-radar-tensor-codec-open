@@ -6,7 +6,9 @@
 
 **A streaming lossless codec for OFDM sensing and millimeter-wave radar Range-Doppler tensors, engineered from MATLAB algorithms and synthesizable RTL through Multi-Engine scheduling, FPGA emulation, and ASIC post-route STA.**
 
-RDTC compresses I16Q16 samples block by block while preserving bit-exact reconstruction. A 64-byte self-describing header carries mode, length, and Frame/Block identity so each packet can be stored, transported, and reconstructed independently.
+RDTC compresses I16Q16 samples block by block while preserving bit-exact reconstruction. Conventional packets carry mode, length, and Frame/Block identity in a 64-byte self-describing header; bounded Direct packets take physical length from TLAST/TUSER.
+
+Hardware implementation and performance optimization are encoder-centric. A receiving PC/C decoder can reconstruct conventional header-length packets, while the RTL decoder provides protocol closure, bit-exact loopback, and a hardware-decoder reference. This repository does not claim that a production ASIC must instantiate the decoder.
 
 ![MRTC-RDTC end-to-end overview](docs/assets/rdtc_overview.svg)
 
@@ -109,7 +111,7 @@ MATLAB synthetic study
         -> ASIC P&R / same-run SPEF / PrimeTime
 ```
 
-Public smoke tests cover the C reference model, RTL loopback, packet boundaries, `tkeep/tlast`, randomized backpressure, Multi-Engine arbitration, and the AXIS32 wrapper. The public Icarus-compatible checks are portability/elaboration gates, not substitutes for ModelSim or Vivado evidence. Passing finite vectors and regressions is not formal exhaustiveness or coverage closure.
+Public smoke tests cover the C reference model, RTL loopback, packet boundaries, `tuser/tlast` on the main AXIS128 interface, `tkeep/tlast` on the historical AXIS32 adaptation, randomized backpressure, and Multi-Engine arbitration. The public Icarus-compatible checks are portability/elaboration gates, not substitutes for ModelSim or Vivado evidence. Passing finite vectors and regressions is not formal exhaustiveness or coverage closure.
 
 A fixed visible demo invokes the published C encoder and decoder: a 1024-sample `delta_smooth` input selects `DELTA_RICE` with `k=0`, produces a 360-byte self-describing packet from 4096 raw bytes, and reconstructs the original I/Q bytes exactly with `RDTC_CODEC_DEMO_PASS`. Input, packet, and decoded-output hashes are recorded in the [codec demo evidence](evidence/rdtc_v1_codec_demo.yaml).
 

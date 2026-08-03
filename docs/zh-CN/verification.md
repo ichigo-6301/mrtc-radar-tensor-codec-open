@@ -11,7 +11,7 @@ RDTC 使用逐层收敛的验证链，而不是只依赖单一 RTL testbench：
 | MATLAB | synthetic 数据、模式趋势、向量生成、无损重构观察 | recorded synthetic study |
 | C reference | packet、payload、`selected_k` 与解码结果的 bit-exact oracle | verified for published vectors |
 | DPI-C / SystemVerilog | reference model 与 RTL 的逐 block 比较 | verified finite regression |
-| RTL protocol | AXI backpressure、`tkeep/tlast`、多 block、loopback、malformed stream | verified finite regression |
+| RTL protocol | 主 AXIS128 `tuser/tlast`、历史 AXIS32 `tkeep/tlast`、backpressure、多 block、loopback、malformed stream | verified finite regression |
 | Multi-Engine RTL | 分发、独立 packet buffer、packet-locked arbitration、packet identity | verified finite workload |
 | Bounded Direct-AXIS RTL | 两 block packet/selected-k 等价、`II=1` ring read、decoder loopback 与 fatal 边界 | verified finite regression |
 | FPGA emulation simulation | 固定 commit 的单 active-input AXIS32 wrapper XSim | `3/3` cases verified |
@@ -26,7 +26,7 @@ RDTC 使用逐层收敛的验证链，而不是只依赖单一 RTL testbench：
 
 - 解码后的 I/Q sample 与 reference 完全一致；
 - `selected_k`、payload bit/byte count 和 compression choice 一致；
-- 最后一个 beat 的 `tkeep/tlast` 正确；
+- 主 AXIS128 最后一个 beat 的 `tuser/tlast` 正确；历史 AXIS32 adaptation 的 `tkeep/tlast` 单独核验；
 - stall 前后 packet 内容和边界不变；
 - 非法 header、mode 或长度能够产生明确错误状态。
 

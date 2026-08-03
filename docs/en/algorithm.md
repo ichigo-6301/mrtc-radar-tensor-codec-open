@@ -14,7 +14,7 @@ The objective is not the highest possible ratio in every scene. RDTC balances fo
 |---|---|
 | Fidelity | bit-exact I/Q sample reconstruction |
 | Hardware structure | predictors, add/shift operations, prefix costs, and regular Rice codes |
-| Streaming transport | self-describing packets, exact payload-bit count, and `tkeep/tlast` |
+| Streaming transport | packet framing, exact payload-bit or TLAST-derived length, and main-AXIS128 `tuser/tlast` |
 | Worst case | explicit RAW mode; selected encoder paths support RAW fallback when coding has no benefit |
 
 ## ZERO and DELTA Prediction
@@ -107,7 +107,7 @@ The algorithm connects to the C model and RTL through these invariants:
 
 - I/Q samples reconstruct bit-exactly;
 - `selected_k`, payload-bit count, and packet-byte count match the reference model;
-- `tkeep` and `tlast` identify the final beat exactly;
+- `tuser` and `tlast` identify the main AXIS128 final beat exactly; the historical AXIS32 adaptation separately uses `tkeep/tlast`;
 - backpressure may pause transfer but cannot change packet content;
 - malformed headers, illegal modes, and out-of-range lengths are detected rather than silently decoded.
 

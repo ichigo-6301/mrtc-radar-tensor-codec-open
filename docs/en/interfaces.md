@@ -1,5 +1,7 @@
 # Interfaces and Integration Entrypoints
 
+[中文](../zh-CN/interfaces.md) · [Back to README](../../README.en.md)
+
 ## Which module should I instantiate?
 
 | Use case | Canonical top | Filelist | Public check |
@@ -17,11 +19,13 @@ Start a new general integration from `mrtc_top`. Use `mrtc_rdtc_codec_top` when 
 | Item | RDTC v1 contract |
 |---|---|
 | Raw sample | I16Q16 complex, signed 16-bit I and Q components |
+| Tensor flattening | `S[spatial/beam, doppler, range]`; Range changes fastest; the producer supplies the flat sequence |
 | Block | 1024 complex samples, 4096 raw bytes |
 | Main datapath | 128-bit AXI-Stream, four I16Q16 samples per beat |
+| Sample word | each 32-bit lane is `{Q[15:0], I[15:0]}`; bytes are little-endian I followed by Q |
 | Packet | 64-byte little-endian header plus variable-length payload |
 | Codec modes | `RAW_BYPASS`, `ZERO_RICE`, and `DELTA_RICE` |
-| Tail bytes | `tuser[3:0] = valid_byte_count - 1` |
+| Tail bytes | on TLAST, `tuser[3:0] = valid_byte_count - 1`; the main AXIS128 interface has no TKEEP |
 
 ## Clock and reset
 
@@ -31,12 +35,12 @@ The published RTL uses one `clk` and an active-low synchronous datapath reset, `
 
 1. Hold codec, Rice, and tensor-metadata configuration stable before the first block beat.
 2. Submit an input beat only when `s_axis_raw_tvalid && s_axis_raw_tready`.
-3. Assert `s_axis_raw_tlast` on AXIS128 beat 256; that beat still carries four valid I16Q16 samples.
+3. With zero-based indexing, assert `s_axis_raw_tlast` on beat 255, the 256th AXIS128 beat; it still carries four valid I16Q16 samples.
 4. The encoder emits the 64-byte header before the payload.
-5. The final output beat asserts `m_axis_comp_tlast`; `m_axis_comp_tuser[3:0]` carries valid-byte-count minus one.
+5. The final output beat asserts `m_axis_comp_tlast`; on that beat `m_axis_comp_tuser[3:0]` carries valid-byte-count minus one, with `15` denoting a full 16-byte tail.
 6. The consumer may deassert `m_axis_comp_tready` at any time; packet content and boundaries remain stable.
 
-The decoder accepts the same packet contract on `s_axis_comp_*` and reconstructs 1024 I16Q16 samples on `m_axis_raw_*`. Run `make codec-demo` for a fixed example whose input, packet, and decoded-output SHA256 values are recorded in the [codec demo evidence](../../evidence/rdtc_v1_codec_demo.yaml).
+The decoder accepts the same physical packet boundary on `s_axis_comp_*` and reconstructs 1024 I16Q16 samples on `m_axis_raw_*`. Conventional C/RTL packets carry payload length in the header, while bounded Direct packets take physical length from TLAST/TUSER. See [Bitstream Format](bitstream_format.md#packet-length-contracts) for compatibility and the current C-decoder gap. Run `make codec-demo` for a fixed example whose input, packet, and decoded-output SHA256 values are recorded in the [codec demo evidence](../../evidence/rdtc_v1_codec_demo.yaml).
 
 ## Key parameters
 
@@ -63,6 +67,8 @@ The Direct wrapper accepts a descriptor separately from the single `s_axis_raw_*
 
 The legal public configuration is `ZERO_RICE` plus block-adaptive prefix `k`. RAW, DELTA, fixed `k`, malformed early/late `tlast`, a Rice word above 128 bits, an `II=1` cadence break, or a same-way read/write collision fails closed. Descriptors rotate strictly through Engine `0 -> 1 -> 0 -> 1`; output remains job-table ordered and packet-locked to accepted `m_axis_comp_tlast`. Packet-internal `tvalid` gaps are legal, and `tlast` remains the only packet boundary.
 
+The Direct input is a bounded fail-stop contract. Presenting `s_axis_raw_tvalid=1` while the reserved Engine is not ready raises `MRTC_ERR_BLOCK_NOT_READY`; it is not treated as indefinitely holdable ordinary input backpressure. The producer must complete a legal descriptor reservation and present data only in the ready window supported by this Direct wrapper. See [Architecture](architecture.md#four-way-shallow-input-ring) for ring capacity, reuse, and conflict rules.
+
 The 16-beat output FIFO provides bounded backpressure credit. If downstream stalling consumes the emergency credit, `stat_error` becomes sticky `MRTC_ERR_OUTPUT_CREDIT` (`24`) and the wrapper stops accepting or emitting work. Because this path has no speculative payload commit store, already emitted beats cannot be rolled back. Recovery requires a real `rst_n` reset of both the wrapper and downstream packet receiver. `i_clear_status` clears counters only and cannot recover a fatal state.
 
 ## AXI4-Lite control plane
@@ -73,8 +79,8 @@ The `mrtc_top` AXI4-Lite interface exposes enable, soft reset, status clear, cod
 
 - Keep configuration stable for a complete block transaction.
 - Align input `tlast` with the 1024-sample block boundary.
-- Support arbitrary `tready` backpressure and the final-beat valid-byte rule.
+- Support arbitrary output `tready` backpressure and the TLAST/TUSER final-byte rule.
 - Treat `tlast` as the packet-atomic boundary; do not assume Block IDs naturally emerge in order.
-- For the Direct profile, submit a legal descriptor before data, enforce its bounded codec domain, and reset both ends after any nonzero `stat_error`.
+- For the Direct profile, submit a legal descriptor before data, enforce its bounded codec domain, avoid presenting input valid while ready is low, and reset both ends after any nonzero `stat_error`.
 - Compile the tracked filelist for the selected top rather than manually omitting packages or helper modules.
 - Run the corresponding smoke before delivery and leave the worktree clean apart from ignored build output.

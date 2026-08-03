@@ -4,7 +4,7 @@
 
 ## System Contract
 
-RDTC sits between sensing-data generation and off-chip storage or transport. The Encoder converts consecutive Range-Doppler blocks into lossless packets with metadata, and the Decoder reconstructs the same I/Q samples at the consumer.
+RDTC consumes Range-Doppler-Beam data produced by the FFT backend and sits between sensing-data generation and off-chip storage or transport; it does not implement the upstream FFT. Hardware implementation and performance optimization are encoder-centric, with packets intended for DDR, interconnect, or PC upload. A receiving PC/C decoder can reconstruct original I/Q from conventional self-describing packets. The RTL decoder provides protocol closure, bit-exact loopback, malformed-packet checking, and a hardware-decoder reference; no claim requires a production ASIC to instantiate it.
 
 ![OFDM sensing and RDTC system context](../assets/system_context.svg)
 
@@ -12,9 +12,9 @@ RDTC sits between sensing-data generation and off-chip storage or transport. The
 |---|---|
 | Block | `1024` I16Q16 samples and `4096` raw bytes |
 | Packet | 64-byte self-describing header + RAW/Rice payload |
-| Stream | 128-bit AXI-Stream with exact `tkeep/tlast` and backpressure support |
+| Stream | main interface is 128-bit AXI-Stream; TLAST ends a packet and TUSER gives final-beat byte count |
 | Identity | Frame, Block, and Range metadata preserve packet identity |
-| Reconstruction | Decoder restores I/Q bit-exactly and fails closed on malformed streams |
+| Reconstruction | PC/C decodes conventional header-length packets; RTL decoding supplies bit-exact verification and a hardware reference |
 
 See [Interfaces](interfaces.md) and [Bitstream Format](bitstream_format.md) for the external contract.
 
@@ -26,9 +26,11 @@ See [Interfaces](interfaces.md) and [Bitstream Format](bitstream_format.md) for 
 | Bounded Direct-AXIS dual Engine (opt-in) | [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](../../rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) |
 | AXIS32 FPGA adaptation | [`mrtc_rdtc_axis32_wrapper`](../../rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) |
 
-## Single-Engine Pipeline
+## Historical Full-Block Single-Engine Pipeline
 
-![Single-Engine encoder and decoder pipeline](../assets/single_engine_pipeline.svg)
+![Historical full-block/ping-pong Single-Engine encoder and decoder pipeline](../assets/single_engine_pipeline.svg)
+
+The figure and this section describe the historical full-block/ping-pong profile, not the current bounded Direct-AXIS four-way shallow ring. They explain the stages used by the Lane4 Bitpacker and buffered Multi-Engine evidence.
 
 A Single Engine progresses through these stages:
 
@@ -73,6 +75,40 @@ The opt-in Direct profile targets a lower-storage path for a bounded signal doma
 
 Each Engine contains four `32x128` true-1RW ways, a two-entry registered ingress queue, a prefix-128 estimator, and the fixed-rate bounded bitpacker. The estimator observes accepted input directly and does not consume the RAM read port. The wrapper removes the DDR feeder and per-Engine payload commit stores; a global 16-beat FIFO absorbs short output stalls. The two Engines therefore contain `32,768` bulk ring bits, versus the prior payload-backed experiment's `180,224` bulk bits.
 
+<a id="four-way-shallow-input-ring"></a>
+
+### Four-Way Shallow Input Ring
+
+This ring belongs only to the bounded Direct-AXIS Encoder. It sits between AXIS input capture and the Bitpacker; it is neither an output FIFO nor the historical full-block ping-pong buffer. Each Engine holds `4 ways x 32 words x 128 bits = 2048 bytes`, exactly half of a 4096-byte block. The prefix estimator observes accepted input directly. `prefix-128` means the first 128 complex samples, or 32 AXIS128 beats, and is distinct from the ring's 128-beat capacity.
+
+For a zero-based global AXIS word index:
+
+```text
+way    = floor(global_word_index / 32) mod 4
+offset = global_word_index mod 32
+```
+
+| Global word | Physical way | Action |
+|---|---:|---|
+| `0-31` | 0 | first fill |
+| `32-63` | 1 | first fill |
+| `64-95` | 2 | first fill |
+| `96-127` | 3 | first fill |
+| `128-159` | 0 | reuse released slots |
+| `160-191` | 1 | reuse released slots |
+| `192-223` | 2 | reuse released slots |
+| `224-255` | 3 | reuse released slots |
+
+Each accepted input word writes its mapped slot and sets valid. An accepted ring read clears that slot's valid state so a later wrap can reuse it. The external response arrives at a fixed two-clock delay from the read request. Reads and writes may overlap on different ways. A true-1RW way cannot read and write in the same cycle even at different offsets; that condition raises a way conflict. Writing a still-valid slot or reading an invalid slot raises a ring error, promoted by the bounded Encoder to sticky fatal status.
+
+<a id="stream-timing-contract"></a>
+
+### Stream Timing Contract
+
+The timing diagram is a protocol schematic, not a measured waveform. The first 32 accepted beats provide 128 prefix samples. Once prefix `k` is selected, the four-beat header can begin while later input continues writing the ring. After the header completes, the Bitpacker requests ring words in original order. Its continuous legal source-request cadence is `II=1`, with a fixed two-clock response delay.
+
+Each of the four header beats commits on `TVALID && TREADY`. Rice token accumulation emits a payload beat only when a complete output word is available, so bubbles are legal between header and payload and within payload. When downstream deasserts `TREADY`, the current `TVALID`, `TDATA`, `TLAST`, and `TUSER` remain stable until handshake. TLAST appears only on the physical packet end. Ring-read source `II=1` does not mean compressed-output `TVALID` is continuous.
+
 This simplification is deliberately fail-stop:
 
 - only `ZERO_RICE` with block-adaptive prefix `k` is accepted;
@@ -81,7 +117,7 @@ This simplification is deliberately fail-stop:
 - a same-way read/write collision, cadence failure, malformed block, or exhausted output credit raises sticky fatal status;
 - without speculative payload storage, a fatal event can leave a partial packet externally visible, so producer and receiver state must be reset together.
 
-The fixed regression observes about `277 cycles` of ordered packet service for a block arriving every `256 cycles`. That deficit accumulates and eventually creates a legal way conflict. The profile verifies bounded datapath behavior and implementation closure, but does not verify sustained zero-gap scheduling.
+The fixed regression observes about `277 cycles` of ordered packet service for a block arriving every `256 cycles`. That deficit accumulates and eventually creates a legal way conflict. This is workload evidence, not a protocol-cycle guarantee, and is not drawn into the timing schematic. The profile verifies bounded datapath behavior and implementation closure, but does not verify sustained zero-gap scheduling.
 
 ## Historical Buffered Throughput Scaling
 

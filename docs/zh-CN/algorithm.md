@@ -14,7 +14,7 @@ RDTC v1 面向按 block 组织的 Range-Doppler 复数样本。公开基准 bloc
 |---|---|
 | 数据保真 | I/Q sample bit-exact reconstruction |
 | 硬件结构 | predictor、加法/移位、prefix cost、规则化 Rice code |
-| 流式传输 | self-describing packet、精确 payload bit count、`tkeep/tlast` |
+| 流式传输 | packet framing、精确 payload bit count 或 TLAST-length、主 AXIS128 `tuser/tlast` |
 | 最坏情况 | 显式 RAW 模式；部分 encoder path 支持无收益时的 RAW fallback |
 
 ## ZERO 与 DELTA 预测
@@ -107,7 +107,7 @@ ZERO_RICE 与 DELTA_RICE 由 block descriptor 或 configuration 指定；内部 
 
 - I/Q 样本必须 bit-exact 恢复；
 - `selected_k`、payload bit count 和 packet byte count 必须与 reference model 一致；
-- `tkeep` 与 `tlast` 必须精确标记最后一个 beat；
+- 主 AXIS128 的 `tuser` 与 `tlast` 必须精确标记尾拍；历史 AXIS32 adaptation 另使用 `tkeep/tlast`；
 - backpressure 只能暂停传输，不能改变 packet 内容；
 - malformed header、非法 mode 或越界长度必须被检测，而不是静默解码。
 

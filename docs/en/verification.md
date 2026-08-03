@@ -11,7 +11,7 @@ RDTC uses a layered convergence chain instead of relying on one RTL testbench:
 | MATLAB | Synthetic data, mode trends, vector generation, and lossless-reconstruction study | recorded synthetic study |
 | C reference | Bit-exact oracle for packets, payloads, `selected_k`, and decoded samples | verified for published vectors |
 | DPI-C / SystemVerilog | Block-by-block comparison between the reference model and RTL | verified finite regression |
-| RTL protocol | AXI backpressure, `tkeep/tlast`, multiple blocks, loopback, and malformed streams | verified finite regression |
+| RTL protocol | main-AXIS128 `tuser/tlast`, historical AXIS32 `tkeep/tlast`, backpressure, multiple blocks, loopback, and malformed streams | verified finite regression |
 | Multi-Engine RTL | Distribution, independent packet buffers, packet-locked arbitration, and packet identity | verified finite workload |
 | Bounded Direct-AXIS RTL | Two-block packet/selected-k equivalence, `II=1` ring reads, decoder loopback, and fatal boundaries | verified finite regression |
 | FPGA emulation simulation | Fixed-commit AXIS32 wrapper XSim with one active external input | `3/3` cases verified |
@@ -26,7 +26,7 @@ Published legal vectors cover `RAW_BYPASS`, `ZERO_RICE`, `DELTA_RICE`, multiple 
 
 - reconstructed I/Q samples exactly match the reference;
 - `selected_k`, payload bit/byte counts, and compression choice agree;
-- the final beat carries the correct `tkeep/tlast`;
+- the main AXIS128 final beat carries the correct `tuser/tlast`; historical AXIS32 `tkeep/tlast` is checked separately;
 - stalls do not change packet contents or boundaries;
 - illegal headers, modes, or lengths produce explicit error status.
 

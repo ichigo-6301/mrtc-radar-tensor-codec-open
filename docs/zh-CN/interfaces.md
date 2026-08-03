@@ -1,5 +1,7 @@
 # 接口与集成入口
 
+[English](../en/interfaces.md) · [返回首页](../../README.md)
+
 ## 应该实例化哪个模块
 
 | 使用场景 | Canonical top | Filelist | 公开检查 |
@@ -17,11 +19,13 @@
 | 项目 | RDTC v1 合同 |
 |---|---|
 | 原始 sample | I16Q16 complex，I/Q 各为 signed 16-bit |
+| Tensor flatten | `S[spatial/beam, doppler, range]`；Range 最快变化；由 producer 形成扁平序列 |
 | Block | 1024 complex samples，4096 raw bytes |
 | 主 datapath | 128-bit AXI-Stream，每拍 4 个 I16Q16 sample |
+| Sample word | 每个 32-bit lane 为 `{Q[15:0], I[15:0]}`；字节为 little-endian I 后 Q |
 | Packet | 64-byte little-endian header + variable-length payload |
 | Codec mode | `RAW_BYPASS`、`ZERO_RICE`、`DELTA_RICE` |
-| Tail bytes | `tuser[3:0] = valid_byte_count - 1` |
+| Tail bytes | TLAST 拍使用 `tuser[3:0] = valid_byte_count - 1`；主 AXIS128 不导出 TKEEP |
 
 ## Clock 与 Reset
 
@@ -31,12 +35,12 @@
 
 1. 在 block 第一个 beat 前锁定 codec、Rice 和 tensor metadata 配置。
 2. 仅当 `s_axis_raw_tvalid && s_axis_raw_tready` 时提交输入 beat。
-3. 第 256 个 AXIS128 beat 置 `s_axis_raw_tlast=1`；该 beat 仍包含 4 个有效 I16Q16 sample。
+3. 按零起始编号，在 beat 255（第 256 拍）置 `s_axis_raw_tlast=1`；该 beat 仍包含 4 个有效 I16Q16 sample。
 4. Encoder 先发送 64-byte header，再发送 payload。
-5. 最后一个输出 beat 置 `m_axis_comp_tlast=1`，`m_axis_comp_tuser[3:0]` 给出有效字节数减一。
+5. 最后一个输出 beat 置 `m_axis_comp_tlast=1`，此时 `m_axis_comp_tuser[3:0]` 给出有效字节数减一；完整 16-byte 尾拍为 `15`。
 6. 下游可以任意拉低 `m_axis_comp_tready`；packet 内容和边界必须保持稳定。
 
-Decoder 在 `s_axis_comp_*` 接收同一 packet 合同，并在 `m_axis_raw_*` 恢复 1024 个 I16Q16 sample。固定示例可运行 `make codec-demo`，其输入、packet 和解码输出 SHA256 记录在 [codec demo evidence](../../evidence/rdtc_v1_codec_demo.yaml)。
+Decoder 在 `s_axis_comp_*` 接收同一物理 packet 边界，并在 `m_axis_raw_*` 恢复 1024 个 I16Q16 sample。常规 C/RTL packet 由 header 给出 payload length；bounded Direct packet 由 TLAST/TUSER 给出物理长度。两者兼容性和当前 C decoder 缺口见[码流格式](bitstream_format.md#packet-length-contracts)。固定示例可运行 `make codec-demo`，其输入、packet 和解码输出 SHA256 记录在 [codec demo evidence](../../evidence/rdtc_v1_codec_demo.yaml)。
 
 ## 关键参数
 
@@ -63,6 +67,8 @@ Direct wrapper 分别接收 descriptor 与单路 `s_axis_raw_*`。Descriptor 包
 
 公开合法配置为 `ZERO_RICE` 加 block-adaptive prefix `k`。RAW、DELTA、fixed `k`、过早/过晚 `tlast`、超过 128 bit 的 Rice word、`II=1` cadence 中断或同 way 读写冲突都会 fail closed。Descriptor 严格按 Engine `0 -> 1 -> 0 -> 1` 轮转；输出保持 job-table 顺序，并锁定到已握手的 `m_axis_comp_tlast`。Packet 内允许 `tvalid` 空拍，`tlast` 仍是唯一 packet boundary。
 
+Direct 输入面是 bounded fail-stop 合同：当已预约 Engine 尚未 ready 时继续呈现 `s_axis_raw_tvalid=1` 会产生 `MRTC_ERR_BLOCK_NOT_READY`，而不是作为可无限保持的普通输入 backpressure。Producer 必须先完成合法 descriptor 预约，并只在该 Direct wrapper 允许的 ready 窗口送数。四路 ring 的容量、复用与冲突规则见[架构](architecture.md#four-way-shallow-input-ring)。
+
 16-beat output FIFO 提供有限 backpressure credit。下游 stall 耗尽 emergency credit 后，`stat_error` sticky 为 `MRTC_ERR_OUTPUT_CREDIT`（`24`），wrapper 停止接收和输出。该路径没有 speculative payload commit store，已发送 beat 不能回滚；恢复必须用真实 `rst_n` 同时复位 wrapper 与下游 packet receiver。`i_clear_status` 只清 counter，不能恢复 fatal 状态。
 
 ## AXI4-Lite 控制面
@@ -73,8 +79,8 @@ Direct wrapper 分别接收 descriptor 与单路 `s_axis_raw_*`。Descriptor 包
 
 - 固定配置在一个 block transaction 内保持不变。
 - 输入 `tlast` 与 1024-sample block 边界一致。
-- 下游完整支持 `tready` backpressure 和尾拍有效字节规则。
+- 下游完整支持 `tready` backpressure 和 TLAST/TUSER 尾拍有效字节规则。
 - Packet 以 `tlast` 为原子边界，不按 block ID 假设天然有序。
-- Direct profile 必须先提交合法 descriptor、满足 bounded codec 域，并在任意非零 `stat_error` 后复位两端。
+- Direct profile 必须先提交合法 descriptor、满足 bounded codec 域、避免在低 ready 时呈现 input valid，并在任意非零 `stat_error` 后复位两端。
 - 使用所选 top 对应的 tracked filelist，不手工遗漏 package 或 helper module。
 - 在交付前运行对应 smoke，并确认工作树在 ignored build 产物之外保持干净。

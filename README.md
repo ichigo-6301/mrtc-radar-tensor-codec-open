@@ -6,7 +6,9 @@
 
 **面向 OFDM 通感与毫米波雷达 Range-Doppler 张量的流式无损压缩器：从 MATLAB 算法、可综合 RTL 和 Multi-Engine 调度，一直验证到 FPGA emulation 与 ASIC post-route STA。**
 
-RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同时降低片外 DDR 与链路流量；64-byte self-describing header 保留模式、长度和 Frame/Block 身份，使 packet 可独立存储、传输与恢复。
+RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同时降低片外 DDR 与链路流量；常规 packet 的 64-byte self-describing header 保留模式、长度和 Frame/Block 身份，bounded Direct packet 则以 TLAST/TUSER 给出物理长度。
+
+硬件实现与性能优化以 Encoder/压缩数据面为主，消费端可由 PC/C decoder 恢复常规 header-length packet。RTL decoder 用于协议闭环、bit-exact loopback 与硬件解码参考；本仓不声明生产 ASIC 必须实例化 decoder。
 
 ![MRTC-RDTC end-to-end overview](docs/assets/rdtc_overview.svg)
 
@@ -109,7 +111,7 @@ MATLAB synthetic study
         -> ASIC P&R / same-run SPEF / PrimeTime
 ```
 
-公开 smoke 覆盖 C reference、RTL loopback、packet 边界、`tkeep/tlast`、随机 backpressure、Multi-Engine 仲裁以及 AXIS32 wrapper。公开 Icarus-compatible 检查是 portability/elaboration 门禁，不能替代 ModelSim 或 Vivado evidence。有限向量与 regression PASS 不等于形式穷尽或 coverage closure。
+公开 smoke 覆盖 C reference、RTL loopback、packet 边界、主 AXIS128 的 `tuser/tlast`、历史 AXIS32 adaptation 的 `tkeep/tlast`、随机 backpressure 与 Multi-Engine 仲裁。公开 Icarus-compatible 检查是 portability/elaboration 门禁，不能替代 ModelSim 或 Vivado evidence。有限向量与 regression PASS 不等于形式穷尽或 coverage closure。
 
 固定可见 demo 真实调用公开 C encoder/decoder：1024-sample `delta_smooth` 输入选择 `DELTA_RICE` 与 `k=0`，从 4096 raw bytes 生成 360-byte self-describing packet，再逐字节恢复原始 I/Q，结果为 `RDTC_CODEC_DEMO_PASS`。输入、packet 和解码输出哈希见 [codec demo evidence](evidence/rdtc_v1_codec_demo.yaml)。
 
