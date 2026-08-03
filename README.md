@@ -27,7 +27,7 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
   <a href="evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"><img src="docs/assets/bitpacker_pipeline_ab.svg" width="760" alt="Fixed-workload Bitpacker RTL pipeline A/B"></a>
 </p>
 <p align="center">
-  <a href="evidence/rdtc_v1_bounded_direct_rtl.yaml"><img src="docs/assets/bounded_direct_dual_engine.svg" width="760" alt="Current bounded Direct-AXIS dual-Engine architecture and fixed closure points"></a>
+  <a href="docs/zh-CN/results.md"><img src="docs/assets/bounded_direct_dual_engine.svg" width="760" alt="Current bounded Direct-AXIS dual-Engine architecture and fixed closure points"></a>
 </p>
 
 <a id="rtl-reading-path"></a>

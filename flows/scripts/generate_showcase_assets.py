@@ -37,6 +37,8 @@ AUTHORED_ASSET_RULES = {
     "bounded_direct_dual_engine.svg": {
         "required": (
             "Current bounded Direct-AXIS dual-Engine profile",
+            "separate valid / ready",
+            "data follows reservation",
             "256 beats / block",
             "~277-cycle ordered service &gt; 256-cycle zero-gap arrival",
             "Register-expanded: 600 MHz",
@@ -77,7 +79,7 @@ AUTHORED_ASSET_RULES = {
     },
     "multi_engine_wrapper.svg": {
         "required": (
-            "Historical DDR-backed",
+            "Descriptor and DDR-backed",
             "Round-Robin",
             "dispatcher",
             "Packet-locked",
@@ -85,7 +87,7 @@ AUTHORED_ASSET_RULES = {
             "completion order may vary",
             "no software reorder PASS claimed",
         ),
-        "forbidden": ("Current bounded Direct-AXIS",),
+        "forbidden": ("Current bounded Direct-AXIS", "retained for historical evidence"),
     },
     "zynq_emulation_path.svg": {
         "required": (

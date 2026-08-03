@@ -2,7 +2,7 @@ title: RDTC v1 synthetic MATLAB lossless algorithm study
 status: verified
 source_commit: bf27b88d77c422ed385e35bb2f19335e054af244
 source_visibility: private_fixed_commit
-public_evidence_scope: curated synthetic-study summary, public SNR/result CSV, and byte-identical fixed-commit MATLAB figure
+public_evidence_scope: curated synthetic-study summary, public SNR/result CSV, and source-bound MATLAB figure with a title-only presentation correction
 source_path: matlab/compressed_pointcloud_consistency/results/tables/summary_compressed_pointcloud.csv
 curated_data: evidence/data/rdtc_v1_matlab_lossless_snr.csv
 curated_data_sha256: 49063a58e7c1cdf73d21be249aeb7428402bb849171c64bf3a796414daecdac7
