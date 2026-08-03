@@ -303,13 +303,13 @@ claims:
     public: true
   - id: rdtc_v1_direct_stream_timing_protocol_pass
     profile: rdtc_v1_bounded_direct_axis
-    statement: "One fixed two-block register-expanded Direct-wrapper ModelSim regression passed cycle-continuity, prefix/k ordering, 256-address II=1 ring reads with two-cycle responses, four-beat header, packet-lock, deterministic output-backpressure hold, packet-data/sideband identity, and bit-exact decoder checks."
+    statement: "One fixed two-block register-expanded Direct-wrapper ModelSim regression passed cycle-continuity, prefix/k ordering, 256-address II=1 ring reads with two-cycle responses, four-beat header, job identity through the output FIFO, packet-lock, final TUSER/packet-length checks, deterministic output-backpressure hold, packet-data/sideband identity, and bit-exact decoder checks."
     metric: direct_stream_timing_protocol_check
     value: pass
     unit: result
     benchmark: fixed dual-Engine bounded Direct-wrapper nominal and deterministic-backpressure traces
     configuration: "block 0 to Engine 0 and block 1 to Engine 1, bounded ZERO_RICE prefix-128, register-expanded four-way rings, two-cycle stalls on packet-0 header beat 1 and payload beat 4"
-    source_ref: 88d7bff04e2f61d60373ca400aa95026b8829bd5
+    source_ref: 99dbd4b5ff29c04de36c4c7e5d802856351495fb
     tool: ModelSim SE-64 2020.4
     evidence:
       - rdtc_v1_direct_stream_timing_trace_public

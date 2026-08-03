@@ -13,7 +13,7 @@ from pathlib import Path
 import yaml
 
 
-SOURCE_REF = "88d7bff04e2f61d60373ca400aa95026b8829bd5"
+SOURCE_REF = "99dbd4b5ff29c04de36c4c7e5d802856351495fb"
 EVIDENCE_ID = "rdtc_v1_direct_stream_timing_trace_public"
 CLAIM_ID = "rdtc_v1_direct_stream_timing_protocol_pass"
 NONCLAIM_ID = "rdtc_v1_direct_stream_timing_no_performance_generalization"
@@ -85,24 +85,24 @@ BINARY_FIELDS = frozenset(
 )
 HEX_WIDTHS = {"m_tdata": 32, "m_tuser": 2}
 EXPECTED_SOURCE_HASHES = {
-    "aggregate_sha256": "f93fea014827eb1fd720ade9dc83ebfb1db289f1b359134293baef561b18b5c5",
+    "aggregate_sha256": "fd0bf2e33ac7c547ef1f88b7dd7be25165159509c1391190a6dc16ac4747659a",
     "filelist_sha256": "4ed6d78dd51f5dfdc1bbb00f122437539345522a16b80ca3512220e6cbeed7a9",
-    "testbench_sha256": "99991bac24293119375bea80e7782089b4da7b410f273543fe3eda091d040abb",
+    "testbench_sha256": "b2dde0907ea19b0e5cff77a18847c59d9f756b514089ea8e8465e6791921a525",
     "runner_sha256": "6e527d89a87ecf39f7c9f7b1c631f7f0372d63a8ecc8d521e75991788b792f6c",
 }
 EXPECTED_SCENARIOS = {
     "nominal": {
-        "raw_manifest_sha256": "d4b7307bf1911a74b33d459e8937890ac1463be834074de1edf72dcc1323a545",
-        "raw_compile_log_sha256": "e8deaf51b0688b8cf7eff0a1c233a46262665250b74bd2777cf5c0f9abca3049",
-        "raw_run_log_sha256": "bfb48b71814977dfc69571295adcb963ee63898dd0d39fbccca24f23050549e6",
+        "raw_manifest_sha256": "badb3c1e18bdf8d1865f872aafbece9445c68b5ba3595c7b9b3f9021fe0a97de",
+        "raw_compile_log_sha256": "12c55c7a0be57142b8c2276167d8f4789d3a95325fb8c8f9000537b1612b5eb2",
+        "raw_run_log_sha256": "fcfba1ecf2990b6eec4f905880b15c0c3c6d400978912a04fbe0e7c4f814d246",
         "raw_cycle_trace_sha256": "1cde77a354c2d43aada390b275c009be42bf8473ec3e93b31b3115dbdd9e9071",
         "raw_cycle_rows": 5316,
         "backpressure_markers": [],
     },
     "backpressure": {
-        "raw_manifest_sha256": "05a8de312c20f3d0f0acbcaf8c1643e4c19d6928ac970295dc263e5774157d5f",
-        "raw_compile_log_sha256": "6b724b92cb5ba98758aa2d711a66f182191721605665f8fca06ff5ae110bbc5a",
-        "raw_run_log_sha256": "f6b89f4ad89de42f256d83affdcae8f61ecaec462d7f0e3f8f77e2c49592d427",
+        "raw_manifest_sha256": "117f63ff60856885836151bd91acf0ea874be10ae9ef891646b68ed5866ac106",
+        "raw_compile_log_sha256": "9fb694eff8c724ecd447620ca9a9804a9bbc20e04d6d3abb25fa1233406f01a3",
+        "raw_run_log_sha256": "3b8b126591df02281c0257818e97e28ff6e51af5d67d61f7c82f22d390ee6244",
         "raw_cycle_trace_sha256": "49c36694683d98fc05d70529fe1cdfeadb170100015ce2adebf975d74b33323d",
         "raw_cycle_rows": 5316,
         "backpressure_markers": [
@@ -110,6 +110,10 @@ EXPECTED_SCENARIOS = {
             {"kind": "payload", "cycle": 86, "packet": 0, "beat": 4, "stall_cycles": 2},
         ],
     },
+}
+EXPECTED_PACKETS = {
+    0: {"owner": 0, "beats": 20, "final_tuser": "0f", "final_valid_bytes": 16, "packet_bytes": 320},
+    1: {"owner": 1, "beats": 72, "final_tuser": "0e", "final_valid_bytes": 15, "packet_bytes": 1151},
 }
 NORMALIZED_TRACE_SHA256 = "c0da722b93448cced40ad4ab602a77ce178ae0b8df41c90eb1c1a9226583f3cf"
 TOOL_VERSION = "Model Technology ModelSim SE-64 vsim 2020.4 Simulator 2020.10 Oct 13 2020"
@@ -321,13 +325,25 @@ def _accepted_packets(rows, scenario):
     packets = {}
     for block in (0, 1):
         packet = [row for row in accepted if row["output_block"] == block]
-        expected_beats = 20 if block == 0 else 72
-        if len(packet) != expected_beats:
+        expected = EXPECTED_PACKETS[block]
+        if len(packet) != expected["beats"]:
             raise ValueError("{} packet {} beat count mismatch".format(scenario, block))
+        if any(row["output_owner"] != expected["owner"] for row in packet):
+            raise ValueError("{} packet {} owner mismatch".format(scenario, block))
         if any(row["m_tlast"] for row in packet[:-1]) or not packet[-1]["m_tlast"]:
             raise ValueError("{} packet {} TLAST is malformed".format(scenario, block))
+        if any(int(row["m_tuser"], 16) & 0xF0 for row in packet):
+            raise ValueError("{} packet {} TUSER reserved bits are nonzero".format(scenario, block))
         if any(row["m_tuser"] != "0f" for row in packet[:-1]):
             raise ValueError("{} packet {} non-final TUSER is malformed".format(scenario, block))
+        final_valid_bytes = (int(packet[-1]["m_tuser"], 16) & 0x0F) + 1
+        packet_bytes = ((len(packet) - 1) * 16) + final_valid_bytes
+        if (
+            packet[-1]["m_tuser"] != expected["final_tuser"]
+            or final_valid_bytes != expected["final_valid_bytes"]
+            or packet_bytes != expected["packet_bytes"]
+        ):
+            raise ValueError("{} packet {} final TUSER/byte length mismatch".format(scenario, block))
         if any(row["m_tlast"] for row in packet[:4]):
             raise ValueError("{} packet {} header is shorter than four beats".format(scenario, block))
         packets[block] = [
@@ -403,6 +419,18 @@ def validate(root):
             raise ValueError("source identity {} mismatch".format(key))
     if evidence.get("normalized_trace_sha256") != NORMALIZED_TRACE_SHA256:
         raise ValueError("normalized trace identity mismatch")
+    expected_packet_summary = [
+        {
+            "block": block,
+            "owner": values["owner"],
+            "beats": values["beats"],
+            "final_valid_bytes": values["final_valid_bytes"],
+            "packet_bytes": values["packet_bytes"],
+        }
+        for block, values in sorted(EXPECTED_PACKETS.items())
+    ]
+    if evidence.get("observed_packets") != expected_packet_summary:
+        raise ValueError("observed packet length metadata mismatch")
 
     packet_sets = {}
     scenario_records = evidence.get("scenarios", {})
@@ -435,6 +463,8 @@ def validate(root):
         "ring_response_latency_two_cycles",
         "four_header_beats_and_unique_tlast",
         "packet_owner_lock_no_interleaving",
+        "output_identity_from_job_fifo_shadow",
+        "final_tuser_packet_length_match",
         "backpressure_hold_stable",
         "packet_data_and_sideband_match",
         "decoder_bit_exact",

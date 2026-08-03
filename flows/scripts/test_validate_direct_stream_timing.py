@@ -60,6 +60,20 @@ class DirectStreamTimingEvidenceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "owner/block mismatch"):
             VALIDATOR._accepted_packets(rows, "nominal")
 
+    def test_final_tuser_reserved_bits_are_rejected(self):
+        rows = copy.deepcopy(self.nominal)
+        final = next(row for row in rows if row["m_tlast"] and row["output_block"] == 1)
+        final["m_tuser"] = "fe"
+        with self.assertRaisesRegex(ValueError, "reserved bits"):
+            VALIDATOR._accepted_packets(rows, "nominal")
+
+    def test_final_tuser_byte_length_change_is_rejected(self):
+        rows = copy.deepcopy(self.nominal)
+        final = next(row for row in rows if row["m_tlast"] and row["output_block"] == 1)
+        final["m_tuser"] = "0d"
+        with self.assertRaisesRegex(ValueError, "byte length"):
+            VALIDATOR._accepted_packets(rows, "nominal")
+
     def test_active_window_trims_decoder_idle_tail(self):
         rows = [
             {"cycle": 1, "input_fire": 0, "m_tvalid": 0, "m_tready": 1, "m_tlast": 0},
