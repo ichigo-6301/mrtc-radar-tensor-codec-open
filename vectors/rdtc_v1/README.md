@@ -5,7 +5,8 @@ This directory is the target for Stage 8 generated RDTC vectors.
 Expected generator:
 
 ```matlab
-cd ref_model/matlab/vector_gen
+cd('<repository-root>')
+addpath(fullfile(pwd, 'matlab', 'vector_gen'))
 main_gen_rdtc_vectors('quick')
 main_gen_rdtc_vectors('smoke')
 ```
