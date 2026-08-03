@@ -23,7 +23,7 @@ Sources: [MATLAB evidence](../../evidence/rdtc_v1_matlab_algorithm_study.yaml) �
 
 Historical Stage16C3 and Stage16D2 use the same `smoke_zero_sparse` input, the same latency monitor, the same `selected_k=0`, and the same `2158-bit / 270-byte` payload. Replacing the per-sample compressed path with the integrated four-lane word Bitpacker reduces the inclusive interval from first payload valid to accepted packet `TLAST` from `7693` to `721 cycles`: a `90.63%` reduction and `10.67×` speedup. Both points have zero input/output stalls, byte-identical 334-byte packets, and passing decoder loopback.
 
-On the corresponding ZERO_RICE data, average packet-completion spacing over fixed 256-block single-Engine streams falls from `8220` to `785 cycles/block`: a `90.45%` reduction and `10.47×` speedup. The optimized `721` value is the payload sub-interval, while `785` is the packet-to-packet average block interval, so the two values are consistent. Both revisions already enable prefix-during-capture; the A/B delta primarily isolates the integrated Lane4 Bitpacker and must not be attributed entirely to front-end ping-pong.
+In separate fixed 256-block ZERO_RICE streams, average single-Engine packet-completion spacing falls from `8220` to `785 cycles/block`: a `90.45%` reduction and `10.47×` speedup. The `721` value above comes from the independent `smoke_zero_sparse` first-payload-valid-to-accepted-`TLAST` measurement; `785` is the packet-to-packet average block interval from the 256-block stream. Both revisions already enable prefix-during-capture; the A/B delta primarily isolates the integrated Lane4 Bitpacker and must not be attributed entirely to front-end ping-pong.
 
 The `785 cycles/block` value is a steady-state service interval, not one-block latency. Neither metric is current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.
 
@@ -31,17 +31,17 @@ Sources: [Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.y
 
 ## Multi-Engine RTL Scaling
 
-The historical fixed-commit 256-block prefix workload uses a simulated DDR feeder and checks byte-exact payloads, `selected_k`, compression ratio, packet completeness, and absence of beat interleaving. This record defines one beam as 256 blocks. `beam/s` is calculated from the unrounded `estimated_cycles_per_beam` values in the public CSV and cannot be reproduced exactly from the displayed two-decimal cycles/block values alone.
+The historical fixed-commit 256-block prefix workload uses the Stage16D2 single-Engine result as a same-workload reference, then measures the 2/4-Engine buffered wrapper with a simulated DDR feeder. The wrapper runs check byte-exact payloads, `selected_k`, compression ratio, packet completeness, and absence of beat interleaving. This record defines one beam as 256 blocks. `beam/s` is calculated from the unrounded `estimated_cycles_per_beam` values in the public CSV and cannot be reproduced exactly from the displayed two-decimal cycles/block values alone.
 
 | Engines | Cycles/block | Scaling efficiency | Beam/s at assumed 200 MHz |
 |---:|---:|---:|---:|
-| 1 | 785 | baseline | - |
+| 1 (Stage16D2 reference) | 785 | baseline | - |
 | 2 | 397.52 | 98.7368% | 1965.3022 |
 | 4 | 197.41 | 99.4115% | 3957.4642 |
 
 ![Historical buffered Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
 
-These are RTL simulation projections, not FPGA timing closure, an implemented clock, or measured board DDR throughput. The current public adaptation has a separate two-Engine, two-block correctness smoke and does not recompute this matrix. Output packets remain atomic and beats from different packets do not interleave; completion order is not guaranteed. Frame/Block metadata enables indexed software reconstruction, but no software reorder-program PASS is claimed, and the recorded scenarios do not directly prove an observed reordered event.
+These are RTL simulation projections, not FPGA timing closure, an implemented clock, or measured board DDR throughput. The `785` row is an imported same-workload Stage16D2 reference, not a separate wrapper `NUM_ENGINES=1` run. The current public adaptation has a separate two-Engine, two-block correctness smoke and does not recompute this matrix. Output packets remain atomic and beats from different packets do not interleave; completion order is not guaranteed. Frame/Block metadata enables indexed software reconstruction, but no software reorder-program PASS is claimed, and the recorded scenarios do not directly prove an observed reordered event.
 
 Sources: [Multi-Engine evidence](../../evidence/rdtc_v1_multiengine_rtl.yaml) · [public CSV](../../evidence/data/rdtc_v1_multiengine_scaling.csv)
 

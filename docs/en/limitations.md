@@ -15,7 +15,7 @@
 
 ## Multi-Engine And Ordering
 
-- The `785 / 397.52 / 197.41 cycles/block`, `98.7368% / 99.4115%` efficiency, and `1965.3022 / 3957.4642 beam/s` at an assumed 200 MHz are RTL simulation projections with a simulated DDR feeder; one beam is 256 blocks in this record and throughput uses unrounded total cycles, not FPGA timing, board DDR, or network measurements;
+- The `785 / 397.52 / 197.41 cycles/block`, `98.7368% / 99.4115%` efficiency, and `1965.3022 / 3957.4642 beam/s` at an assumed 200 MHz are RTL simulation projections; `785` is the same-workload Stage16D2 reference rather than a wrapper `NUM_ENGINES=1` rerun, while the 2/4-Engine runs use a simulated DDR feeder. One beam is 256 blocks and throughput uses unrounded total cycles, not FPGA timing, board DDR, or network measurements;
 - arbitration guarantees packet atomicity and no beat interleaving, but does not guarantee output in input-block order;
 - Frame/Block metadata enables indexed software reconstruction, but no software reorder-program PASS is claimed, and recorded scenarios do not directly demonstrate an observed reordered event;
 - `OUTPUT_IN_ORDER` is not an implemented mode and must not be presented as a hardware Reorder Buffer or strict-order guarantee.

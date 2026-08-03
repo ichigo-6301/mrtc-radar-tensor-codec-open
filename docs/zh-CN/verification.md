@@ -56,21 +56,21 @@ payload_stream_cycles = packet_last_cycle - payload_first_valid_cycle + 1
 
 Baseline端点为 `1169 -> 8861`，得到 `7693 cycles`；optimized端点为 `706 -> 1426`，得到 `721 cycles`。校验同时固定 `selected_k=0`、`payload_bits=2158`、`payload_bytes=270`、`packet_bytes=334`、零input/output stall、packet byte-exact与decoder loopback。公开validator还检查输入、manifest、expected packet、历史CSV和fresh replay摘要哈希。
 
-同两版的256-block stream还按相邻packet完成间隔统计单Engine steady-state吞吐：Stage16C3为 `8220 cycles/block`，Stage16D2为 `785 cycles/block`。公开Evidence绑定对应 `throughput_summary.csv` 的Git blob与SHA256。该定义是平均packet-completion spacing，不是单block latency；两版均保留prefix-during-capture。
+另组256-block stream按相邻packet完成间隔统计单Engine steady-state吞吐：Stage16C3为 `8220 cycles/block`，Stage16D2为 `785 cycles/block`。公开Evidence以Git blob与SHA256绑定对应 `throughput_summary.csv`、共同的 `smoke_zero_sparse` source vector/manifest及重复流生成器，并核对公开Multi-Engine CSV的1-Engine行同为 `785`。该定义是平均packet-completion spacing，不是单block latency或独立测得的 `smoke_zero_sparse` payload interval；两版均保留prefix-during-capture。
 
 公开入口：`make bitpacker-pipeline-ab-validate`。证据见[Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml)。
 
 ## Multi-Engine Regression
 
-历史 fixed-commit 256-block prefix workload 检查 payload byte-exact、`selected_k`、压缩比、packet 完整性与无 beat interleaving。该记录把一个 beam 定义为 256 个 block，`beam/s` 由未舍入的 beam 总周期计算。性能结果为：
+历史 fixed-commit 256-block prefix workload 使用同 workload 的 Stage16D2 单 Engine 结果作 reference，并检查 2/4-Engine wrapper run 的 payload byte-exact、`selected_k`、压缩比、packet 完整性与无 beat interleaving。该记录把一个 beam 定义为 256 个 block，`beam/s` 由未舍入的 beam 总周期计算。性能结果为：
 
 | Engines | Cycles/block | Scaling efficiency | Beam/s at assumed 200 MHz |
 |---:|---:|---:|---:|
-| 1 | 785 | baseline | - |
+| 1（Stage16D2 reference） | 785 | baseline | - |
 | 2 | 397.52 | 98.7368% | 1965.3022 |
 | 4 | 197.41 | 99.4115% | 3957.4642 |
 
-这些数字是 simulated DDR model 下的 RTL simulation projection，不是 FPGA 时序或板上吞吐。当前公开 adaptation 另有 2-Engine、2-block correctness smoke，以及 packet-buffer overlength fail-stop/reset recovery、双 slot 同周期 queue push/pop、单 slot turnover、completion 同周期状态清零和 `OUTPUT_IN_ORDER=1` fail-fast 边界测试，但不重算该性能矩阵。Arbiter 保证 packet atomic、无 beat interleaving，但完成顺序不保证。现有记录验证 block identity，没有直接观察到一次实际乱序事件；metadata 允许软件按 Frame/Block index 重建，不声明软件 reorder PASS。
+这些数字是 simulated DDR model 下的 RTL simulation projection，不是 FPGA 时序或板上吞吐。`785` 行是导入的 Stage16D2 reference，不是 wrapper `NUM_ENGINES=1` 重跑。当前公开 adaptation 另有 2-Engine、2-block correctness smoke，以及 packet-buffer overlength fail-stop/reset recovery、双 slot 同周期 queue push/pop、单 slot turnover、completion 同周期状态清零和 `OUTPUT_IN_ORDER=1` fail-fast 边界测试，但不重算该性能矩阵。Arbiter 保证 packet atomic、无 beat interleaving，但完成顺序不保证。现有记录验证 block identity，没有直接观察到一次实际乱序事件；metadata 允许软件按 Frame/Block index 重建，不声明软件 reorder PASS。
 
 公开 evidence 摘要与数据：[Multi-Engine evidence](../../evidence/rdtc_v1_multiengine_rtl.yaml) · [公开 CSV](../../evidence/data/rdtc_v1_multiengine_scaling.csv)
 

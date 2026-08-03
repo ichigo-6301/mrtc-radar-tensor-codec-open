@@ -123,18 +123,18 @@ claims:
     public: true
   - id: rdtc_v1_multiengine_rtl_scaling
     profile: rdtc_v1_public_release
-    statement: "For the fixed 256-block prefix RTL workload, the 1/2/4-engine configurations measured 785.00/397.52/197.41 effective cycles per block, with 2/4-engine scaling efficiencies of 0.987368/0.994115."
+    statement: "For the fixed 256-block prefix RTL workload, the Stage16D2 single-Engine reference and 2/4-engine buffered-wrapper runs yielded 785.00/397.52/197.41 effective cycles per block, with 2/4-engine scaling efficiencies of 0.987368/0.994115."
     metric: four_engine_effective_cycles_per_block
     value: 197.41
     unit: cycles_per_block
     benchmark: fixed 256-block prefix multi-engine RTL workload
-    configuration: per-engine DDR feeder, encoder, and two-entry output packet buffer
+    configuration: same-workload Stage16D2 single-Engine reference plus 2/4-engine wrapper runs with per-engine DDR feeder, encoder, and two-entry output packet buffer
     source_ref: 8628ee4d561bf4ee4a97a02c800e1c52c9e9a28a
     tool: fixed-commit Questa/ModelSim RTL regression
     evidence:
       - rdtc_v1_multiengine_rtl_public
     status: verified
-    caveat: "One beam is the recorded 256-block workload. The 995.2229/1965.3022/3957.4642 beam/s figures use unrounded estimated_cycles_per_beam values and are arithmetic projections at an assumed 200 MHz, not FPGA timing or measured board throughput."
+    caveat: "The 785 cycles/block row is an imported same-workload Stage16D2 reference, not a wrapper NUM_ENGINES=1 rerun. One beam is the recorded 256-block workload. The 995.2229/1965.3022/3957.4642 beam/s figures use unrounded estimated_cycles_per_beam values and are arithmetic projections at an assumed 200 MHz, not FPGA timing or measured board throughput."
     public: true
   - id: rdtc_v1_multiengine_packet_atomicity
     profile: rdtc_v1_public_release
