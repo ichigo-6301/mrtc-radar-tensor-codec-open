@@ -160,10 +160,15 @@ module tb_mrtc_bounded_axis_multiengine_wrapper #(
       bp_stall_count <= 1;
       bp_stall_header <= bp_header_target;
 `ifdef RDTC_DIRECT_PROFILE_TRACE
-      $display(
-        "DIRECT_AXIS_TRACE_BP kind=%s cycle=%0d packet=0 beat=%0d stall_cycles=2",
-        bp_header_target ? "header" : "payload", cycle_count + 1,
-        bp_header_target ? 1 : 4);
+      if (bp_header_target) begin
+        $display(
+          "DIRECT_AXIS_TRACE_BP kind=header cycle=%0d packet=0 beat=1 stall_cycles=2",
+          cycle_count + 1);
+      end else begin
+        $display(
+          "DIRECT_AXIS_TRACE_BP kind=payload cycle=%0d packet=0 beat=4 stall_cycles=2",
+          cycle_count + 1);
+      end
 `endif
     end
   end
