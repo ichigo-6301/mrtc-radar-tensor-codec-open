@@ -84,6 +84,8 @@ AUTHORED_ASSET_RULES = {
             "dispatcher",
             "Packet-locked",
             "arbiter",
+            "Historical 2/4-Engine wrapper scaling; 1-Engine point is the Stage16D2 reference.",
+            "same-workload Stage16D2 single-Engine result as a reference",
             "completion order may vary",
             "no software reorder PASS claimed",
         ),
