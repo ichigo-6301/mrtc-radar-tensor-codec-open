@@ -400,74 +400,71 @@ def direct_stream_timing_svg(trace):
     x = lambda cycle: _cycle_x(cycle, first_cycle, last_cycle, left, right)
     prefix_end = trace["e0_input"][31]
     input_blocks = (
-        _rect_for_cycles(first_cycle, prefix_end, 144, 34, first_cycle, last_cycle, left, right, "prefix", "first 32"),
-        _rect_for_cycles(prefix_end + 1, trace["e0_input"][-1], 144, 34, first_cycle, last_cycle, left, right, "input", "remaining 224"),
+        _rect_for_cycles(first_cycle, prefix_end, 155, 34, first_cycle, last_cycle, left, right, "prefix"),
+        _rect_for_cycles(prefix_end + 1, trace["e0_input"][-1], 155, 34, first_cycle, last_cycle, left, right, "input"),
     )
-    requests = _rect_for_cycles(trace["requests"][0], trace["requests"][-1], 284, 28, first_cycle, last_cycle, left, right, "request")
-    responses = _rect_for_cycles(trace["responses"][0], trace["responses"][-1], 340, 28, first_cycle, last_cycle, left, right, "response")
-    header_x = x(trace["e0_output"][0]["cycle"])
-    header_width = 94
-    headers = '<rect x="{:.2f}" y="426" width="{}" height="34" class="header"/>'.format(header_x, header_width)
-    headers += "".join(
-        '<line x1="{:.2f}" y1="426" x2="{:.2f}" y2="460" stroke="#7c3aed" stroke-width="1"/>'.format(
-            header_x + index * header_width / 4, header_x + index * header_width / 4
+    requests = _rect_for_cycles(trace["requests"][0], trace["requests"][-1], 350, 28, first_cycle, last_cycle, left, right, "request")
+    responses = _rect_for_cycles(trace["responses"][0], trace["responses"][-1], 405, 28, first_cycle, last_cycle, left, right, "response")
+    headers = "".join(
+        _rect_for_cycles(
+            row["cycle"], row["cycle"], 508, 34,
+            first_cycle, last_cycle, left, right, "header"
         )
-        for index in range(1, 4)
+        for row in trace["e0_output"][:4]
     )
-    headers += '<text x="{:.2f}" y="449" text-anchor="middle" class="inside">H0 H1 H2 H3</text>'.format(header_x + header_width / 2)
     payload = "".join(
-        _rect_for_cycles(row["cycle"], row["cycle"], 426, 34, first_cycle, last_cycle, left, right, "payload", "TLAST" if row["m_tlast"] else "")
+        _rect_for_cycles(row["cycle"], row["cycle"], 508, 34, first_cycle, last_cycle, left, right, "payload")
         for row in trace["e0_output"][4:]
     )
     e0_end = trace["e0_output"][-1]["cycle"]
     backpressure_display = (
-        '<rect x="236" y="540" width="58" height="34" class="accepted"/>'
-        '<rect x="294" y="540" width="116" height="34" class="hold"/>'
-        '<rect x="410" y="540" width="58" height="34" class="accepted"/>'
-        '<text x="352" y="562" text-anchor="middle" class="inside">H1 held</text>'
-        '<rect x="590" y="540" width="58" height="34" class="accepted"/>'
-        '<rect x="648" y="540" width="116" height="34" class="hold"/>'
-        '<rect x="764" y="540" width="58" height="34" class="accepted"/>'
-        '<text x="706" y="562" text-anchor="middle" class="inside">P0 held</text>'
+        '<rect x="236" y="608" width="58" height="34" class="accepted"/>'
+        '<rect x="294" y="608" width="116" height="34" class="hold"/>'
+        '<rect x="410" y="608" width="58" height="34" class="accepted"/>'
+        '<text x="352" y="634" text-anchor="middle" class="inside">H1 hold</text>'
+        '<rect x="590" y="608" width="58" height="34" class="accepted"/>'
+        '<rect x="648" y="608" width="116" height="34" class="hold"/>'
+        '<rect x="764" y="608" width="58" height="34" class="accepted"/>'
+        '<text x="706" y="634" text-anchor="middle" class="inside">P0 hold</text>'
     )
     markers = "".join(
-        '<line x1="{0:.2f}" y1="120" x2="{0:.2f}" y2="490" class="marker"/><text x="{1:.2f}" y="112" class="tiny" text-anchor="middle">c{2}</text>'.format(
+        '<line x1="{0:.2f}" y1="140" x2="{0:.2f}" y2="590" class="marker"/><text x="{1:.2f}" y="132" class="tiny" text-anchor="middle">c{2}</text>'.format(
             x(cycle), x(cycle), cycle
         )
-        for cycle in (first_cycle, prefix_end + 1, trace["requests"][0], trace["responses"][-1], e0_end)
+        for cycle in (first_cycle, prefix_end + 1, trace["requests"][0], e0_end)
     )
-    return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="810" viewBox="0 0 1000 810" role="img" aria-labelledby="title desc">
+    return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="930" viewBox="0 0 1000 930" role="img" aria-labelledby="title desc">
   <title id="title">Direct wrapper stream trace: Engine 0 / Block 0</title>
   <desc id="desc">Fixed ModelSim functional trace from the final two-Engine Direct wrapper. The diagram derives input, prefix, ring, output, and deterministic backpressure events from public nominal and backpressure CSV files.</desc>
-  <style>.title{{font:700 36px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 25px Arial,sans-serif;fill:#475569}}.lane{{font:700 26px Arial,sans-serif;fill:#0f172a}}.note{{font:400 24px Arial,sans-serif;fill:#334155}}.tiny{{font:400 22px Arial,sans-serif;fill:#475569}}.hash{{font:400 24px 'Courier New',monospace;fill:#475569}}.inside{{font:700 20px Arial,sans-serif;fill:#0f172a}}.axis{{stroke:#64748b;stroke-width:2}}.marker{{stroke:#cbd5e1;stroke-width:1.5;stroke-dasharray:5 6}}.input{{fill:#bfdbfe;stroke:#2563eb;stroke-width:1}}.prefix{{fill:#dbeafe;stroke:#2563eb;stroke-width:1}}.write{{fill:#dcfce7;stroke:#16a34a;stroke-width:1}}.request{{fill:#fef3c7;stroke:#d97706;stroke-width:1}}.response{{fill:#ffedd5;stroke:#ea580c;stroke-width:1}}.header{{fill:#ddd6fe;stroke:#7c3aed;stroke-width:1}}.payload{{fill:#cffafe;stroke:#0891b2;stroke-width:1}}.hold{{fill:#fecaca;stroke:#dc2626;stroke-width:1}}.accepted{{fill:#bbf7d0;stroke:#16a34a;stroke-width:1}}.panel{{fill:#ffffff;stroke:#cbd5e1;stroke-width:1.5}}</style>
-  <rect width="1000" height="810" fill="#f8fafc"/>
+  <style>.title{{font:700 36px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 28px Arial,sans-serif;fill:#475569}}.lane{{font:700 29px Arial,sans-serif;fill:#0f172a}}.note{{font:400 28px Arial,sans-serif;fill:#334155}}.tiny{{font:400 28px Arial,sans-serif;fill:#475569}}.hash{{font:400 28px 'Courier New',monospace;fill:#475569}}.inside{{font:700 28px Arial,sans-serif;fill:#0f172a}}.axis{{stroke:#64748b;stroke-width:2}}.marker{{stroke:#cbd5e1;stroke-width:1.5;stroke-dasharray:5 6}}.input{{fill:#bfdbfe;stroke:#2563eb;stroke-width:1}}.prefix{{fill:#dbeafe;stroke:#2563eb;stroke-width:1}}.write{{fill:#dcfce7;stroke:#16a34a;stroke-width:1}}.request{{fill:#fef3c7;stroke:#d97706;stroke-width:1}}.response{{fill:#ffedd5;stroke:#ea580c;stroke-width:1}}.header{{fill:#ddd6fe;stroke:#7c3aed;stroke-width:1}}.payload{{fill:#cffafe;stroke:#0891b2;stroke-width:1}}.hold{{fill:#fecaca;stroke:#dc2626;stroke-width:1}}.accepted{{fill:#bbf7d0;stroke:#16a34a;stroke-width:1}}.panel{{fill:#ffffff;stroke:#cbd5e1;stroke-width:1.5}}</style>
+  <rect width="1000" height="930" fill="#f8fafc"/>
   <text x="42" y="45" class="title">Direct wrapper stream trace: Engine 0 / Block 0</text>
-  <text x="42" y="73" class="sub">Fixed ModelSim functional trace, 2-Engine / 2-block register-expanded Direct wrapper</text>
-  <text x="42" y="98" class="sub">Cycle positions audit protocol ordering only; not a frequency, throughput, or duty claim.</text>
+  <text x="42" y="80" class="sub">Fixed ModelSim functional trace: 2-Engine / 2-block Direct wrapper</text>
+  <text x="42" y="112" class="sub">Register-expanded profile; not a frequency, throughput, or duty claim.</text>
 {markers}
-  <text x="42" y="166" class="lane">input fire</text>{input0}{input1}<text x="{input_note_x:.2f}" y="190" class="tiny">256 accepted AXIS128 beats</text><text x="{prefix_note_x:.2f}" y="190" class="tiny">prefix-128 = first 32 beats</text>
-  <text x="42" y="206" class="lane">prefix / k</text><line x1="{prefix_x:.2f}" y1="184" x2="{prefix_x:.2f}" y2="229" stroke="#7c3aed" stroke-width="4"/><text x="{prefix_label_x:.2f}" y="205" class="tiny">prefix-128 done</text><line x1="{k_x:.2f}" y1="184" x2="{k_x:.2f}" y2="229" stroke="#be123c" stroke-width="4"/><text x="{k_label_x:.2f}" y="225" class="tiny">selected k valid</text>
-  <text x="42" y="264" class="lane">ring write</text>{writes}
-  <text x="42" y="304" class="lane">ring read req</text>{requests}<text x="{req_x:.2f}" y="276" class="tiny">continuous addresses 0..255; II=1</text>
-  <text x="42" y="360" class="lane">ring read rsp</text>{responses}<text x="{rsp_x:.2f}" y="390" class="tiny">response +2 cycles</text>
-  <line x1="{left}" y1="405" x2="{right}" y2="405" class="axis"/>
-  <text x="42" y="448" class="lane">m_axis TVALID</text>{headers}{payload}
-  <text x="{header_note_x:.2f}" y="482" class="tiny">4 accepted header beats</text><text x="{payload_note_x:.2f}" y="482" class="tiny">payload TVALID bubbles</text>
-  <text x="42" y="562" class="lane">backpressure</text><rect x="214" y="540" width="632" height="34" class="panel"/>{backpressure_display}
-  <text x="352" y="613" class="tiny" text-anchor="middle">header hold: 2 cycles (c51-c52)</text><text x="706" y="613" class="tiny" text-anchor="middle">payload hold: 2 cycles (c86-c87)</text>
-  <rect x="42" y="651" width="916" height="136" rx="5" class="panel"/>
-  <text x="58" y="680" class="note">TVALID &amp;&amp; !TREADY holds TDATA / TUSER / TLAST stable; red cells are deterministic two-cycle holds.</text>
-  <text x="58" y="710" class="tiny">nominal CSV SHA256</text><text x="58" y="738" class="hash">{nominal_hash_a}</text><text x="58" y="764" class="hash">{nominal_hash_b}</text>
-  <text x="520" y="710" class="tiny">backpressure CSV SHA256</text><text x="520" y="738" class="hash">{backpressure_hash_a}</text><text x="520" y="764" class="hash">{backpressure_hash_b}</text>
+  <text x="42" y="180" class="lane">input fire</text>{input0}{input1}<text x="204" y="217" class="tiny">prefix-128 = first 32 beats</text><text x="590" y="217" class="tiny">256 accepted AXIS128 beats</text>
+  <text x="42" y="260" class="lane">prefix / k</text><line x1="{prefix_x:.2f}" y1="225" x2="{prefix_x:.2f}" y2="275" stroke="#7c3aed" stroke-width="4"/><text x="{prefix_label_x:.2f}" y="245" class="tiny">prefix done</text><line x1="{k_x:.2f}" y1="225" x2="{k_x:.2f}" y2="275" stroke="#be123c" stroke-width="4"/><text x="{k_label_x:.2f}" y="275" class="tiny">selected k valid</text>
+  <text x="42" y="320" class="lane">ring write</text>{writes}
+  <text x="42" y="370" class="lane">ring read req</text>{requests}<text x="{req_x:.2f}" y="342" class="tiny">continuous addresses 0..255; II=1</text>
+  <text x="42" y="425" class="lane">ring read rsp</text>{responses}<text x="{rsp_x:.2f}" y="468" class="tiny">fixed response +2 cycles</text>
+  <line x1="{left}" y1="485" x2="{right}" y2="485" class="axis"/>
+  <text x="42" y="530" class="lane">m_axis TVALID</text>{headers}{payload}
+  <text x="300" y="578" class="tiny" text-anchor="middle">4 accepted header beats</text><text x="705" y="578" class="tiny" text-anchor="middle">payload TVALID bubbles</text>
+  <text x="42" y="630" class="lane">backpressure</text><rect x="214" y="608" width="632" height="34" class="panel"/>{backpressure_display}
+  <text x="352" y="684" class="tiny" text-anchor="middle">header hold: 2 cycles</text><text x="706" y="684" class="tiny" text-anchor="middle">payload hold: 2 cycles</text>
+  <rect x="42" y="720" width="916" height="190" rx="5" class="panel"/>
+  <text x="58" y="752" class="note">TVALID &amp;&amp; !TREADY holds TDATA / TUSER / TLAST stable.</text>
+  <text x="58" y="784" class="note">Red cells are deterministic two-cycle holds.</text>
+  <text x="58" y="818" class="tiny">nominal CSV SHA256</text><text x="365" y="818" class="hash">{nominal_hash_a}</text><text x="365" y="850" class="hash">{nominal_hash_b}</text>
+  <text x="58" y="882" class="tiny">backpressure CSV SHA256</text><text x="365" y="882" class="hash">{backpressure_hash_a}</text><text x="365" y="914" class="hash">{backpressure_hash_b}</text>
 </svg>
 """.format(
-        markers=markers, input0=input_blocks[0], input1=input_blocks[1], input_note_x=490, prefix_note_x=730,
+        markers=markers, input0=input_blocks[0], input1=input_blocks[1],
         prefix_x=x(trace["prefix_cycle"]), prefix_label_x=x(trace["prefix_cycle"]) + 8,
         k_x=x(trace["selected_k_cycle"]), k_label_x=x(trace["selected_k_cycle"]) + 8,
-        writes=_rect_for_cycles(first_cycle, trace["e0_input"][-1], 244, 28, first_cycle, last_cycle, left, right, "write"),
+        writes=_rect_for_cycles(first_cycle, trace["e0_input"][-1], 300, 28, first_cycle, last_cycle, left, right, "write"),
         requests=requests, req_x=x(trace["requests"][0]), responses=responses, rsp_x=x(trace["responses"][-1]) - 120,
         left=left, right=right, headers=headers, payload=payload,
-        header_note_x=header_x, payload_note_x=x(trace["e0_output"][4]["cycle"]),
         backpressure_display=backpressure_display,
         nominal_hash_a=trace["nominal_sha256"][:32], nominal_hash_b=trace["nominal_sha256"][32:],
         backpressure_hash_a=trace["backpressure_sha256"][:32], backpressure_hash_b=trace["backpressure_sha256"][32:],
@@ -481,34 +478,39 @@ def direct_multiengine_packet_timing_svg(trace):
     e0_out = trace["e0_output"]
     e1_out = trace["e1_output"]
     lanes = []
-    for output, y, css in ((e0_out, 290, "p0"), (e1_out, 370, "p1")):
+    for output, y, css in ((e0_out, 290, "p0"), (e1_out, 430, "p1")):
         for row in output:
             lanes.append(_rect_for_cycles(row["cycle"], row["cycle"], y, 28, first_cycle, last_cycle, left, right, css))
     shared = []
     for output, css in ((e0_out, "p0"), (e1_out, "p1")):
         for row in output:
-            shared.append(_rect_for_cycles(row["cycle"], row["cycle"], 486, 34, first_cycle, last_cycle, left, right, css))
+            shared.append(_rect_for_cycles(row["cycle"], row["cycle"], 545, 34, first_cycle, last_cycle, left, right, css))
     x = lambda cycle: _cycle_x(cycle, first_cycle, last_cycle, left, right)
-    return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="660" viewBox="0 0 1000 660" role="img" aria-labelledby="title desc">
+    return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="890" viewBox="0 0 1000 890" role="img" aria-labelledby="title desc">
   <title id="title">Two-Engine Direct wrapper packet service trace</title>
   <desc id="desc">Fixed ModelSim functional trace showing Block 0 assigned to Engine 0 and Block 1 to Engine 1. Shared output presents packet 0 then packet 1 without beat interleaving; packet-internal TVALID bubbles are shown as gaps.</desc>
-  <style>.title{{font:700 34px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 21px Arial,sans-serif;fill:#475569}}.lane{{font:700 22px Arial,sans-serif;fill:#0f172a}}.note{{font:400 19px Arial,sans-serif;fill:#334155}}.tiny{{font:400 17px Arial,sans-serif;fill:#475569}}.inside{{font:700 18px Arial,sans-serif;fill:#0f172a}}.axis{{stroke:#64748b;stroke-width:2}}.p0{{fill:#bfdbfe;stroke:#2563eb;stroke-width:1}}.p1{{fill:#dcfce7;stroke:#16a34a;stroke-width:1}}.dispatch0{{fill:#dbeafe;stroke:#2563eb;stroke-width:1.5}}.dispatch1{{fill:#bbf7d0;stroke:#16a34a;stroke-width:1.5}}.window0{{fill:#eff6ff;stroke:#93c5fd;stroke-width:1.5;stroke-dasharray:5 4}}.window1{{fill:#f0fdf4;stroke:#86efac;stroke-width:1.5;stroke-dasharray:5 4}}.panel{{fill:#ffffff;stroke:#cbd5e1;stroke-width:1.5}}</style>
-  <rect width="1000" height="660" fill="#f8fafc"/>
+  <style>.title{{font:700 36px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 28px Arial,sans-serif;fill:#475569}}.lane{{font:700 28px Arial,sans-serif;fill:#0f172a}}.note{{font:400 28px Arial,sans-serif;fill:#334155}}.tiny{{font:400 28px Arial,sans-serif;fill:#475569}}.hash{{font:400 28px 'Courier New',monospace;fill:#475569}}.inside{{font:700 28px Arial,sans-serif;fill:#0f172a}}.axis{{stroke:#64748b;stroke-width:2}}.p0{{fill:#bfdbfe;stroke:#2563eb;stroke-width:1}}.p1{{fill:#dcfce7;stroke:#16a34a;stroke-width:1}}.dispatch0{{fill:#dbeafe;stroke:#2563eb;stroke-width:1.5}}.dispatch1{{fill:#bbf7d0;stroke:#16a34a;stroke-width:1.5}}.window0{{fill:#eff6ff;stroke:#93c5fd;stroke-width:1.5;stroke-dasharray:5 4}}.window1{{fill:#f0fdf4;stroke:#86efac;stroke-width:1.5;stroke-dasharray:5 4}}.panel{{fill:#ffffff;stroke:#cbd5e1;stroke-width:1.5}}</style>
+  <rect width="1000" height="890" fill="#f8fafc"/>
   <text x="42" y="45" class="title">Two-Engine Direct wrapper packet service</text>
-  <text x="42" y="73" class="sub">Fixed ModelSim functional trace: B0 -&gt; E0 and B1 -&gt; E1; not historical scaling data.</text>
-  <text x="42" y="107" class="lane">input dispatch</text>
-  <rect x="{b0_x:.2f}" y="86" width="{b0_w:.2f}" height="34" class="dispatch0"/><text x="{b0_t:.2f}" y="109" text-anchor="middle" class="inside">B0 -&gt; E0</text>
-  <rect x="{b1_x:.2f}" y="86" width="{b1_w:.2f}" height="34" class="dispatch1"/><text x="{b1_t:.2f}" y="109" text-anchor="middle" class="inside">B1 -&gt; E1</text>
-  <text x="42" y="180" class="lane">Engine 0</text><rect x="{p0_x:.2f}" y="154" width="{p0_w:.2f}" height="52" class="window0"/><text x="{p0_t:.2f}" y="178" text-anchor="middle" class="inside">P0 packet window</text><text x="{p0_t:.2f}" y="199" text-anchor="middle" class="tiny">accepted beats separated by bubbles</text>
-  <text x="42" y="260" class="lane">Engine 1</text><rect x="{p1_x:.2f}" y="234" width="{p1_w:.2f}" height="52" class="window1"/><text x="{p1_t:.2f}" y="258" text-anchor="middle" class="inside">P1 packet window</text><text x="{p1_t:.2f}" y="279" text-anchor="middle" class="tiny">accepted beats separated by bubbles</text>
-  <text x="42" y="310" class="lane">E0 output</text>{e0_lanes}
-  <text x="42" y="390" class="lane">E1 output</text>{e1_lanes}
-  <line x1="{left}" y1="440" x2="{right}" y2="440" class="axis"/>
-  <text x="42" y="507" class="lane">shared AXIS</text><rect x="{p0_x:.2f}" y="486" width="{p0_w:.2f}" height="34" class="window0"/><rect x="{p1_x:.2f}" y="486" width="{p1_w:.2f}" height="34" class="window1"/>{shared}
-  <text x="{p0_t:.2f}" y="548" text-anchor="middle" class="tiny">packet lock: P0</text><text x="{p1_t:.2f}" y="548" text-anchor="middle" class="tiny">packet lock: P1</text>
-  <rect x="42" y="575" width="916" height="60" rx="5" class="panel"/>
-  <text x="58" y="602" class="note">No beat interleaving: shared AXIS remains on one owner until its accepted TLAST. Packet-internal bubbles allowed.</text>
-  <text x="58" y="625" class="tiny">Derived from nominal CSV SHA256 {nominal_hash}; only B0/B1 and P0/P1 are shown.</text>
+  <text x="42" y="80" class="sub">Fixed ModelSim functional trace: B0 -&gt; E0 and B1 -&gt; E1.</text>
+  <text x="42" y="114" class="sub">Two-block protocol evidence; not historical scaling data.</text>
+  <text x="42" y="170" class="lane">input dispatch</text>
+  <rect x="{b0_x:.2f}" y="145" width="{b0_w:.2f}" height="38" class="dispatch0"/><text x="{b0_t:.2f}" y="173" text-anchor="middle" class="inside">B0 -&gt; E0</text>
+  <rect x="{b1_x:.2f}" y="145" width="{b1_w:.2f}" height="38" class="dispatch1"/><text x="{b1_t:.2f}" y="173" text-anchor="middle" class="inside">B1 -&gt; E1</text>
+  <text x="42" y="250" class="lane">Engine 0</text><rect x="{p0_x:.2f}" y="220" width="{p0_w:.2f}" height="58" class="window0"/><text x="{p0_t:.2f}" y="247" text-anchor="middle" class="inside">P0 packet window</text><text x="{p0_t:.2f}" y="274" text-anchor="middle" class="tiny">accepted beats + bubbles</text>
+  <text x="42" y="312" class="lane">E0 output</text>{e0_lanes}
+  <text x="42" y="390" class="lane">Engine 1</text><rect x="{p1_x:.2f}" y="360" width="{p1_w:.2f}" height="58" class="window1"/><text x="{p1_t:.2f}" y="387" text-anchor="middle" class="inside">P1 packet window</text><text x="{p1_t:.2f}" y="414" text-anchor="middle" class="tiny">accepted beats + bubbles</text>
+  <text x="42" y="452" class="lane">E1 output</text>{e1_lanes}
+  <line x1="{left}" y1="500" x2="{right}" y2="500" class="axis"/>
+  <text x="42" y="570" class="lane">shared AXIS</text><rect x="{p0_x:.2f}" y="545" width="{p0_w:.2f}" height="34" class="window0"/><rect x="{p1_x:.2f}" y="545" width="{p1_w:.2f}" height="34" class="window1"/>{shared}
+  <text x="{p0_t:.2f}" y="615" text-anchor="middle" class="tiny">packet lock: P0</text><text x="{p1_t:.2f}" y="615" text-anchor="middle" class="tiny">packet lock: P1</text>
+  <rect x="42" y="645" width="916" height="225" rx="5" class="panel"/>
+  <text x="58" y="681" class="note">No beat interleaving: one shared-AXIS owner through accepted TLAST.</text>
+  <text x="58" y="715" class="note">Packet-internal bubbles allowed.</text>
+  <text x="58" y="749" class="note">TVALID may deassert between accepted beats.</text>
+  <text x="58" y="787" class="tiny">nominal CSV SHA256; only B0/B1 and P0/P1 are shown</text>
+  <text x="58" y="823" class="hash">{nominal_hash_a}</text>
+  <text x="58" y="859" class="hash">{nominal_hash_b}</text>
 </svg>
 """.format(
         b0_x=x(trace["e0_input"][0]), b0_w=x(trace["e0_input"][-1] + 1) - x(trace["e0_input"][0]), b0_t=(x(trace["e0_input"][0]) + x(trace["e0_input"][-1] + 1)) / 2,
@@ -516,7 +518,9 @@ def direct_multiengine_packet_timing_svg(trace):
         p0_x=x(e0_out[0]["cycle"]), p0_w=x(e0_out[-1]["cycle"] + 1) - x(e0_out[0]["cycle"]), p0_t=(x(e0_out[0]["cycle"]) + x(e0_out[-1]["cycle"] + 1)) / 2,
         p1_x=x(e1_out[0]["cycle"]), p1_w=x(e1_out[-1]["cycle"] + 1) - x(e1_out[0]["cycle"]), p1_t=(x(e1_out[0]["cycle"]) + x(e1_out[-1]["cycle"] + 1)) / 2,
         e0_lanes="".join(lanes[:len(e0_out)]), e1_lanes="".join(lanes[len(e0_out):]), shared="".join(shared),
-        left=left, right=right, nominal_hash=trace["nominal_sha256"],
+        left=left, right=right,
+        nominal_hash_a=trace["nominal_sha256"][:32],
+        nominal_hash_b=trace["nominal_sha256"][32:],
     )
 
 

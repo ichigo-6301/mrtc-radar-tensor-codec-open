@@ -1,8 +1,10 @@
 import csv
 import importlib.util
 from pathlib import Path
+import re
 import tempfile
 import unittest
+import xml.etree.ElementTree as ET
 
 
 SCRIPT = Path(__file__).with_name("generate_showcase_assets.py")
@@ -47,6 +49,20 @@ class DirectTimingAssetTests(unittest.TestCase):
         self.assertIn(self.trace["backpressure_sha256"][32:], stream)
         self.assertIn("B0 -&gt; E0", packet)
         self.assertIn("B1 -&gt; E1", packet)
+        for content in (stream, packet):
+            font_sizes = [int(value) for value in re.findall(r"font:[^;{}]*?(\d+)px", content)]
+            self.assertTrue(font_sizes)
+            self.assertGreaterEqual(min(font_sizes), 28)
+
+        root = ET.fromstring(stream)
+        namespace = {"svg": "http://www.w3.org/2000/svg"}
+        headers = root.findall(".//svg:rect[@class='header']", namespace)
+        payload = root.findall(".//svg:rect[@class='payload']", namespace)
+        self.assertEqual(len(headers), 4)
+        self.assertTrue(payload)
+        header_end = max(float(item.attrib["x"]) + float(item.attrib["width"]) for item in headers)
+        payload_start = min(float(item.attrib["x"]) for item in payload)
+        self.assertLessEqual(header_end, payload_start)
 
     def test_rejects_a_trace_with_noncontiguous_cycles(self):
         with tempfile.TemporaryDirectory() as directory:
