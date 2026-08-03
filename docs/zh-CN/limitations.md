@@ -11,6 +11,7 @@
 - ZERO_RICE 或 DELTA_RICE 按 block 配置；内部 policy 选择 `k`，不选择 predictor mode。只有实现 payload-cost fallback 的 encoder path 才具备 RAW fallback；
 - 在支持 RAW fallback 的路径上，它可避免更大的 coded payload，但 packet 仍携带 `64`-byte header，不能把 payload ratio 直接当作完整链路带宽比。
 - 历史 `7693 -> 721 cycles`、`10.67×` 指标只测量固定 `smoke_zero_sparse` RTL workload中首个payload valid到accepted `TLAST`的inclusive interval；它不是整块延迟、Multi-Engine吞吐、Direct-AXIS持续吞吐、FPGA性能、ASIC频率或Fmax。
+- 历史 `8220 -> 785 cycles/block`、`10.47×` 指标是固定256-block单Engine stream的平均packet-completion spacing，不是单block latency；两版都已启用prefix-during-capture，因此不能把全部差值归因于前端乒乓。
 
 ## Multi-Engine 与顺序
 

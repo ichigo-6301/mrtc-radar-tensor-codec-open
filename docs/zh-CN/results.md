@@ -23,7 +23,9 @@ Synthetic SNR 从 `-20` 到 `30 dB` 时，ZERO_RICE compression ratio 为 `1.581
 
 历史 Stage16C3 与 Stage16D2 使用相同的 `smoke_zero_sparse` 输入、相同 latency monitor、相同 `selected_k=0` 和相同 `2158-bit / 270-byte` payload。把逐 sample compressed path 替换为集成四路 word Bitpacker 后，从首个 payload valid 到 accepted packet `TLAST` 的 inclusive interval 从 `7693` 降至 `721 cycles`，减少 `90.63%`，提升 `10.67×`。两点 input/output stall 均为0，334-byte packet逐字节一致，decoder loopback通过。
 
-该结果只衡量固定历史RTL workload的payload stream interval，不是整块延迟、Multi-Engine吞吐、Direct-AXIS持续吞吐、FPGA性能、ASIC频率或Fmax。
+在同样的 ZERO_RICE 数据上，256-block 单 Engine steady-state stream 的平均 packet-completion spacing 从 `8220` 降至 `785 cycles/block`，减少 `90.45%`，提升 `10.47×`。`721` 是 optimized payload 子区间，`785` 是 packet-to-packet 平均块间隔，因此两者并不冲突。两版都已启用 prefix-during-capture；该 A/B 的差值主要隔离集成 Lane4 Bitpacker，不能把全部提升归因于前端乒乓。
+
+`785 cycles/block` 是 steady-state service interval，不是单 block latency；两项指标也都不是当前 Direct-AXIS 持续吞吐、FPGA性能、ASIC频率或Fmax。
 
 来源：[Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [公开两点 CSV](../../evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv)
 

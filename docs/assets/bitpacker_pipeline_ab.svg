@@ -1,24 +1,29 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
-  <title id="title">Fixed-workload Bitpacker RTL pipeline A/B</title>
-  <desc id="desc">On one fixed smoke_zero_sparse RTL workload, the inclusive first-payload-valid to accepted-packet-TLAST interval falls from 7693 to 721 cycles. This is not whole-block or system throughput.</desc>
-  <style>.title{font:700 31px Arial,sans-serif;fill:#0f172a}.sub{font:400 17px Arial,sans-serif;fill:#475569}.label{font:700 20px Arial,sans-serif;fill:#0f172a}.value{font:700 24px Arial,sans-serif;fill:#0f172a}.callout{font:700 34px Arial,sans-serif;fill:#166534}.note{font:400 16px Arial,sans-serif;fill:#334155}</style>
+  <title id="title">Single-Engine RTL block-interval pipeline A/B</title>
+  <desc id="desc">On fixed 256-block zero-sparse streams, average single-Engine packet-completion spacing falls from 8220 to 785 cycles per block. The optimized 785-cycle block interval contains a separately measured 721-cycle payload interval.</desc>
+  <style>.title{font:700 31px Arial,sans-serif;fill:#0f172a}.sub{font:400 17px Arial,sans-serif;fill:#475569}.label{font:700 20px Arial,sans-serif;fill:#0f172a}.value{font:700 24px Arial,sans-serif;fill:#0f172a}.callout{font:700 30px Arial,sans-serif;fill:#166534}.note{font:400 16px Arial,sans-serif;fill:#334155}.small{font:400 15px Arial,sans-serif;fill:#475569}</style>
   <rect width="1000" height="620" fill="#f8fafc"/>
-  <text x="55" y="48" class="title">Lane-parallel Bitpacker RTL A/B</text>
-  <text x="55" y="76" class="sub">Fixed smoke_zero_sparse workload; identical payload, packet, selected k, and zero stalls.</text>
+  <text x="55" y="48" class="title">Single-Engine steady-state pipeline A/B</text>
+  <text x="55" y="76" class="sub">Fixed 256-block ZERO_RICE stream; lower packet-completion spacing is better.</text>
 
   <text x="55" y="154" class="label">Stage16C3 baseline</text>
   <rect x="260" y="120" width="650" height="58" rx="6" fill="#2563eb"/>
-  <text x="894" y="157" text-anchor="end" fill="#fff" class="value">7693 cycles</text>
+  <text x="894" y="157" text-anchor="end" fill="#fff" class="value">8220 cycles/block</text>
 
-  <text x="55" y="264" class="label">Stage16D2 lane4</text>
-  <rect x="260" y="230" width="61" height="58" rx="6" fill="#16a34a"/>
-  <text x="337" y="267" class="value">721 cycles</text>
+  <text x="55" y="264" class="label">Stage16D2 Lane4</text>
+  <rect x="260" y="230" width="62" height="58" rx="6" fill="#16a34a"/>
+  <text x="338" y="267" class="value">785 cycles/block</text>
 
-  <rect x="230" y="340" width="680" height="132" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-  <text x="570" y="395" text-anchor="middle" class="callout">10.67&#215; speedup</text>
-  <text x="570" y="432" text-anchor="middle" class="label">90.63% fewer payload-interval cycles</text>
+  <rect x="55" y="330" width="890" height="118" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text x="275" y="375" text-anchor="middle" class="callout">10.47&#215; block service rate</text>
+  <text x="275" y="408" text-anchor="middle" class="label">90.45% fewer cycles/block</text>
+  <line x1="500" y1="350" x2="500" y2="427" stroke="#86efac" stroke-width="2"/>
+  <text x="720" y="370" text-anchor="middle" class="label">Payload sub-interval</text>
+  <text x="720" y="404" text-anchor="middle" class="callout">7693 -&gt; 721 cycles</text>
+  <text x="720" y="430" text-anchor="middle" class="small">10.67&#215;; identical 334-byte packet</text>
 
-  <text x="55" y="525" class="note">Metric: packet_last_cycle - payload_first_valid_cycle + 1.</text>
-  <text x="55" y="554" class="note">Both packets are byte-identical and decoder loopback passes.</text>
-  <text x="55" y="587" class="sub">Payload interval only - not whole-block latency, sustained throughput, FPGA performance, or Fmax.</text>
+  <text x="55" y="493" class="note">785 cycles/block = average packet-completion spacing; 721 cycles = payload-valid-to-TLAST interval.</text>
+  <text x="55" y="525" class="note">Both A/B points already use prefix-during-capture; the measured delta isolates the Lane4 packer.</text>
+  <text x="55" y="557" class="note">Packet byte-exactness and decoder loopback pass.</text>
+  <text x="55" y="590" class="sub">Historical ModelSim RTL metrics - not one-block latency, Direct-AXIS throughput, FPGA timing, or Fmax.</text>
 </svg>

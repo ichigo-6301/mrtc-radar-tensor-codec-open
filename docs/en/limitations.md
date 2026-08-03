@@ -11,6 +11,7 @@
 - ZERO_RICE or DELTA_RICE is configured per block; internal policy selects `k`, not the predictor mode. RAW fallback exists only on encoder paths that implement payload-cost fallback;
 - where RAW fallback is supported, it avoids a larger coded payload, but the packet still carries a `64`-byte header, so payload ratio is not automatically an end-to-end bandwidth ratio.
 - the historical `7693 -> 721 cycles`, `10.67×` result measures only the inclusive first-payload-valid to accepted-`TLAST` interval on the fixed `smoke_zero_sparse` RTL workload. It is not whole-block latency, Multi-Engine throughput, current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.
+- the historical `8220 -> 785 cycles/block`, `10.47×` result is average packet-completion spacing over fixed 256-block single-Engine streams, not one-block latency. Both revisions already enable prefix-during-capture, so the full delta cannot be attributed to front-end ping-pong.
 
 ## Multi-Engine And Ordering
 

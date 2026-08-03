@@ -56,6 +56,8 @@ payload_stream_cycles = packet_last_cycle - payload_first_valid_cycle + 1
 
 The baseline endpoints are `1169 -> 8861`, yielding `7693 cycles`; the optimized endpoints are `706 -> 1426`, yielding `721 cycles`. The gate also fixes `selected_k=0`, `payload_bits=2158`, `payload_bytes=270`, `packet_bytes=334`, zero input/output stalls, packet byte exactness, and decoder loopback. The public validator checks the input, manifest, expected packet, historical CSV, and fresh replay summary hashes.
 
+The corresponding 256-block streams also measure single-Engine steady-state throughput from adjacent packet-completion spacing: `8220 cycles/block` at Stage16C3 and `785 cycles/block` at Stage16D2. Public evidence binds the relevant `throughput_summary.csv` Git blobs and SHA256 identities. This metric is average packet-completion spacing, not one-block latency, and both revisions retain prefix-during-capture.
+
 Public entrypoint: `make bitpacker-pipeline-ab-validate`. See the [Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml).
 
 ## Multi-Engine Regression

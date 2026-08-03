@@ -23,7 +23,9 @@ Sources: [MATLAB evidence](../../evidence/rdtc_v1_matlab_algorithm_study.yaml) �
 
 Historical Stage16C3 and Stage16D2 use the same `smoke_zero_sparse` input, the same latency monitor, the same `selected_k=0`, and the same `2158-bit / 270-byte` payload. Replacing the per-sample compressed path with the integrated four-lane word Bitpacker reduces the inclusive interval from first payload valid to accepted packet `TLAST` from `7693` to `721 cycles`: a `90.63%` reduction and `10.67×` speedup. Both points have zero input/output stalls, byte-identical 334-byte packets, and passing decoder loopback.
 
-This result measures only the payload stream interval on one fixed historical RTL workload. It is not whole-block latency, Multi-Engine throughput, current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.
+On the corresponding ZERO_RICE data, average packet-completion spacing over fixed 256-block single-Engine streams falls from `8220` to `785 cycles/block`: a `90.45%` reduction and `10.47×` speedup. The optimized `721` value is the payload sub-interval, while `785` is the packet-to-packet average block interval, so the two values are consistent. Both revisions already enable prefix-during-capture; the A/B delta primarily isolates the integrated Lane4 Bitpacker and must not be attributed entirely to front-end ping-pong.
+
+The `785 cycles/block` value is a steady-state service interval, not one-block latency. Neither metric is current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.
 
 Sources: [Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [public two-point CSV](../../evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv)
 

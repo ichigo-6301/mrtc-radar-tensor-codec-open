@@ -15,7 +15,9 @@ import yaml
 
 EVIDENCE_ID = "rdtc_v1_bitpacker_pipeline_ab_public"
 CLAIM_ID = "rdtc_v1_bitpacker_pipeline_cycle_speedup"
+BLOCK_CLAIM_ID = "rdtc_v1_single_engine_block_interval_speedup"
 NONCLAIM_ID = "rdtc_v1_bitpacker_ab_no_system_speedup"
+BLOCK_NONCLAIM_ID = "rdtc_v1_single_engine_interval_no_latency_or_direct"
 EVIDENCE_PATH = "evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"
 CSV_PATH = "evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv"
 EXPECTED_CSV_FIELDS = [
@@ -29,6 +31,9 @@ EXPECTED_CSV_FIELDS = [
     "payload_first_valid_cycle",
     "packet_last_cycle",
     "payload_stream_cycles",
+    "steady_state_scenario",
+    "steady_state_blocks",
+    "steady_state_cycles_per_block",
     "selected_k",
     "payload_bits",
     "payload_bytes",
@@ -49,6 +54,9 @@ EXPECTED_ROWS = {
         "payload_first_valid_cycle": 1169,
         "packet_last_cycle": 8861,
         "payload_stream_cycles": 7693,
+        "steady_state_scenario": "prefix_capture_256_block_beam",
+        "steady_state_blocks": 256,
+        "steady_state_cycles_per_block": 8220,
     },
     "optimized": {
         "point": "stage16d2",
@@ -57,6 +65,9 @@ EXPECTED_ROWS = {
         "payload_first_valid_cycle": 706,
         "packet_last_cycle": 1426,
         "payload_stream_cycles": 721,
+        "steady_state_scenario": "prefix_lane4_256_block_beam",
+        "steady_state_blocks": 256,
+        "steady_state_cycles_per_block": 785,
     },
 }
 EXPECTED_FILE_HASHES = {
@@ -90,7 +101,9 @@ EXPECTED_EQUIVALENCE = {
 }
 EXPECTED_SOURCE_HASHES = {
     "baseline_latency": "974f6bd134e6a706e78746252a80239006f36609da8e74a130c640150e610d5c",
+    "baseline_throughput": "beb06f66ab286a66647be4ef1fd24856b1d1f1bd9a4ec4ca7055ea9279b5fd27",
     "optimized_latency": "d78a04854ff297e679a7ed030edd23b90564efc8d6fc3c41b992da8dffd966e3",
+    "optimized_throughput": "5f4558040382b439ce688bed749f13ea69994d61fd3e8931f72e703c328f5b7a",
     "optimized_packet_compare": "e6b01207b1c78ddf412dd62dd9f25eeeebdf2a1146ae869f09c89fc7dfa0f2ab",
 }
 EXPECTED_POINTS = {
@@ -102,9 +115,15 @@ EXPECTED_POINTS = {
         "source_latency_csv": "docs/reports/data/stage16c3_latency/latency_per_block.csv",
         "source_latency_csv_git_blob": "5caec459dc0810e3bd54e75498fe61ba2bb8d6bb",
         "source_latency_csv_sha256": "974f6bd134e6a706e78746252a80239006f36609da8e74a130c640150e610d5c",
+        "source_throughput_csv": "docs/reports/data/stage16c3_latency/throughput_summary.csv",
+        "source_throughput_csv_git_blob": "799cd70c9ea61155c6825c5aa22d61299a0e1aa3",
+        "source_throughput_csv_sha256": "beb06f66ab286a66647be4ef1fd24856b1d1f1bd9a4ec4ca7055ea9279b5fd27",
         "payload_first_valid_cycle": 1169,
         "packet_last_cycle": 8861,
         "payload_stream_cycles": 7693,
+        "steady_state_scenario": "prefix_capture_256_block_beam",
+        "steady_state_blocks": 256,
+        "steady_state_cycles_per_block": 8220,
     },
     "optimized": {
         "branch": "stage16d2-integrate-lane4-bitpacker",
@@ -114,12 +133,18 @@ EXPECTED_POINTS = {
         "source_latency_csv": "docs/reports/data/stage16d2_integrated_lane4/latency_per_block.csv",
         "source_latency_csv_git_blob": "a222dff12da80292596c21521a26213b2b260de2",
         "source_latency_csv_sha256": "d78a04854ff297e679a7ed030edd23b90564efc8d6fc3c41b992da8dffd966e3",
+        "source_throughput_csv": "docs/reports/data/stage16d2_integrated_lane4/throughput_summary.csv",
+        "source_throughput_csv_git_blob": "1c7e12127ee5f030d496f1cec656ef94d058e556",
+        "source_throughput_csv_sha256": "5f4558040382b439ce688bed749f13ea69994d61fd3e8931f72e703c328f5b7a",
         "source_packet_compare_csv": "docs/reports/data/stage16d2_integrated_lane4/lane4_vs_legacy_packet_compare.csv",
         "source_packet_compare_csv_git_blob": "d43ae69842672c6a70d2f257848cc406951dec99",
         "source_packet_compare_csv_sha256": "e6b01207b1c78ddf412dd62dd9f25eeeebdf2a1146ae869f09c89fc7dfa0f2ab",
         "payload_first_valid_cycle": 706,
         "packet_last_cycle": 1426,
         "payload_stream_cycles": 721,
+        "steady_state_scenario": "prefix_lane4_256_block_beam",
+        "steady_state_blocks": 256,
+        "steady_state_cycles_per_block": 785,
     },
 }
 EXPECTED_REPLAY = {
@@ -173,15 +198,31 @@ EXPECTED_CLAIM = {
     "caveat": "The metric is the inclusive first-payload-valid to accepted-TLAST interval for one historical fixed RTL workload; it is not whole-block latency, Multi-Engine throughput, current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.",
     "public": True,
 }
+EXPECTED_BLOCK_CLAIM = {
+    "id": BLOCK_CLAIM_ID,
+    "profile": "rdtc_v1_historical_lane4_bitpacker",
+    "statement": "On fixed 256-block ZERO_RICE single-Engine RTL streams, the integrated four-lane word Bitpacker reduced average packet-completion spacing from 8220 to 785 cycles/block, a 10.4713376x speedup.",
+    "metric": "single_engine_steady_state_block_interval_speedup",
+    "value": 10.471337579617835,
+    "unit": "x",
+    "benchmark": "fixed 256-block zero-sparse historical RTL stream",
+    "configuration": "Stage16C3 versus Stage16D2 integrated lane4 Bitpacker; both points retain prefix-during-capture and emit identical 334-byte packets",
+    "source_ref": "2c1d9a75d2742659b604dd3f9c754096e196d132",
+    "tool": "ModelSim SE-64 2020.4",
+    "evidence": [EVIDENCE_ID],
+    "status": "verified",
+    "caveat": "This is average single-Engine packet-completion spacing over fixed 256-block streams, not one-block latency, current Direct-AXIS throughput, FPGA timing, ASIC frequency, or Fmax.",
+    "public": True,
+}
 EXPECTED_REGISTRATION = {
     "id": EVIDENCE_ID,
     "path": EVIDENCE_PATH,
     "type": "historical_fixed_workload_rtl_pipeline_ab",
     "source_ref": "2c1d9a75d2742659b604dd3f9c754096e196d132",
     "source_visibility": "private_fixed_commits",
-    "public_evidence_scope": "curated two-point CSV, fixed identities, metric derivation, and fresh ModelSim replay hashes",
+    "public_evidence_scope": "curated two-point payload and single-Engine steady-state CSV, fixed identities, metric derivations, and fresh ModelSim replay hashes",
     "tool": "ModelSim SE-64 2020.4",
-    "claims": [CLAIM_ID],
+    "claims": [CLAIM_ID, BLOCK_CLAIM_ID],
     "public": True,
     "maturity": "verified",
 }
@@ -193,15 +234,31 @@ EXPECTED_NONCLAIM = {
     "status": "not_claimed",
     "public": True,
 }
+EXPECTED_BLOCK_NONCLAIM = {
+    "id": BLOCK_NONCLAIM_ID,
+    "profile": "rdtc_v1_historical_lane4_bitpacker",
+    "statement": "The historical 8220-to-785 cycles/block result is not one-block latency, current Direct-AXIS sustained throughput, FPGA timing, ASIC frequency, or Fmax.",
+    "reason": "It is the average packet-completion spacing over fixed 256-block single-Engine streams; both A/B points already retain prefix-during-capture.",
+    "status": "not_claimed",
+    "public": True,
+}
 EXPECTED_METRIC_DEFINITION = {
     "name": "payload_stream_cycles",
     "formula": "packet_last_cycle - payload_first_valid_cycle + 1",
     "interval": "inclusive",
     "packet_last_event": "accepted packet TLAST",
 }
+EXPECTED_STEADY_STATE_METRIC_DEFINITION = {
+    "name": "single_engine_steady_state_cycles_per_block",
+    "formula": "average packet-completion spacing over the fixed 256-block stream",
+    "interval": "packet_last_cycle[n] - packet_last_cycle[n-1]",
+    "scope": "single Engine with prefix-during-capture enabled at both A/B points",
+}
 EXPECTED_CAVEATS = [
     "The 10.6699x value is the inclusive first-payload-valid to accepted-TLAST interval on one fixed historical RTL workload.",
-    "It is not whole-block latency, Multi-Engine throughput, Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.",
+    "The 10.4713x value is average packet-completion spacing over fixed 256-block single-Engine streams; it is not one-block latency.",
+    "Both A/B points retain prefix-during-capture, so the measured delta isolates the integrated Lane4 Bitpacker rather than attributing the full change to front-end ping-pong.",
+    "Neither metric is current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.",
     "Historical source commits and raw ModelSim logs remain private; this public record publishes curated values and immutable identities only.",
 ]
 EXPECTED_EVIDENCE_FIELDS = {
@@ -214,6 +271,7 @@ EXPECTED_EVIDENCE_FIELDS = {
     "tool",
     "workload",
     "metric_definition",
+    "steady_state_metric_definition",
     "points",
     "equivalence",
     "derivation",
@@ -266,12 +324,17 @@ def validate(root):
     require(evidence.get("source_visibility") == "private_fixed_commits", "evidence source visibility mismatch")
     require(
         evidence.get("public_evidence_scope")
-        == "curated two-point CSV, fixed source and vector identities, metric derivation, and fresh ModelSim replay hashes",
+        == "curated two-point payload and single-Engine steady-state CSV, fixed source and vector identities, metric derivations, and fresh ModelSim replay hashes",
         "public evidence scope mismatch",
     )
     require(evidence.get("curated_data") == CSV_PATH, "curated CSV path mismatch")
     require(evidence.get("curated_data_sha256") == sha256(csv_path), "curated CSV hash mismatch")
     require_exact_mapping(evidence.get("metric_definition"), EXPECTED_METRIC_DEFINITION, "metric definition")
+    require_exact_mapping(
+        evidence.get("steady_state_metric_definition"),
+        EXPECTED_STEADY_STATE_METRIC_DEFINITION,
+        "steady-state metric definition",
+    )
     require(evidence.get("caveats") == EXPECTED_CAVEATS, "evidence caveats mismatch")
 
     workload = evidence.get("workload", {})
@@ -295,7 +358,9 @@ def validate(root):
     for role, expected in EXPECTED_POINTS.items():
         require_exact_mapping(points.get(role), expected, role + " evidence point")
     require(points["baseline"]["source_latency_csv_sha256"] == EXPECTED_SOURCE_HASHES["baseline_latency"], "baseline source CSV hash mismatch")
+    require(points["baseline"]["source_throughput_csv_sha256"] == EXPECTED_SOURCE_HASHES["baseline_throughput"], "baseline throughput CSV hash mismatch")
     require(points["optimized"]["source_latency_csv_sha256"] == EXPECTED_SOURCE_HASHES["optimized_latency"], "optimized source CSV hash mismatch")
+    require(points["optimized"]["source_throughput_csv_sha256"] == EXPECTED_SOURCE_HASHES["optimized_throughput"], "optimized throughput CSV hash mismatch")
     require(points["optimized"]["source_packet_compare_csv_sha256"] == EXPECTED_SOURCE_HASHES["optimized_packet_compare"], "packet compare source hash mismatch")
 
     with csv_path.open("r", encoding="utf-8", newline="") as stream:
@@ -320,6 +385,9 @@ def validate(root):
         require(last_cycle == expected["packet_last_cycle"], role + " packet last cycle mismatch")
         require(interval == expected["payload_stream_cycles"], role + " payload interval mismatch")
         require(last_cycle - first_cycle + 1 == interval, role + " inclusive interval derivation mismatch")
+        require(row["steady_state_scenario"] == expected["steady_state_scenario"], role + " steady-state scenario mismatch")
+        require(int(row["steady_state_blocks"]) == expected["steady_state_blocks"] == 256, role + " steady-state block count mismatch")
+        require(int(row["steady_state_cycles_per_block"]) == expected["steady_state_cycles_per_block"], role + " steady-state cycles/block mismatch")
         for field, value in (
             ("selected_k", 0),
             ("payload_bits", 2158),
@@ -358,9 +426,16 @@ def validate(root):
             ("payload_first_valid_cycle", "payload_first_valid_cycle"),
             ("packet_last_cycle", "packet_last_cycle"),
             ("payload_stream_cycles", "payload_stream_cycles"),
+            ("steady_state_scenario", "steady_state_scenario"),
+            ("steady_state_blocks", "steady_state_blocks"),
+            ("steady_state_cycles_per_block", "steady_state_cycles_per_block"),
         ):
             csv_value = row[csv_field]
-            if csv_field.endswith("_cycle") or csv_field == "payload_stream_cycles":
+            if csv_field.endswith("_cycle") or csv_field in (
+                "payload_stream_cycles",
+                "steady_state_blocks",
+                "steady_state_cycles_per_block",
+            ):
                 csv_value = int(csv_value)
             require(csv_value == point[point_field], role + " YAML/CSV " + point_field + " mismatch")
 
@@ -368,8 +443,22 @@ def validate(root):
     optimized = float(by_role["optimized"]["payload_stream_cycles"])
     speedup = baseline / optimized
     reduction = 100.0 * (baseline - optimized) / baseline
+    block_baseline = float(by_role["baseline"]["steady_state_cycles_per_block"])
+    block_optimized = float(by_role["optimized"]["steady_state_cycles_per_block"])
+    block_speedup = block_baseline / block_optimized
+    block_reduction = 100.0 * (block_baseline - block_optimized) / block_baseline
     derivation = evidence.get("derivation", {})
-    require(set(derivation) == {"cycle_reduction", "cycle_reduction_percent", "speedup"}, "derivation fields mismatch")
+    require(
+        set(derivation) == {
+            "cycle_reduction",
+            "cycle_reduction_percent",
+            "speedup",
+            "steady_state_cycle_reduction",
+            "steady_state_cycle_reduction_percent",
+            "steady_state_speedup",
+        },
+        "derivation fields mismatch",
+    )
     cycle_reduction = derivation.get("cycle_reduction")
     require(type(cycle_reduction) is int, "cycle reduction must be an integer")
     require(cycle_reduction == int(baseline - optimized) == 6972, "cycle reduction mismatch")
@@ -379,6 +468,9 @@ def validate(root):
     require(type(published_reduction) is float and math.isfinite(published_reduction), "cycle reduction percentage must be a finite float")
     require(math.isclose(published_speedup, speedup, rel_tol=0.0, abs_tol=1.0e-12), "speedup mismatch")
     require(math.isclose(published_reduction, reduction, rel_tol=0.0, abs_tol=1.0e-12), "cycle reduction percentage mismatch")
+    require(derivation.get("steady_state_cycle_reduction") == 7435, "steady-state cycle reduction mismatch")
+    require(math.isclose(float(derivation.get("steady_state_speedup")), block_speedup, rel_tol=0.0, abs_tol=1.0e-12), "steady-state speedup mismatch")
+    require(math.isclose(float(derivation.get("steady_state_cycle_reduction_percent")), block_reduction, rel_tol=0.0, abs_tol=1.0e-12), "steady-state reduction percentage mismatch")
 
     require(evidence.get("tool") == "ModelSim SE-64 2020.4", "evidence tool identity mismatch")
     replay = evidence.get("fresh_replay", {})
@@ -397,18 +489,29 @@ def validate(root):
     require(len(evidence_index) == len(evidence_items), "duplicate evidence identity")
     require(len(nonclaims) == len(nonclaim_items), "duplicate nonclaim identity")
     require(CLAIM_ID in claims, "missing Bitpacker A/B claim")
+    require(BLOCK_CLAIM_ID in claims, "missing single-Engine block-interval claim")
     require(EVIDENCE_ID in evidence_index, "missing Bitpacker A/B evidence registration")
     require(NONCLAIM_ID in nonclaims, "missing Bitpacker A/B nonclaim")
+    require(BLOCK_NONCLAIM_ID in nonclaims, "missing single-Engine interval nonclaim")
     claim = claims[CLAIM_ID]
     registration = evidence_index[EVIDENCE_ID]
     require_exact_mapping(claim, EXPECTED_CLAIM, "claim")
+    require_exact_mapping(claims[BLOCK_CLAIM_ID], EXPECTED_BLOCK_CLAIM, "block interval claim")
     require(set(registration) == set(EXPECTED_REGISTRATION) | {"sha256"}, "evidence registration fields mismatch")
     for field, value in EXPECTED_REGISTRATION.items():
         require(registration.get(field) == value, "evidence registration " + field + " mismatch")
     require(registration.get("sha256") == sha256(evidence_path), "registered evidence hash mismatch")
     require_exact_mapping(nonclaims[NONCLAIM_ID], EXPECTED_NONCLAIM, "nonclaim")
+    require_exact_mapping(nonclaims[BLOCK_NONCLAIM_ID], EXPECTED_BLOCK_NONCLAIM, "block interval nonclaim")
     require(math.isclose(float(claim.get("value")), speedup, rel_tol=0.0, abs_tol=1.0e-12), "claim speedup mismatch")
-    return {"rows": len(rows), "speedup": speedup, "reduction_percent": reduction}
+    require(math.isclose(float(claims[BLOCK_CLAIM_ID].get("value")), block_speedup, rel_tol=0.0, abs_tol=1.0e-12), "block interval claim speedup mismatch")
+    return {
+        "rows": len(rows),
+        "speedup": speedup,
+        "reduction_percent": reduction,
+        "block_speedup": block_speedup,
+        "block_reduction_percent": block_reduction,
+    }
 
 
 def main():
@@ -421,7 +524,7 @@ def main():
         print("bitpacker pipeline A/B validation: FAIL: {}".format(error))
         return 2
     print(
-        "bitpacker pipeline A/B validation: PASS rows={rows} speedup={speedup:.7f} reduction={reduction_percent:.2f}%".format(
+        "bitpacker pipeline A/B validation: PASS rows={rows} payload_speedup={speedup:.7f} payload_reduction={reduction_percent:.2f}% block_speedup={block_speedup:.7f} block_reduction={block_reduction_percent:.2f}%".format(
             **result
         )
     )

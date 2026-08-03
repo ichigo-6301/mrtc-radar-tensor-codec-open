@@ -172,6 +172,11 @@ def load_bitpacker_data(path):
         interval = int(row["payload_stream_cycles"])
         if interval != last_cycle - first_cycle + 1:
             raise ValueError("invalid inclusive Bitpacker interval in {}".format(path))
+        if int(row["steady_state_blocks"]) != 256:
+            raise ValueError("Bitpacker block-interval chart requires 256-block streams")
+        steady_state_cycles = Decimal(row["steady_state_cycles_per_block"])
+        if not steady_state_cycles.is_finite() or steady_state_cycles <= 0:
+            raise ValueError("invalid steady-state cycles/block in {}".format(path))
         if row["fresh_replay_status"] != "pass":
             raise ValueError("Bitpacker replay did not pass in {}".format(path))
         for field in ("payload_byte_exact", "packet_byte_exact", "decoder_loopback"):
@@ -269,50 +274,65 @@ def compression_svg(snr_values, grouped):
 
 
 def bitpacker_svg(by_role):
-    baseline = Decimal(by_role["baseline"]["payload_stream_cycles"])
-    optimized = Decimal(by_role["optimized"]["payload_stream_cycles"])
-    speedup = (baseline / optimized).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    reduction = (
-        (Decimal(1) - (optimized / baseline)) * Decimal(100)
+    payload_baseline = Decimal(by_role["baseline"]["payload_stream_cycles"])
+    payload_optimized = Decimal(by_role["optimized"]["payload_stream_cycles"])
+    block_baseline = Decimal(by_role["baseline"]["steady_state_cycles_per_block"])
+    block_optimized = Decimal(by_role["optimized"]["steady_state_cycles_per_block"])
+    payload_speedup = (payload_baseline / payload_optimized).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    block_speedup = (block_baseline / block_optimized).quantize(
+        Decimal("0.01"), rounding=ROUND_HALF_UP
+    )
+    block_reduction = (
+        (Decimal(1) - (block_optimized / block_baseline)) * Decimal(100)
     ).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     bar_x = 260
     baseline_width = 650
-    optimized_width = rounded_int(Decimal(baseline_width) * optimized / baseline)
+    optimized_width = rounded_int(Decimal(baseline_width) * block_optimized / block_baseline)
 
     return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
-  <title id="title">Fixed-workload Bitpacker RTL pipeline A/B</title>
-  <desc id="desc">On one fixed smoke_zero_sparse RTL workload, the inclusive first-payload-valid to accepted-packet-TLAST interval falls from {baseline} to {optimized} cycles. This is not whole-block or system throughput.</desc>
-  <style>.title{{font:700 31px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 17px Arial,sans-serif;fill:#475569}}.label{{font:700 20px Arial,sans-serif;fill:#0f172a}}.value{{font:700 24px Arial,sans-serif;fill:#0f172a}}.callout{{font:700 34px Arial,sans-serif;fill:#166534}}.note{{font:400 16px Arial,sans-serif;fill:#334155}}</style>
+  <title id="title">Single-Engine RTL block-interval pipeline A/B</title>
+  <desc id="desc">On fixed 256-block zero-sparse streams, average single-Engine packet-completion spacing falls from {block_baseline} to {block_optimized} cycles per block. The optimized 785-cycle block interval contains a separately measured 721-cycle payload interval.</desc>
+  <style>.title{{font:700 31px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 17px Arial,sans-serif;fill:#475569}}.label{{font:700 20px Arial,sans-serif;fill:#0f172a}}.value{{font:700 24px Arial,sans-serif;fill:#0f172a}}.callout{{font:700 30px Arial,sans-serif;fill:#166534}}.note{{font:400 16px Arial,sans-serif;fill:#334155}}.small{{font:400 15px Arial,sans-serif;fill:#475569}}</style>
   <rect width="1000" height="620" fill="#f8fafc"/>
-  <text x="55" y="48" class="title">Lane-parallel Bitpacker RTL A/B</text>
-  <text x="55" y="76" class="sub">Fixed smoke_zero_sparse workload; identical payload, packet, selected k, and zero stalls.</text>
+  <text x="55" y="48" class="title">Single-Engine steady-state pipeline A/B</text>
+  <text x="55" y="76" class="sub">Fixed 256-block ZERO_RICE stream; lower packet-completion spacing is better.</text>
 
   <text x="55" y="154" class="label">Stage16C3 baseline</text>
   <rect x="{bar_x}" y="120" width="{baseline_width}" height="58" rx="6" fill="#2563eb"/>
-  <text x="{baseline_text_x}" y="157" text-anchor="end" fill="#fff" class="value">{baseline} cycles</text>
+  <text x="{baseline_text_x}" y="157" text-anchor="end" fill="#fff" class="value">{block_baseline} cycles/block</text>
 
-  <text x="55" y="264" class="label">Stage16D2 lane4</text>
+  <text x="55" y="264" class="label">Stage16D2 Lane4</text>
   <rect x="{bar_x}" y="230" width="{optimized_width}" height="58" rx="6" fill="#16a34a"/>
-  <text x="{optimized_text_x}" y="267" class="value">{optimized} cycles</text>
+  <text x="{optimized_text_x}" y="267" class="value">{block_optimized} cycles/block</text>
 
-  <rect x="230" y="340" width="680" height="132" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
-  <text x="570" y="395" text-anchor="middle" class="callout">{speedup}&#215; speedup</text>
-  <text x="570" y="432" text-anchor="middle" class="label">{reduction}% fewer payload-interval cycles</text>
+  <rect x="55" y="330" width="890" height="118" rx="6" fill="#f0fdf4" stroke="#16a34a" stroke-width="2"/>
+  <text x="275" y="375" text-anchor="middle" class="callout">{block_speedup}&#215; block service rate</text>
+  <text x="275" y="408" text-anchor="middle" class="label">{block_reduction}% fewer cycles/block</text>
+  <line x1="500" y1="350" x2="500" y2="427" stroke="#86efac" stroke-width="2"/>
+  <text x="720" y="370" text-anchor="middle" class="label">Payload sub-interval</text>
+  <text x="720" y="404" text-anchor="middle" class="callout">{payload_baseline} -&gt; {payload_optimized} cycles</text>
+  <text x="720" y="430" text-anchor="middle" class="small">{payload_speedup}&#215;; identical 334-byte packet</text>
 
-  <text x="55" y="525" class="note">Metric: packet_last_cycle - payload_first_valid_cycle + 1.</text>
-  <text x="55" y="554" class="note">Both packets are byte-identical and decoder loopback passes.</text>
-  <text x="55" y="587" class="sub">Payload interval only - not whole-block latency, sustained throughput, FPGA performance, or Fmax.</text>
+  <text x="55" y="493" class="note">785 cycles/block = average packet-completion spacing; 721 cycles = payload-valid-to-TLAST interval.</text>
+  <text x="55" y="525" class="note">Both A/B points already use prefix-during-capture; the measured delta isolates the Lane4 packer.</text>
+  <text x="55" y="557" class="note">Packet byte-exactness and decoder loopback pass.</text>
+  <text x="55" y="590" class="sub">Historical ModelSim RTL metrics - not one-block latency, Direct-AXIS throughput, FPGA timing, or Fmax.</text>
 </svg>
 """.format(
-        baseline=compact_decimal(baseline),
-        optimized=compact_decimal(optimized),
+        payload_baseline=compact_decimal(payload_baseline),
+        payload_optimized=compact_decimal(payload_optimized),
+        block_baseline=compact_decimal(block_baseline),
+        block_optimized=compact_decimal(block_optimized),
         bar_x=bar_x,
         baseline_width=baseline_width,
         optimized_width=optimized_width,
         baseline_text_x=bar_x + baseline_width - 16,
         optimized_text_x=bar_x + optimized_width + 16,
-        speedup=compact_decimal(speedup),
-        reduction=compact_decimal(reduction),
+        payload_speedup=compact_decimal(payload_speedup),
+        block_speedup=compact_decimal(block_speedup),
+        block_reduction=compact_decimal(block_reduction),
     )
 
 
@@ -333,16 +353,16 @@ def scaling_svg(by_engine):
     eff4 = compact_decimal(
         Decimal(by_engine[4]["scaling_efficiency_vs_single_engine"]) * Decimal(100)
     ) + "%"
-    beam2 = by_engine[2]["beam_s_at_assumed_200mhz"]
-    beam4 = by_engine[4]["beam_s_at_assumed_200mhz"]
+    scale2 = compact_decimal((cycles[1] / cycles[2]).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)) + "x"
+    scale4 = compact_decimal((cycles[1] / cycles[4]).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)) + "x"
 
     return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="620" viewBox="0 0 1000 620" role="img" aria-labelledby="title desc">
-  <title id="title">Multi-Engine RTL simulation scaling</title>
-  <desc id="desc">Cycles per block decrease from {label1} for one engine to {label2} for two engines and {label4} for four engines, with near-linear efficiency on the fixed 256-block RTL workload.</desc>
+  <title id="title">Multi-Engine wrapper block-interval scaling</title>
+  <desc id="desc">Starting from the optimized 785-cycle single Engine, the historical buffered wrapper reduces average block interval to {label2} cycles with two Engines and {label4} cycles with four Engines.</desc>
   <style>.title{{font:700 31px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 17px Arial,sans-serif;fill:#475569}}.axis{{font:400 16px Arial,sans-serif;fill:#334155}}.label{{font:700 18px Arial,sans-serif;fill:#0f172a}}.value{{font:700 21px Arial,sans-serif;fill:#0f172a}}.light{{fill:#fff}}.grid{{stroke:#cbd5e1;stroke-width:1}}</style>
   <rect width="1000" height="620" fill="#f8fafc"/>
-  <text x="55" y="48" class="title">Multi-Engine RTL simulation scaling</text>
-  <text x="55" y="75" class="sub">Fixed 256-block workload with a simulated DDR feeder. Lower cycles/block is better.</text>
+  <text x="55" y="48" class="title">Multi-Engine wrapper block-interval scaling</text>
+  <text x="55" y="75" class="sub">Historical buffered profile; fixed 256-block RTL workload. Lower cycles/block is better.</text>
 
   <g class="grid">
     <line x1="110" y1="500" x2="920" y2="500"/><line x1="110" y1="397" x2="920" y2="397"/>
@@ -362,21 +382,22 @@ def scaling_svg(by_engine):
   <text x="760" y="{t4}" text-anchor="middle" class="value">{label4}</text>
   <g class="label" text-anchor="middle"><text x="270" y="528">1 Engine</text><text x="515" y="528">2 Engines</text><text x="760" y="528">4 Engines</text></g>
   <g class="axis" text-anchor="middle">
-    <text x="270" y="552">baseline</text>
-    <text x="515" y="552">efficiency {eff2}</text>
-    <text x="760" y="552">efficiency {eff4}</text>
-    <text x="515" y="576">{beam2} beam/s at assumed 200 MHz</text>
-    <text x="760" y="596">{beam4} beam/s at assumed 200 MHz</text>
+    <text x="270" y="552">optimized single-Engine baseline</text>
+    <text x="515" y="552">{scale2} throughput</text>
+    <text x="760" y="552">{scale4} throughput</text>
+    <text x="515" y="576">scaling efficiency {eff2}</text>
+    <text x="760" y="576">scaling efficiency {eff4}</text>
   </g>
-  <rect x="695" y="105" width="225" height="70" rx="6" fill="#fff7ed" stroke="#f59e0b"/>
-  <text x="807" y="132" text-anchor="middle" class="label">RTL projection only</text>
-  <text x="807" y="155" text-anchor="middle" class="axis">not FPGA timing or board throughput</text>
+  <rect x="650" y="105" width="270" height="70" rx="6" fill="#fff7ed" stroke="#f59e0b"/>
+  <text x="785" y="132" text-anchor="middle" class="label">Starts from 785 cycles/block</text>
+  <text x="785" y="155" text-anchor="middle" class="axis">same value as Stage16D2 above</text>
+  <text x="500" y="606" text-anchor="middle" class="sub">Cycle metric only - not an implemented clock, FPGA timing, board DDR throughput, or Direct-AXIS result.</text>
 </svg>
 """.format(
         y1=y_positions[1], h1=heights[1], t1=y_positions[1] + 28, label1=labels[1],
         y2=y_positions[2], h2=heights[2], t2=y_positions[2] - 10, label2=labels[2],
         y4=y_positions[4], h4=heights[4], t4=y_positions[4] - 10, label4=labels[4],
-        eff2=eff2, eff4=eff4, beam2=beam2, beam4=beam4,
+        eff2=eff2, eff4=eff4, scale2=scale2, scale4=scale4,
     )
 
 

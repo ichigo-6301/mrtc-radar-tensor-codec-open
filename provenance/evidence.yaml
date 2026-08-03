@@ -206,10 +206,11 @@ evidence:
     type: historical_fixed_workload_rtl_pipeline_ab
     source_ref: 2c1d9a75d2742659b604dd3f9c754096e196d132
     source_visibility: private_fixed_commits
-    public_evidence_scope: curated two-point CSV, fixed identities, metric derivation, and fresh ModelSim replay hashes
+    public_evidence_scope: curated two-point payload and single-Engine steady-state CSV, fixed identities, metric derivations, and fresh ModelSim replay hashes
     tool: ModelSim SE-64 2020.4
     claims:
       - rdtc_v1_bitpacker_pipeline_cycle_speedup
-    sha256: a7e5d36f4e9f2e824e31ce4753cbbaa20055414dd9a8f0e1ec4ad14746073711
+      - rdtc_v1_single_engine_block_interval_speedup
+    sha256: 34efbb60126675652cbba0e20d73e003317e8cf451fb8b62c3cd76df8a7234df
     public: true
     maturity: verified

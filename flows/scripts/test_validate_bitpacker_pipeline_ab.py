@@ -58,11 +58,19 @@ class BitpackerPipelineAbEvidenceTest(unittest.TestCase):
         result = VALIDATOR.validate(self.root)
         self.assertEqual(2, result["rows"])
         self.assertAlmostEqual(10.669902912621358, result["speedup"])
+        self.assertAlmostEqual(10.471337579617835, result["block_speedup"])
 
     def test_inclusive_interval_mutation_fails(self):
         path = self.root / VALIDATOR.CSV_PATH
         text = path.read_text(encoding="utf-8")
         path.write_text(text.replace(",1169,8861,7693,", ",1169,8861,7692,"), encoding="utf-8")
+        with self.assertRaisesRegex(RuntimeError, "curated CSV hash mismatch"):
+            VALIDATOR.validate(self.root)
+
+    def test_steady_state_interval_mutation_fails(self):
+        path = self.root / VALIDATOR.CSV_PATH
+        text = path.read_text(encoding="utf-8")
+        path.write_text(text.replace(",256,8220,", ",256,8219,"), encoding="utf-8")
         with self.assertRaisesRegex(RuntimeError, "curated CSV hash mismatch"):
             VALIDATOR.validate(self.root)
 
