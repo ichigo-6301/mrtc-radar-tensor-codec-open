@@ -58,7 +58,7 @@ The baseline endpoints are `1169 -> 8861`, yielding `7693 cycles`; the optimized
 
 Separate 256-block streams measure single-Engine steady-state throughput from adjacent packet-completion spacing: `8220 cycles/block` at Stage16C3 and `785 cycles/block` at Stage16D2. Public evidence binds the relevant `throughput_summary.csv`, common `smoke_zero_sparse` source vector/manifest, and repeated-stream generator by Git blob and SHA256; it also checks the public Multi-Engine CSV's 1-Engine row against the same `785` value. This metric is average packet-completion spacing, not one-block latency or the independently measured `smoke_zero_sparse` payload interval, and both revisions retain prefix-during-capture.
 
-Public entrypoint: `make bitpacker-pipeline-ab-validate`. See the [Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml). Future Direct stream-trace entrypoints are reserved as `make direct-stream-timing-modelsim` (capture) and `make direct-stream-timing-validate` (validate a published trace); the observation scope is defined in [Stream Timing](stream_timing.md#direct-engine0-trace).
+Public entrypoint: `make bitpacker-pipeline-ab-validate`. See the [Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml). The Direct stream trace was replayed with ModelSim 2020.4 at fixed commit `99dbd4b`: `make direct-stream-timing-validate` checks only the committed [Evidence](../../evidence/rdtc_v1_direct_stream_timing_trace.yaml) and two CSVs without invoking a simulator, while `make direct-stream-timing-modelsim` is the explicit opt-in local recapture entrypoint. See [Stream Timing](stream_timing.md#direct-engine0-trace) for its scope.
 
 ## Multi-Engine Regression
 

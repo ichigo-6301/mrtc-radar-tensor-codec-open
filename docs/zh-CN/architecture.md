@@ -107,11 +107,7 @@ offset = global_word_index mod 32
 
 ### Stream Timing 合同
 
-![RDTC protocol stream timing schematic](../assets/rdtc_stream_timing.svg)
-
-时序图是 protocol schematic，不是 measured waveform。前 32 个已接收 beat 提供 128 个 prefix sample；prefix `k` 选定后可开始四拍 header，同时后续输入仍可写 ring。Header 完成后 Bitpacker 按原始顺序发起 ring read，连续合法请求的 source cadence 为 `II=1`，response 固定延迟两拍。逐周期 trace 预留与接口解释见[流时序页](stream_timing.md#protocol-timing-contract)。
-
-四个 header beat 各自在 `TVALID && TREADY` 时提交。Rice token 累加只有形成完整输出 word 时才产生 payload beat，因此 header 与 payload 之间以及 payload 内都允许 `TVALID` bubble。在正常非 fatal 路径，下游拉低 `TREADY` 时，当前 `TVALID`、`TDATA`、`TLAST` 与 `TUSER` 必须保持到握手；fail-stop halt 是下文明确说明的例外。TLAST 只出现在物理 packet 末尾。Ring-read source `II=1` 不代表 compressed-output `TVALID` 每拍连续。
+完整协议关系、固定 Engine 0 / Block 0 ModelSim trace、payload bubble、两处 backpressure hold 和双 Engine packet-lock 见[流时序页](stream_timing.md#protocol-timing-contract)。该页将 ring-read source `II=1` 与 compressed-output `TVALID` duty 明确分开，并直接链接公开 CSV/Evidence。
 
 该简化结构采用明确的 fail-stop 语义：
 
@@ -121,7 +117,7 @@ offset = global_word_index mod 32
 - 同 way 读写冲突、cadence 中断、block 格式错误或 output credit 耗尽均产生 sticky fatal；
 - 因为没有 speculative payload storage，fatal 可能让外部看到半包，producer 与 receiver 必须一起 reset。
 
-固定回归测得有序 packet service 约 `277 cycles`，而连续 block 每 `256 cycles` 到达；该差额会累计并最终触发非法 same-way 条件，报告为 `MRTC_ERR_SRAM_WAY_CONFLICT`。这是 workload evidence，不是协议保证周期，也不画入时序 schematic。该 profile 验证 bounded datapath 与实现闭合，但不验证持续零间隔调度。
+固定回归测得有序 packet service 约 `277 cycles`，而连续 block 每 `256 cycles` 到达；该差额会累计并最终触发非法 same-way 条件，报告为 `MRTC_ERR_SRAM_WAY_CONFLICT`。这是 workload evidence，不是协议保证周期。该 profile 验证 bounded datapath 与实现闭合，但不验证持续零间隔调度。
 
 ## 历史 Buffered 吞吐扩展
 

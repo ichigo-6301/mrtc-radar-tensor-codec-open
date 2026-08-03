@@ -58,7 +58,7 @@ Baseline端点为 `1169 -> 8861`，得到 `7693 cycles`；optimized端点为 `70
 
 另组256-block stream按相邻packet完成间隔统计单Engine steady-state吞吐：Stage16C3为 `8220 cycles/block`，Stage16D2为 `785 cycles/block`。公开Evidence以Git blob与SHA256绑定对应 `throughput_summary.csv`、共同的 `smoke_zero_sparse` source vector/manifest及重复流生成器，并核对公开Multi-Engine CSV的1-Engine行同为 `785`。该定义是平均packet-completion spacing，不是单block latency或独立测得的 `smoke_zero_sparse` payload interval；两版均保留prefix-during-capture。
 
-公开入口：`make bitpacker-pipeline-ab-validate`。证据见[Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml)。未来 Direct stream trace 的入口预留为 `make direct-stream-timing-modelsim`（生成 trace）和 `make direct-stream-timing-validate`（只校验已发布 trace）；其观测范围见[流时序](stream_timing.md#direct-engine0-trace)。
+公开入口：`make bitpacker-pipeline-ab-validate`。证据见[Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml)。Direct stream trace 已由 ModelSim 2020.4 在固定 `99dbd4b` 上重放：`make direct-stream-timing-validate` 只校验已提交的 [Evidence](../../evidence/rdtc_v1_direct_stream_timing_trace.yaml) 与两份 CSV，不调用 simulator；`make direct-stream-timing-modelsim` 是显式 opt-in 的本地重新采集入口。观测范围见[流时序](stream_timing.md#direct-engine0-trace)。
 
 ## Multi-Engine Regression
 

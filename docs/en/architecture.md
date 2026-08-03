@@ -107,11 +107,7 @@ On a legal, non-fatal capture, each accepted input word writes its mapped slot a
 
 ### Stream Timing Contract
 
-![RDTC protocol stream timing schematic](../assets/rdtc_stream_timing.svg)
-
-The timing diagram is a protocol schematic, not a measured waveform. The first 32 accepted beats provide 128 prefix samples. Once prefix `k` is selected, the four-beat header can begin while later input continues writing the ring. After the header completes, the Bitpacker requests ring words in original order. Its continuous legal source-request cadence is `II=1`, with a fixed two-clock response delay. The reserved per-cycle trace and integration interpretation are described on the [stream timing page](stream_timing.md#protocol-timing-contract).
-
-Each of the four header beats commits on `TVALID && TREADY`. Rice token accumulation emits a payload beat only when a complete output word is available, so bubbles are legal between header and payload and within payload. On the normal non-fatal path, when downstream deasserts `TREADY`, the current `TVALID`, `TDATA`, `TLAST`, and `TUSER` remain stable until handshake. A fail-stop halt is the explicit exception described below. TLAST appears only on the physical packet end. Ring-read source `II=1` does not mean compressed-output `TVALID` is continuous.
+See [Stream Timing](stream_timing.md#protocol-timing-contract) for the complete protocol relationship, the fixed Engine 0 / Block 0 ModelSim trace, payload bubbles, two deterministic backpressure holds, and dual-Engine packet-lock. That page separates ring-read source `II=1` from compressed-output `TVALID` duty and links the public CSV/Evidence directly.
 
 This simplification is deliberately fail-stop:
 
@@ -121,7 +117,7 @@ This simplification is deliberately fail-stop:
 - a same-way read/write collision, cadence failure, malformed block, or exhausted output credit raises sticky fatal status;
 - without speculative payload storage, a fatal event can leave a partial packet externally visible, so producer and receiver state must be reset together.
 
-The fixed regression observes about `277 cycles` of ordered packet service for a block arriving every `256 cycles`. That deficit accumulates and eventually triggers the illegal same-way condition reported as `MRTC_ERR_SRAM_WAY_CONFLICT`. This is workload evidence, not a protocol-cycle guarantee, and is not drawn into the timing schematic. The profile verifies bounded datapath behavior and implementation closure, but does not verify sustained zero-gap scheduling.
+The fixed regression observes about `277 cycles` of ordered packet service for a block arriving every `256 cycles`. That deficit accumulates and eventually triggers the illegal same-way condition reported as `MRTC_ERR_SRAM_WAY_CONFLICT`. This is workload evidence, not a protocol-cycle guarantee. The profile verifies bounded datapath behavior and implementation closure, but does not verify sustained zero-gap scheduling.
 
 ## Historical Buffered Throughput Scaling
 

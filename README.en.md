@@ -21,7 +21,7 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 | Three-mode AXIS128 codec and verification chain | `RAW_BYPASS`, `ZERO_RICE`, and `DELTA_RICE`; `1024` I16Q16 samples/block, 64-byte header; finite-vector MATLAB/C/DPI-C/RTL bit-exact agreement | Encoder/compression datapath is primary; RTL decoder supplies loopback and protocol closure | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [verification matrix](docs/en/verification.md) |
 | prefix-128 + lane-parallel Bitpacker | On the fixed `smoke_zero_sparse` RTL workload, the payload interval is `7693 -> 721 cycles`, a `10.67×` improvement; packet bytes match exactly | Historical fixed workload; this is a payload interval, not whole-block latency, sustained throughput, or Fmax | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
 | Multi-Engine wrapper | Historical buffered profile reaches `785 / 397.52 / 197.41 cycles/block`, with `98.7368% / 99.4115%` 2/4-Engine scaling efficiency | `785` is the imported Stage16D2 reference, not a wrapper `NUM_ENGINES=1` rerun; historical average spacing is `8220 -> 785 cycles/block`, a `10.47×` change, detailed below | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
-| Direct-AXIS low-storage refactor | Removes the DDR feeder and per-Engine payload commit; same-library, same-315 MHz DC A/B reduces cell area/count by `72.53% / 71.98%` | Dual Engine, register-expanded, DC-only architectural A/B; Direct RTL is `~277 > 256 cycles/block`, so sustained zero-gap scheduling is not claimed | [Direct RTL evidence](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
+| Direct-AXIS low-storage refactor | Removes the DDR feeder and per-Engine payload commit; same-library, same-315 MHz DC A/B reduces cell area/count by `72.53% / 71.98%` | Dual Engine, register-expanded, DC-only architectural A/B; Direct RTL is `~277 > 256 cycles/block`, so sustained zero-gap scheduling is not claimed | [Direct RTL](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [observed stream timing](evidence/rdtc_v1_direct_stream_timing_trace.yaml) · [DC A/B](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
 | FPGA / ASIC implementation boundary | Direct FPGA OOC at 200 MHz; Direct register-expanded / eight-macro OpenRAM profiles complete fixed academic post-route PrimeTime setup/hold closure at `600/300 MHz` | FPGA result is not a bitstream/board claim; ASIC frequencies are not Fmax or foundry signoff | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [result matrix](docs/en/results.md) |
 
 <p align="center">
@@ -66,9 +66,7 @@ Raw Tensor Block / 原始张量块
 | Tail beat | `m_axis_comp_tuser[3:0] = valid_byte_count - 1`; the main AXIS128 path does not use TKEEP |
 | Backpressure | On the normal non-fatal path, `TVALID=1, TREADY=0` holds `TDATA/TUSER/TLAST` stable |
 
-[See the 64-byte header, payload, and two length contracts](docs/en/bitstream_format.md) · [See the Direct four-way shallow input ring](docs/en/architecture.md#four-way-shallow-input-ring)
-
-The README uses the compact text contract above and does not embed the legacy visual asset `docs/assets/rdtc_data_contract.svg`; detailed byte format and protocol timing remain in the linked pages.
+[See the 64-byte header, payload, and two length contracts](docs/en/bitstream_format.md) · [See the Direct four-way shallow input ring](docs/en/architecture.md#four-way-shallow-input-ring) · [See the observed stream timing and handshake](docs/en/stream_timing.md#direct-engine0-trace)
 
 ### Choose an integration entrypoint
 
@@ -110,9 +108,10 @@ make rtl-smoke
 make multiengine-smoke
 make bitpacker-pipeline-ab-validate
 make bounded-dc-ab-validate
+make direct-stream-timing-validate
 ```
 
-The first command creates the public-safe configuration; the next four compile or run published C/RTL entrypoints. The final two only validate sanitized public evidence, identities, and metric contracts; they do not rerun Design Compiler, P&R, or PrimeTime.
+The first command creates the public-safe configuration; the next four compile or run published C/RTL entrypoints. The final three only validate sanitized public evidence, identities, and metric contracts; they do not rerun ModelSim, Design Compiler, P&R, or PrimeTime.
 
 <a id="public-scope-provenance"></a>
 

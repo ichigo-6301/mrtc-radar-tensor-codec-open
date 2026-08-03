@@ -21,7 +21,7 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 | 三模式 AXIS128 codec 与验证链 | `RAW_BYPASS`、`ZERO_RICE`、`DELTA_RICE`；`1024` 个 I16Q16 sample/block、64-byte header；MATLAB/C/DPI-C/RTL 有限向量 bit-exact | 编码器/压缩数据面为主；RTL decoder 用于 loopback 与协议闭环 | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [验证矩阵](docs/zh-CN/verification.md) |
 | prefix-128 + Lane-parallel Bitpacker | 固定 `smoke_zero_sparse` RTL workload 的 payload interval 为 `7693 -> 721 cycles`，提升 `10.67×`；packet 逐字节一致 | 历史固定 workload；这是 payload interval，不是 whole-block latency、持续吞吐或 Fmax | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
 | Multi-Engine wrapper | 历史 buffered profile 为 `785 / 397.52 / 197.41 cycles/block`，2/4 Engine 扩展效率 `98.7368% / 99.4115%` | `785` 是 Stage16D2 导入 reference，不是 wrapper `NUM_ENGINES=1` 重跑；历史平均 spacing 为 `8220 -> 785 cycles/block`、`10.47×`，见详细文档 | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
-| Direct-AXIS 低缓存重构 | 删除 DDR feeder 与 per-Engine payload commit；同库同约束 315 MHz DC A/B 的 cell area/count 减少 `72.53% / 71.98%` | 双 Engine、全寄存器、DC-only 架构 A/B；Direct RTL 约 `~277 > 256 cycles/block`，不声明持续零间隔调度 | [Direct RTL evidence](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
+| Direct-AXIS 低缓存重构 | 删除 DDR feeder 与 per-Engine payload commit；同库同约束 315 MHz DC A/B 的 cell area/count 减少 `72.53% / 71.98%` | 双 Engine、全寄存器、DC-only 架构 A/B；Direct RTL 约 `~277 > 256 cycles/block`，不声明持续零间隔调度 | [Direct RTL](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [真实流时序](evidence/rdtc_v1_direct_stream_timing_trace.yaml) · [DC A/B](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
 | FPGA / ASIC 落地边界 | Direct FPGA OOC 200 MHz；Direct register-expanded / 8-macro OpenRAM 分别在 `600/300 MHz` 完成 fixed academic post-route PrimeTime setup/hold 闭合 | FPGA 不声明 bitstream/板级吞吐；ASIC 频率不是 Fmax 或 foundry signoff | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [结果矩阵](docs/zh-CN/results.md) |
 
 <p align="center">
@@ -66,9 +66,7 @@ Raw Tensor Block / 原始张量块
 | 尾拍 | `m_axis_comp_tuser[3:0] = valid_byte_count - 1`；主 AXIS128 不使用 TKEEP |
 | Backpressure | 正常非 fatal 路径中 `TVALID=1, TREADY=0` 时，`TDATA/TUSER/TLAST` 保持稳定 |
 
-[查看 64-byte header、payload 与两种长度合同](docs/zh-CN/bitstream_format.md) · [查看 Direct 四路浅输入 ring](docs/zh-CN/architecture.md#four-way-shallow-input-ring)
-
-README 使用上面的紧凑文本合同，不嵌入 legacy 图资产 `docs/assets/rdtc_data_contract.svg`；详细字节格式与协议时序分别见 linked pages。
+[查看 64-byte header、payload 与两种长度合同](docs/zh-CN/bitstream_format.md) · [查看 Direct 四路浅输入 ring](docs/zh-CN/architecture.md#four-way-shallow-input-ring) · [查看真实流时序与握手](docs/zh-CN/stream_timing.md#direct-engine0-trace)
 
 ### 选择集成入口
 
@@ -110,9 +108,10 @@ make rtl-smoke
 make multiengine-smoke
 make bitpacker-pipeline-ab-validate
 make bounded-dc-ab-validate
+make direct-stream-timing-validate
 ```
 
-首项生成 public-safe 配置，随后四项编译或运行公开 C/RTL 入口；末两项只校验脱敏的公开 Evidence、身份和计算合同，不会重新执行 Design Compiler、P&R 或 PrimeTime。
+首项生成 public-safe 配置，随后四项编译或运行公开 C/RTL 入口；末三项只校验脱敏的公开 Evidence、身份和计算合同，不会重新执行 ModelSim、Design Compiler、P&R 或 PrimeTime。
 
 <a id="public-scope-provenance"></a>
 

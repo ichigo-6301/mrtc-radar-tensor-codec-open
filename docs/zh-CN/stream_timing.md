@@ -2,7 +2,7 @@
 
 [English](../en/stream_timing.md) · [返回首页](../../README.md)
 
-本页面向 IP 集成和数字 IC 代码审阅，区分 AXIS 协议合同、固定回归观测和历史吞吐结果。它不新增 RTL 功能，也不把协议 schematic 写成通用延迟保证。
+本页面向 IP 集成和数字 IC 代码审阅，区分 AXIS 协议合同、固定回归观测和历史吞吐结果。它不新增 RTL 功能，也不把一次功能 trace 写成通用延迟保证。
 
 <a id="protocol-timing-contract"></a>
 
@@ -10,9 +10,9 @@
 
 当前 bounded Direct-AXIS profile 是一个固定双 Engine wrapper：单路输入每个 block 为 `256` 个完整 AXIS128 beat，descriptor 按 Engine `0 -> 1` 轮转，输出 packet 按 job 顺序选择并锁定到 `TLAST`。输入 producer 必须先完成 descriptor 预约，只在 wrapper 报告的合法 ready 窗口发送数据。
 
-![Bounded Direct-AXIS protocol timing schematic](../assets/rdtc_stream_timing.svg)
+![Bounded Direct-AXIS fixed functional stream trace](../assets/rdtc_stream_timing.svg)
 
-上图是 protocol schematic，不是 measured waveform。协议上的时序关系是：
+上图由已发布 nominal/backpressure CSV 确定性生成，显示固定 ModelSim 功能回归中的真实事件顺序；绝对 cycle 仅用于复核关系，不是 frequency、duty 或 throughput claim。协议上的时序关系是：
 
 ```text
 input:       256 accepted AXIS128 beats; input TLAST on beat 255
@@ -30,36 +30,33 @@ backpressure: TVALID/TUSER/TDATA/TLAST hold while TREADY is low
 
 ## Direct Engine 0 / Block 0 Trace
 
-预留 Evidence：`evidence/rdtc_v1_direct_stream_timing_trace.yaml`。该记录应由固定 register-expanded ModelSim regression 生成，并绑定 nominal 与 backpressure 场景的逐周期 CSV、testbench/filelist 身份及 trace SHA256。
+公开 [Evidence](../../evidence/rdtc_v1_direct_stream_timing_trace.yaml) 绑定固定 `99dbd4b`、ModelSim 2020.4、testbench/filelist/runner 身份，以及 [nominal CSV](../../evidence/data/rdtc_v1_direct_stream_timing_nominal.csv) 和 [backpressure CSV](../../evidence/data/rdtc_v1_direct_stream_timing_backpressure.csv)。两份 curated trace 均覆盖 cycle `6..603`，每份 `598` 行；完整 simulator log 和本机路径不公开，只记录 SHA256。
 
 观测对象是**双 Engine wrapper 内 Engine 0 / Block 0 的切片**，不是把 wrapper 改成 `NUM_ENGINES=1`，也不是独立单 Engine 系统吞吐实验。nominal 场景保持输出 `TREADY=1`，用于观察输入 fire、prefix 完成、ring request、四拍 header、payload bubble 和 packet `TLAST`；backpressure 场景在 header 与 payload 各施加固定 stall，用于检查 stall 时 packet 数据和边界保持。
 
-推荐的 trace 字段包括 `cycle`、`input_fire`、`prefix_done`、`selected_k_valid`、`ring_rd_req`、`m_axis_tvalid`、`m_axis_tready`、`m_axis_tlast`、`engine_id` 与 `block_id`。未来 Evidence 发布前，必须以实际 ModelSim 输出核对这些字段，不能从 schematic 推导周期数。
+| Engine 0 / Block 0 事件 | nominal 固定观测 | 解释 |
+|---|---:|---|
+| 输入 accepted beats | `6..261` | 共 256 拍；前 32 拍为 `6..37` |
+| `prefix_done` / `selected_k_valid` | `47 / 48` | `k=0`，早于首次 ring read |
+| ring read request / response | `56..311 / 58..313` | 地址 `0..255`、request `II=1`、response 固定晚两拍 |
+| accepted header | `50..53` | 固定 4 拍 |
+| 首个 payload / packet TLAST | `86 / 326` | payload 内存在合法 `TVALID` bubble |
+
+该观测只是双 Engine wrapper 内的 Engine 0 / Block 0 切片。完整两-block trace 还验证 Block 1 分配给 Engine 1、packet beat 数为 `20/72`；testbench 在 output FIFO 写入侧采样实际 job identity，并按 FIFO slot 在外部 AXIS 读出侧复核 owner，证明共享输出从 P0 锁定到 P1。最终拍分别为 `16/15` 个有效字节，对应 `320/1151 B` packet；packet 数据/sideband 一致且 decoder bit-exact。
 
 <a id="backpressure-hold"></a>
 
 ## Backpressure Hold
 
-在正常非 fatal 路径中，当 `m_axis_comp_tvalid=1` 且 `m_axis_comp_tready=0` 时，当前 `TDATA`、`TUSER`、`TLAST` 和 packet owner 必须保持，直到握手完成。packet 内可以有空拍，但不能在一个 packet 内交织不同 Engine 的 beat。Direct output credit 耗尽会进入 sticky fatal；该 fail-stop 情况不应被描述为普通 backpressure hold 的成功案例。
+在正常非 fatal 路径中，当 `m_axis_comp_tvalid=1` 且 `m_axis_comp_tready=0` 时，当前 `TDATA`、`TUSER`、`TLAST` 和 packet owner 必须保持，直到握手完成。固定 backpressure trace 在 header beat 1 的 cycle `51-52` 与 payload beat 4 的 cycle `86-87` 各保持两拍；validator 逐字段比较 hold 周期和随后 accepted beat，并确认 accepted packet 序列与 nominal 完全相同。packet 内可以有空拍，但不能在一个 packet 内交织不同 Engine 的 beat。Direct output credit 耗尽会进入 sticky fatal；该 fail-stop 情况不应被描述为普通 backpressure hold 的成功案例。
 
 <a id="multi-engine-packet-service"></a>
 
 ## Multi-Engine Packet Service
 
-历史 buffered wrapper 的模型是 block 级 Round-Robin、每 Engine 独立 packet buffer、共享输出 packet-lock：
+![Fixed two-block Direct packet service](../assets/rdtc_multiengine_packet_timing.svg)
 
-```text
-Input blocks   B0 -------- B1 -------- B2 -------- B3
-Dispatcher     E0          E1          E0          E1
-
-Engine 0                 P0 ---------------- P2 ----
-Engine 1                       P1 ---------------- P3
-
-Shared AXIS     | Packet 0 | gap | Packet 1 | Packet 2 |
-                <--- packet lock --->
-```
-
-这是 packet 原子性和可能存在 packet 间空拍的示意；实际完成顺序由数据相关编码长度决定。未来专用展示图预留为 `docs/assets/rdtc_multiengine_packet_timing.svg`，不把它与当前 Direct Engine 0 trace 或历史 scaling CSV 混成一个 workload。
+固定 Direct trace 只包含两个真实 block：B0 由 E0 接收并输出 P0，B1 由 E1 接收并输出 P1。共享 AXIS 在 P0 内保持 owner 0，accepted TLAST 后才切换到 owner 1；packet 内允许 `TVALID` bubble，但不允许 Engine beat interleaving。图中不补画未运行的 P2/P3，也不把这次两-block protocol trace 当成历史 Multi-Engine scaling workload。
 
 历史 fixed-commit 256-block workload 的 Stage16D2 单 Engine reference 为 `785 cycles/block`，2/4 Engine buffered wrapper 为 `397.52 / 197.41 cycles/block`，扩展效率为 `98.7368% / 99.4115%`。其中 `785` 是导入 reference，不是 wrapper `NUM_ENGINES=1` 重跑；`8220 -> 785` 是平均 packet-completion spacing 的历史 A/B，和 `7693 -> 721` 的 payload interval 不是同一指标。
 
@@ -70,6 +67,6 @@ Shared AXIS     | Packet 0 | gap | Packet 1 | Packet 2 |
 - `7693 -> 721 cycles`：固定 `smoke_zero_sparse` workload，从首个 payload valid 到 accepted `TLAST` 的 inclusive payload interval；不是 whole-block latency、Multi-Engine 吞吐或 Direct-AXIS 持续吞吐。
 - `785 / 397.52 / 197.41 cycles/block`：历史 buffered profile 的 RTL simulation projection；不是 FPGA 时序、板级 DDR 或网络测量。
 - 当前 Direct profile 的有序 packet service 约 `277 cycles/block`，而零间隔输入到达间隔为 `256 cycles/block`；这保留为 scheduler 限制，不升级为协议保证或持续吞吐 PASS。
-- 未来 trace 是有限 ModelSim 观测，不是所有参数、所有压缩码长、所有 backpressure 模式的形式证明或 coverage closure。
+- 本页 trace 是有限 ModelSim 功能观测，不是所有参数、所有压缩码长、所有 backpressure 模式的形式证明或 coverage closure。
 
 相关规范入口：[接口合同](interfaces.md) · [码流格式](bitstream_format.md) · [四路浅输入 ring](architecture.md#four-way-shallow-input-ring) · [验证矩阵](verification.md)

@@ -75,7 +75,8 @@ REVIEW_README_MARKERS = {
         "600/300 MHz",
         "make bitpacker-pipeline-ab-validate",
         "make bounded-dc-ab-validate",
-        "不会重新执行 Design Compiler、P&R 或 PrimeTime",
+        "make direct-stream-timing-validate",
+        "不会重新执行 ModelSim、Design Compiler、P&R 或 PrimeTime",
         "docs/assets/bitpacker_pipeline_ab.svg",
         "docs/assets/engine_scaling.svg",
         'width="760"',
@@ -99,7 +100,8 @@ REVIEW_README_MARKERS = {
         "600/300 MHz",
         "make bitpacker-pipeline-ab-validate",
         "make bounded-dc-ab-validate",
-        "do not rerun Design Compiler, P&R, or PrimeTime",
+        "make direct-stream-timing-validate",
+        "do not rerun ModelSim, Design Compiler, P&R, or PrimeTime",
         "docs/assets/bitpacker_pipeline_ab.svg",
         "docs/assets/engine_scaling.svg",
         'width="760"',
@@ -118,6 +120,7 @@ REVIEW_EVIDENCE_LINKS = {
         "evidence/rdtc_v1_multiengine_rtl.yaml",
         "evidence/data/rdtc_v1_multiengine_scaling.csv",
         "evidence/rdtc_v1_bounded_direct_rtl.yaml",
+        "evidence/rdtc_v1_direct_stream_timing_trace.yaml",
         "evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml",
         "evidence/rdtc_v1_bounded_direct_asic.yaml",
         "docs/zh-CN/results.md",
@@ -130,6 +133,7 @@ REVIEW_EVIDENCE_LINKS = {
         "evidence/rdtc_v1_multiengine_rtl.yaml",
         "evidence/data/rdtc_v1_multiengine_scaling.csv",
         "evidence/rdtc_v1_bounded_direct_rtl.yaml",
+        "evidence/rdtc_v1_direct_stream_timing_trace.yaml",
         "evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml",
         "evidence/rdtc_v1_bounded_direct_asic.yaml",
         "docs/en/results.md",
@@ -175,22 +179,25 @@ DIRECT_EVIDENCE = (
     "evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml",
     "evidence/rdtc_v1_bounded_direct_asic.yaml",
     "evidence/data/rdtc_v1_bounded_direct_rtl_identity.csv",
+    "evidence/rdtc_v1_direct_stream_timing_trace.yaml",
+    "evidence/data/rdtc_v1_direct_stream_timing_nominal.csv",
+    "evidence/data/rdtc_v1_direct_stream_timing_backpressure.csv",
 )
 
 DATA_CONTRACT_MARKERS = {
     "README.md": (
         '<a id="data-contract"></a>',
-        "docs/assets/rdtc_data_contract.svg",
         "4096B 原始 Block 如何变成变长 Packet",
         "docs/zh-CN/bitstream_format.md",
         "docs/zh-CN/architecture.md#four-way-shallow-input-ring",
+        "docs/zh-CN/stream_timing.md#direct-engine0-trace",
     ),
     "README.en.md": (
         '<a id="data-contract"></a>',
-        "docs/assets/rdtc_data_contract.svg",
         "From A 4096-Byte Raw Block To A Variable-Length Packet",
         "docs/en/bitstream_format.md",
         "docs/en/architecture.md#four-way-shallow-input-ring",
+        "docs/en/stream_timing.md#direct-engine0-trace",
     ),
     "docs/zh-CN/bitstream_format.md": (
         '<a id="header-layout"></a>',
@@ -216,20 +223,18 @@ DATA_CONTRACT_MARKERS = {
         '<a id="four-way-shallow-input-ring"></a>',
         '<a id="stream-timing-contract"></a>',
         "rdtc_way_ring.svg",
-        "rdtc_stream_timing.svg",
         "prefix-128",
-        "不是 measured waveform",
-        "正常非 fatal 路径",
+        "stream_timing.md#protocol-timing-contract",
+        "合法、非 fatal capture",
         "MRTC_ERR_SRAM_WAY_CONFLICT",
     ),
     "docs/en/architecture.md": (
         '<a id="four-way-shallow-input-ring"></a>',
         '<a id="stream-timing-contract"></a>',
         "rdtc_way_ring.svg",
-        "rdtc_stream_timing.svg",
         "prefix-128",
-        "not a measured waveform",
-        "normal non-fatal path",
+        "stream_timing.md#protocol-timing-contract",
+        "legal, non-fatal capture",
         "MRTC_ERR_SRAM_WAY_CONFLICT",
     ),
     "docs/zh-CN/interfaces.md": (
@@ -245,6 +250,45 @@ DATA_CONTRACT_MARKERS = {
         "active-low asynchronous datapath reset",
         "does not clear sticky fatal status",
         "MRTC_ERR_BLOCK_NOT_READY",
+    ),
+}
+
+STREAM_TIMING_MARKERS = {
+    "docs/zh-CN/stream_timing.md": (
+        '<a id="protocol-timing-contract"></a>',
+        '<a id="direct-engine0-trace"></a>',
+        '<a id="backpressure-hold"></a>',
+        '<a id="multi-engine-packet-service"></a>',
+        '<a id="measurement-boundaries"></a>',
+        "rdtc_stream_timing.svg",
+        "rdtc_multiengine_packet_timing.svg",
+        "rdtc_v1_direct_stream_timing_trace.yaml",
+        "rdtc_v1_direct_stream_timing_nominal.csv",
+        "rdtc_v1_direct_stream_timing_backpressure.csv",
+        "99dbd4b",
+        "6..603",
+        "51-52",
+        "86-87",
+        "20/72",
+        "320/1151",
+    ),
+    "docs/en/stream_timing.md": (
+        '<a id="protocol-timing-contract"></a>',
+        '<a id="direct-engine0-trace"></a>',
+        '<a id="backpressure-hold"></a>',
+        '<a id="multi-engine-packet-service"></a>',
+        '<a id="measurement-boundaries"></a>',
+        "rdtc_stream_timing.svg",
+        "rdtc_multiengine_packet_timing.svg",
+        "rdtc_v1_direct_stream_timing_trace.yaml",
+        "rdtc_v1_direct_stream_timing_nominal.csv",
+        "rdtc_v1_direct_stream_timing_backpressure.csv",
+        "99dbd4b",
+        "6..603",
+        "51-52",
+        "86-87",
+        "20/72",
+        "320/1151",
     ),
 }
 
@@ -293,6 +337,17 @@ def check(root):
         for marker in markers:
             if marker not in text:
                 errors.append("{} missing data-contract marker {}".format(name, marker))
+    for name, markers in STREAM_TIMING_MARKERS.items():
+        text = (root / name).read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                errors.append("{} missing stream-timing marker {}".format(name, marker))
+    legacy_data_contract = root / "docs/assets/rdtc_data_contract.svg"
+    if legacy_data_contract.exists():
+        errors.append("obsolete README data-contract SVG is still present")
+    for name in ("README.md", "README.en.md"):
+        if "rdtc_data_contract.svg" in (root / name).read_text(encoding="utf-8"):
+            errors.append("{} still references the obsolete data-contract SVG".format(name))
     for name in DIRECT_EVIDENCE:
         if not (root / name).is_file():
             errors.append("missing bounded Direct evidence: {}".format(name))
