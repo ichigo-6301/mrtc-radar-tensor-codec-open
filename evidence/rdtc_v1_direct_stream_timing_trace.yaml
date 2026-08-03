@@ -1,0 +1,98 @@
+title: RDTC v1 bounded Direct-wrapper deterministic stream-timing trace
+status: verified
+evidence_id: rdtc_v1_direct_stream_timing_trace_public
+claim_id: rdtc_v1_direct_stream_timing_protocol_pass
+nonclaim_id: rdtc_v1_direct_stream_timing_no_performance_generalization
+source_ref: 88d7bff04e2f61d60373ca400aa95026b8829bd5
+source_visibility: public_fixed_review_commit
+public_evidence_scope: curated cycle traces for one fixed dual-Engine register-expanded Direct-wrapper two-block regression, plus hashes of unpublished ModelSim run artifacts
+fresh_replay_date: "2026-08-04"
+profile:
+  top: mrtc_rdtc_bounded_axis_multiengine_wrapper
+  storage: register-expanded four-way shallow rings
+  engines: 2
+  block_count: 2
+  block_assignment: block 0 to Engine 0, block 1 to Engine 1
+  codec: bounded ZERO_RICE with prefix-128 adaptive k
+  displayed_slice: final dual-Engine wrapper, with Engine 0 / Block 0 highlighted
+  isolated_single_engine_run: false
+tool:
+  name: ModelSim SE-64 2020.4
+  version: Model Technology ModelSim SE-64 vsim 2020.4 Simulator 2020.10 Oct 13 2020
+  executable_sha256: 011f110291dc69707d7118e8f8d712b91438e0c837f9bc10ce6bf53c1d048cfd
+  functional_clock_period_ns: 10.0
+  timing_claim: not_applicable_functional_simulation
+source_identity:
+  aggregate_sha256: f93fea014827eb1fd720ade9dc83ebfb1db289f1b359134293baef561b18b5c5
+  filelist: flows/manifests/rdtc_v1_bounded_direct.f
+  filelist_sha256: 4ed6d78dd51f5dfdc1bbb00f122437539345522a16b80ca3512220e6cbeed7a9
+  testbench: tb/sv/tb_mrtc_bounded_axis_multiengine_wrapper.sv
+  testbench_sha256: 99991bac24293119375bea80e7782089b4da7b410f273543fe3eda091d040abb
+  runner: flows/scripts/bounded_direct_modelsim_regression.py
+  runner_sha256: 6e527d89a87ecf39f7c9f7b1c631f7f0372d63a8ecc8d521e75991788b792f6c
+normalized_trace_sha256: c0da722b93448cced40ad4ab602a77ce178ae0b8df41c90eb1c1a9226583f3cf
+scenarios:
+  nominal:
+    command: python flows/scripts/bounded_direct_modelsim_regression.py --root . --filelist flows/manifests/rdtc_v1_bounded_direct.f --profiles register --build-dir build/direct-stream-timing/nominal --timeout-seconds 600
+    return_code: 0
+    worktree_status: clean
+    raw_manifest_sha256: d4b7307bf1911a74b33d459e8937890ac1463be834074de1edf72dcc1323a545
+    raw_compile_log_sha256: e8deaf51b0688b8cf7eff0a1c233a46262665250b74bd2777cf5c0f9abca3049
+    raw_run_log_sha256: bfb48b71814977dfc69571295adcb963ee63898dd0d39fbccca24f23050549e6
+    raw_cycle_trace_sha256: 1cde77a354c2d43aada390b275c009be42bf8473ec3e93b31b3115dbdd9e9071
+    raw_cycle_rows: 5316
+    curated_data: evidence/data/rdtc_v1_direct_stream_timing_nominal.csv
+    curated_data_sha256: 321b6f06d028183d4a0f776d87156d2a1bf9693b38c375330a53428d41785392
+    curated_cycle_range: [6, 603]
+    curated_rows: 598
+    backpressure_markers: []
+    result: pass
+  backpressure:
+    command: python flows/scripts/bounded_direct_modelsim_regression.py --root . --filelist flows/manifests/rdtc_v1_bounded_direct.f --profiles register --build-dir build/direct-stream-timing/backpressure --timeout-seconds 600 --short-backpressure
+    return_code: 0
+    worktree_status: clean
+    raw_manifest_sha256: 05a8de312c20f3d0f0acbcaf8c1643e4c19d6928ac970295dc263e5774157d5f
+    raw_compile_log_sha256: 6b724b92cb5ba98758aa2d711a66f182191721605665f8fca06ff5ae110bbc5a
+    raw_run_log_sha256: f6b89f4ad89de42f256d83affdcae8f61ecaec462d7f0e3f8f77e2c49592d427
+    raw_cycle_trace_sha256: 49c36694683d98fc05d70529fe1cdfeadb170100015ce2adebf975d74b33323d
+    raw_cycle_rows: 5316
+    curated_data: evidence/data/rdtc_v1_direct_stream_timing_backpressure.csv
+    curated_data_sha256: 4ba2fc62ff54134081c0875187ebe4a3382b585004c69ccbea059bde1d79aa1d
+    curated_cycle_range: [6, 603]
+    curated_rows: 598
+    backpressure_markers:
+      - kind: header
+        cycle: 51
+        packet: 0
+        beat: 1
+        stall_cycles: 2
+      - kind: payload
+        cycle: 86
+        packet: 0
+        beat: 4
+        stall_cycles: 2
+    result: pass
+checks:
+  cycle_contiguous_no_xz: true
+  input_engine_block_identity: true
+  prefix_32_beats_before_k: true
+  ring_request_addresses_0_to_255_ii1: true
+  ring_response_latency_two_cycles: true
+  four_header_beats_and_unique_tlast: true
+  packet_owner_lock_no_interleaving: true
+  backpressure_hold_stable: true
+  packet_data_and_sideband_match: true
+  decoder_bit_exact: true
+  no_fatal_or_error: true
+decoder:
+  bit_exact: true
+  blocks: 2
+  samples_per_block: 1024
+  axis_words_total: 512
+result: pass
+boundaries:
+  - This is a finite protocol trace from the final fixed dual-Engine Direct wrapper, not an isolated NUM_ENGINES=1 throughput run.
+  - Absolute functional-simulation cycles are shown only to make event ordering auditable; they are not a frequency, Fmax, or timing-closure result.
+  - The trace does not establish universal latency, measured TVALID duty, Multi-Engine scaling, or sustained zero-gap operation.
+  - The existing approximately 277-cycle ordered packet service versus 256-cycle zero-gap arrival limitation remains unchanged.
+  - Raw ModelSim transcripts, manifests, WLF data, and local paths are not published; only curated CSV rows and SHA256 identities are public.

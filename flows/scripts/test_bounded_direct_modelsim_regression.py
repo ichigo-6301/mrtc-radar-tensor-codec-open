@@ -764,6 +764,8 @@ class BoundedDirectModelsimRegressionTests(unittest.TestCase):
         self.assertIn("bounded-direct-modelsim-regression:", makefile)
         self.assertIn("bounded-direct-register-modelsim-regression:", makefile)
         self.assertIn("bounded-direct-modelsim-regression-dry-run:", makefile)
+        self.assertIn("direct-stream-timing-modelsim:", makefile)
+        self.assertIn("direct-stream-timing-validate:", makefile)
 
 
 if __name__ == "__main__":

@@ -301,3 +301,18 @@ claims:
     status: verified
     caveat: "This is average single-Engine packet-completion spacing over fixed 256-block streams, not one-block latency, current Direct-AXIS throughput, FPGA timing, ASIC frequency, or Fmax."
     public: true
+  - id: rdtc_v1_direct_stream_timing_protocol_pass
+    profile: rdtc_v1_bounded_direct_axis
+    statement: "One fixed two-block register-expanded Direct-wrapper ModelSim regression passed cycle-continuity, prefix/k ordering, 256-address II=1 ring reads with two-cycle responses, four-beat header, packet-lock, deterministic output-backpressure hold, packet-data/sideband identity, and bit-exact decoder checks."
+    metric: direct_stream_timing_protocol_check
+    value: pass
+    unit: result
+    benchmark: fixed dual-Engine bounded Direct-wrapper nominal and deterministic-backpressure traces
+    configuration: "block 0 to Engine 0 and block 1 to Engine 1, bounded ZERO_RICE prefix-128, register-expanded four-way rings, two-cycle stalls on packet-0 header beat 1 and payload beat 4"
+    source_ref: 88d7bff04e2f61d60373ca400aa95026b8829bd5
+    tool: ModelSim SE-64 2020.4
+    evidence:
+      - rdtc_v1_direct_stream_timing_trace_public
+    status: verified
+    caveat: "Finite protocol regression only; not universal latency or duty, isolated single-Engine throughput, Multi-Engine scaling, sustained zero-gap throughput, FPGA/ASIC timing, or Fmax."
+    public: true

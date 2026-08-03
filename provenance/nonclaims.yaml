@@ -67,3 +67,9 @@ nonclaims:
     reason: "It is the average packet-completion spacing over fixed 256-block single-Engine streams; both A/B points already retain prefix-during-capture."
     status: not_claimed
     public: true
+  - id: rdtc_v1_direct_stream_timing_no_performance_generalization
+    profile: rdtc_v1_bounded_direct_axis
+    statement: "The fixed Direct-wrapper stream trace does not claim universal block latency or TVALID duty, isolated single-Engine system throughput, Multi-Engine scaling, sustained zero-gap operation, FPGA/ASIC timing, or Fmax."
+    reason: "It is a finite two-block functional protocol regression with deterministic short backpressure; absolute simulation cycles only make event ordering auditable."
+    status: not_claimed
+    public: true

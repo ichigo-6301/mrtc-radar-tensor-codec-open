@@ -214,3 +214,15 @@ evidence:
     sha256: 95af9de48008eb2e262958f1de593fd8222693ba55a9ffbac883715040c871b0
     public: true
     maturity: verified
+  - id: rdtc_v1_direct_stream_timing_trace_public
+    path: evidence/rdtc_v1_direct_stream_timing_trace.yaml
+    type: direct_wrapper_deterministic_stream_timing_trace
+    source_ref: 88d7bff04e2f61d60373ca400aa95026b8829bd5
+    source_visibility: public_fixed_review_commit
+    public_evidence_scope: curated nominal and deterministic-backpressure cycle traces, source/tool identities, and hashes of unpublished ModelSim run artifacts
+    tool: ModelSim SE-64 2020.4
+    claims:
+      - rdtc_v1_direct_stream_timing_protocol_pass
+    sha256: 838810b796a11029594fa1e0826f82da81223d141d82abcd692a5461496491c8
+    public: true
+    maturity: verified
