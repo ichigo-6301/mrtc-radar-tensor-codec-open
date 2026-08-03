@@ -56,6 +56,8 @@ payload_stream_cycles = packet_last_cycle - payload_first_valid_cycle + 1
 
 Baseline端点为 `1169 -> 8861`，得到 `7693 cycles`；optimized端点为 `706 -> 1426`，得到 `721 cycles`。校验同时固定 `selected_k=0`、`payload_bits=2158`、`payload_bytes=270`、`packet_bytes=334`、零input/output stall、packet byte-exact与decoder loopback。公开validator还检查输入、manifest、expected packet、历史CSV和fresh replay摘要哈希。
 
+同两版的256-block stream还按相邻packet完成间隔统计单Engine steady-state吞吐：Stage16C3为 `8220 cycles/block`，Stage16D2为 `785 cycles/block`。公开Evidence绑定对应 `throughput_summary.csv` 的Git blob与SHA256。该定义是平均packet-completion spacing，不是单block latency；两版均保留prefix-during-capture。
+
 公开入口：`make bitpacker-pipeline-ab-validate`。证据见[Bitpacker A/B evidence](../../evidence/rdtc_v1_bitpacker_pipeline_ab.yaml)。
 
 ## Multi-Engine Regression

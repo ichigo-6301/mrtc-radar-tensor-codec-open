@@ -17,17 +17,18 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 | 结果 | 已核验内容与适用范围 | 直接 Evidence |
 |---|---|---|
 | 编解码与验证 | `RAW_BYPASS`、`ZERO_RICE`、`DELTA_RICE` 三模式；`1024` 个 I16Q16 sample/block、64-byte header、128-bit AXI-Stream；MATLAB/C/DPI-C/RTL 有限向量 bit-exact | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [验证矩阵](docs/zh-CN/verification.md) |
-| Bitpacker A/B | 固定 `smoke_zero_sparse` 历史 RTL workload；首个 payload valid 到 accepted packet `TLAST` 的 inclusive interval `7693 -> 721 cycles`，提升 `10.67×`；不是 whole-block latency 或系统吞吐 | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
+| 单 Engine 流水 A/B | 固定 256-block ZERO_RICE 历史 RTL stream；平均 packet-completion spacing `8220 -> 785 cycles/block`，提升 `10.47×`；其中 payload interval 为 `7693 -> 721 cycles`、`10.67×` | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
+| Multi-Engine 扩展 | 历史 buffered wrapper 的固定 256-block RTL workload；1/2/4 Engine 平均块间隔 `785 / 397.52 / 197.41 cycles/block`，扩展效率 `98.7368% / 99.4115%` | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
 | Bounded Direct 双 Engine | 单路 AXIS128、严格 Engine `0 -> 1` block 轮转、有序 packet mux；双 block regression 的 packet/sideband/selected-k 一致且 decoder bit-exact；`~277 > 256 cycles/block`，不声明持续零间隔调度 | [Direct RTL evidence](evidence/rdtc_v1_bounded_direct_rtl.yaml) |
 | Direct-AXIS DC A/B | 同一 Nangate45 library、315 MHz SDC、双 Engine、全寄存器、禁止 retime；cell area/count 减少 `72.53% / 71.98%`，仅为 DC-only 架构 A/B | [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
 | ASIC post-route STA | Direct register-expanded / 8-macro OpenRAM profile 分别在 `600/300 MHz` 完成 fixed academic post-route PrimeTime setup/hold 闭合；不是 Fmax 或 foundry signoff | [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [结果矩阵](docs/zh-CN/results.md) |
 | FPGA OOC | Direct-AXIS 在 `xc7z100ffg900-2` 上完成 Vivado 2022.2 OOC post-route 200 MHz；WNS `+0.001/+0.062 ns`，`32,672 LUT / 18,519 FF / 0 BRAM`；不声明 bitstream 或板级吞吐 | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) |
 
 <p align="center">
-  <a href="evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"><img src="docs/assets/bitpacker_pipeline_ab.svg" width="760" alt="Fixed-workload Bitpacker RTL pipeline A/B"></a>
+  <a href="evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"><img src="docs/assets/bitpacker_pipeline_ab.svg" width="760" alt="Single-Engine steady-state RTL pipeline A/B"></a>
 </p>
 <p align="center">
-  <a href="docs/zh-CN/results.md"><img src="docs/assets/bounded_direct_dual_engine.svg" width="760" alt="Current bounded Direct-AXIS dual-Engine architecture and fixed closure points"></a>
+  <a href="evidence/rdtc_v1_multiengine_rtl.yaml"><img src="docs/assets/engine_scaling.svg" width="760" alt="Historical buffered Multi-Engine average block-interval scaling"></a>
 </p>
 
 <a id="rtl-reading-path"></a>

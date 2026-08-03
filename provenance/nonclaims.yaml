@@ -61,3 +61,9 @@ nonclaims:
     reason: "It measures only the inclusive interval from first payload valid to accepted packet TLAST on one fixed smoke_zero_sparse RTL workload."
     status: not_claimed
     public: true
+  - id: rdtc_v1_single_engine_interval_no_latency_or_direct
+    profile: rdtc_v1_historical_lane4_bitpacker
+    statement: "The historical 8220-to-785 cycles/block result is not one-block latency, current Direct-AXIS sustained throughput, FPGA timing, ASIC frequency, or Fmax."
+    reason: "It is the average packet-completion spacing over fixed 256-block single-Engine streams; both A/B points already retain prefix-during-capture."
+    status: not_claimed
+    public: true

@@ -1,9 +1,9 @@
 title: RDTC v1 historical Bitpacker pipeline fixed-workload RTL A/B
 status: verified
 source_visibility: private_fixed_commits
-public_evidence_scope: curated two-point CSV, fixed source and vector identities, metric derivation, and fresh ModelSim replay hashes
+public_evidence_scope: curated two-point payload and single-Engine steady-state CSV, fixed source and vector identities, metric derivations, and fresh ModelSim replay hashes
 curated_data: evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv
-curated_data_sha256: 3b1455aa09a750b85baa4be2baa774fae9e15834ccdf8c4cdb0b11ba316bc37a
+curated_data_sha256: 7836af2603305125d29bc30942bbf2a16bcfbaa2eb664d41cdcd36c07f28309d
 tool: ModelSim SE-64 2020.4
 workload:
   name: smoke_zero_sparse
@@ -21,6 +21,11 @@ metric_definition:
   formula: packet_last_cycle - payload_first_valid_cycle + 1
   interval: inclusive
   packet_last_event: accepted packet TLAST
+steady_state_metric_definition:
+  name: single_engine_steady_state_cycles_per_block
+  formula: average packet-completion spacing over the fixed 256-block stream
+  interval: packet_last_cycle[n] - packet_last_cycle[n-1]
+  scope: single Engine with prefix-during-capture enabled at both A/B points
 points:
   baseline:
     branch: stage16c3-prefix-during-capture
@@ -30,9 +35,15 @@ points:
     source_latency_csv: docs/reports/data/stage16c3_latency/latency_per_block.csv
     source_latency_csv_git_blob: 5caec459dc0810e3bd54e75498fe61ba2bb8d6bb
     source_latency_csv_sha256: 974f6bd134e6a706e78746252a80239006f36609da8e74a130c640150e610d5c
+    source_throughput_csv: docs/reports/data/stage16c3_latency/throughput_summary.csv
+    source_throughput_csv_git_blob: 799cd70c9ea61155c6825c5aa22d61299a0e1aa3
+    source_throughput_csv_sha256: beb06f66ab286a66647be4ef1fd24856b1d1f1bd9a4ec4ca7055ea9279b5fd27
     payload_first_valid_cycle: 1169
     packet_last_cycle: 8861
     payload_stream_cycles: 7693
+    steady_state_scenario: prefix_capture_256_block_beam
+    steady_state_blocks: 256
+    steady_state_cycles_per_block: 8220
   optimized:
     branch: stage16d2-integrate-lane4-bitpacker
     source_commit: 2c1d9a75d2742659b604dd3f9c754096e196d132
@@ -41,12 +52,18 @@ points:
     source_latency_csv: docs/reports/data/stage16d2_integrated_lane4/latency_per_block.csv
     source_latency_csv_git_blob: a222dff12da80292596c21521a26213b2b260de2
     source_latency_csv_sha256: d78a04854ff297e679a7ed030edd23b90564efc8d6fc3c41b992da8dffd966e3
+    source_throughput_csv: docs/reports/data/stage16d2_integrated_lane4/throughput_summary.csv
+    source_throughput_csv_git_blob: 1c7e12127ee5f030d496f1cec656ef94d058e556
+    source_throughput_csv_sha256: 5f4558040382b439ce688bed749f13ea69994d61fd3e8931f72e703c328f5b7a
     source_packet_compare_csv: docs/reports/data/stage16d2_integrated_lane4/lane4_vs_legacy_packet_compare.csv
     source_packet_compare_csv_git_blob: d43ae69842672c6a70d2f257848cc406951dec99
     source_packet_compare_csv_sha256: e6b01207b1c78ddf412dd62dd9f25eeeebdf2a1146ae869f09c89fc7dfa0f2ab
     payload_first_valid_cycle: 706
     packet_last_cycle: 1426
     payload_stream_cycles: 721
+    steady_state_scenario: prefix_lane4_256_block_beam
+    steady_state_blocks: 256
+    steady_state_cycles_per_block: 785
 equivalence:
   selected_k: 0
   payload_bits: 2158
@@ -62,6 +79,9 @@ derivation:
   cycle_reduction: 6972
   cycle_reduction_percent: 90.62784349408554
   speedup: 10.669902912621358
+  steady_state_cycle_reduction: 7435
+  steady_state_cycle_reduction_percent: 90.45012165450122
+  steady_state_speedup: 10.471337579617835
 fresh_replay:
   date: 2026-08-01
   tool_version: Model Technology ModelSim SE-64 vsim 2020.4 Simulator 2020.10 Oct 13 2020
@@ -95,5 +115,7 @@ fresh_replay:
 result: pass
 caveats:
   - The 10.6699x value is the inclusive first-payload-valid to accepted-TLAST interval on one fixed historical RTL workload.
-  - It is not whole-block latency, Multi-Engine throughput, Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.
+  - The 10.4713x value is average packet-completion spacing over fixed 256-block single-Engine streams; it is not one-block latency.
+  - Both A/B points retain prefix-during-capture, so the measured delta isolates the integrated Lane4 Bitpacker rather than attributing the full change to front-end ping-pong.
+  - Neither metric is current Direct-AXIS sustained throughput, FPGA performance, ASIC frequency, or Fmax.
   - Historical source commits and raw ModelSim logs remain private; this public record publishes curated values and immutable identities only.
