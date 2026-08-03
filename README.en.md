@@ -37,20 +37,23 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 
 ```text
 Raw Tensor Block
-[1 beam x 64 Doppler x 16 Range]
-             | range fastest
-             v
-       256 x AXIS128
-             |
-             v
-    Predict / Map / Rice / Pack
-             |
-             v
-    +------------+------------------+
-    | 64B Header | Variable Payload |
-    | 4 beats    | N beats          |
-    +------------+------------------+
-                                  TLAST
+1 beam x 64 Doppler
+x 16 Range
+       | range fastest
+       v
+256 x AXIS128
+       |
+       v
+Predict / Map / Rice
+       |
+      Pack
+       |
+       v
++----------+------------+
+|64B Header|Var. Payload|
+|4 beats   |N beats     |
++----------+------------+
+                    TLAST
 ```
 
 - The producer flattens `S[spatial/beam, doppler, range]` with Range changing fastest. RTL consumes the flat sequence; it does not implement the upstream FFT.

@@ -37,20 +37,23 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 
 ```text
 Raw Tensor Block
-[1 beam x 64 Doppler x 16 Range]
-             | range fastest
-             v
-       256 x AXIS128
-             |
-             v
-    Predict / Map / Rice / Pack
-             |
-             v
-    +------------+------------------+
-    | 64B Header | Variable Payload |
-    | 4 beats    | N beats          |
-    +------------+------------------+
-                                  TLAST
+1 beam x 64 Doppler
+x 16 Range
+       | range fastest
+       v
+256 x AXIS128
+       |
+       v
+Predict / Map / Rice
+       |
+      Pack
+       |
+       v
++----------+------------+
+|64B Header|Var. Payload|
+|4 beats   |N beats     |
++----------+------------+
+                    TLAST
 ```
 
 - Producer 按 `S[spatial/beam, doppler, range]` 扁平化，Range 最快变化；RTL 接收扁平序列，不实现上游 FFT。
