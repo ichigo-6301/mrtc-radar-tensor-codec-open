@@ -1,71 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1360" viewBox="0 0 1200 1360" role="img" aria-labelledby="title desc">
-  <title id="title">RDTC stream timing - protocol schematic, not a measured waveform</title>
-  <desc id="desc">The first 32 of 256 accepted AXIS128 beats supply 128 prefix samples. Prefix selection enables a fixed four-beat header, followed by sequential ring reads with a fixed two-clock request-to-response contract and variable payload TVALID bursts. On the normal non-fatal path, TLAST ends the packet and TREADY backpressure holds all output fields stable.</desc>
-  <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
-    <style>
-      .title{font:700 48px Arial,sans-serif;fill:#0f172a}.sub{font:400 34px Arial,sans-serif;fill:#475569}.head{font:700 34px Arial,sans-serif;fill:#0f172a}.body{font:400 36px Arial,sans-serif;fill:#334155}.note{font:400 34px Arial,sans-serif;fill:#475569}.lane{stroke:#334155;stroke-width:3}.guide{stroke:#94a3b8;stroke-width:2;stroke-dasharray:9 8}.time{stroke:#334155;stroke-width:4;fill:none;marker-end:url(#arrow)}
-    </style>
-  </defs>
-  <rect width="1200" height="1360" fill="#f8fafc"/>
-  <text x="55" y="62" class="title">RDTC stream timing</text>
-  <text x="55" y="112" class="title">Protocol schematic, not a measured waveform</text>
-  <text x="55" y="160" class="sub">Horizontal spacing is illustrative.</text>
-  <text x="55" y="200" class="sub">Only labeled counts and ordering are contractual.</text>
-
-  <text x="55" y="250" class="head">phase</text>
-  <path d="M230 238 H1140" class="time"/>
-  <text x="1115" y="226" text-anchor="end" class="note">time</text>
-
-  <text x="55" y="335" class="head">Input</text>
-  <rect x="230" y="285" width="300" height="105" fill="#dbeafe" class="lane"/>
-  <text x="380" y="330" text-anchor="middle" class="body">first 32 beats</text>
-  <text x="380" y="372" text-anchor="middle" class="note">128 prefix samples</text>
-  <rect x="530" y="285" width="610" height="105" fill="#bfdbfe" class="lane"/>
-  <text x="835" y="330" text-anchor="middle" class="body">remaining 224 beats</text>
-  <text x="835" y="372" text-anchor="middle" class="note">total input block = 256 accepted beats</text>
-  <line x1="530" y1="265" x2="530" y2="1125" class="guide"/>
-  <text x="550" y="276" class="note">prefix k selection</text>
-
-  <text x="55" y="485" class="head">Ring write</text>
-  <rect x="230" y="425" width="910" height="110" rx="6" fill="#dcfce7" class="lane"/>
-  <text x="685" y="470" text-anchor="middle" class="body">Legal capture writes accepted beats to mapped slots.</text>
-  <text x="685" y="514" text-anchor="middle" class="note">Physical ways wrap after beat 127.</text>
-
-  <text x="55" y="640" class="head">Header</text>
-  <rect x="300" y="575" width="110" height="105" fill="#ede9fe" class="lane"/><rect x="410" y="575" width="110" height="105" fill="#ede9fe" class="lane"/><rect x="520" y="575" width="110" height="105" fill="#ede9fe" class="lane"/><rect x="630" y="575" width="110" height="105" fill="#ede9fe" class="lane"/>
-  <text x="355" y="640" text-anchor="middle" class="body">H0</text><text x="465" y="640" text-anchor="middle" class="body">H1</text><text x="575" y="640" text-anchor="middle" class="body">H2</text><text x="685" y="640" text-anchor="middle" class="body">H3</text>
-  <text x="780" y="606" class="body">fixed four-beat header</text>
-  <text x="780" y="648" class="note">each beat is held until</text>
-  <text x="780" y="684" class="note">TVALID &amp;&amp; TREADY</text>
-
-  <text x="55" y="790" class="head">Read req</text>
-  <rect x="650" y="730" width="110" height="100" fill="#fef3c7" class="lane"/><rect x="760" y="730" width="110" height="100" fill="#fef3c7" class="lane"/><rect x="870" y="730" width="110" height="100" fill="#fef3c7" class="lane"/>
-  <text x="705" y="793" text-anchor="middle" class="body">0</text><text x="815" y="793" text-anchor="middle" class="body">1</text><text x="925" y="793" text-anchor="middle" class="body">2</text>
-  <text x="1000" y="770" class="body">... 255</text>
-  <text x="1000" y="812" class="note">ordered, II=1</text>
-
-  <text x="55" y="940" class="head">Read rsp</text>
-  <path d="M705 830 V875" class="guide"/><path d="M815 830 V875" class="guide"/>
-  <rect x="760" y="875" width="110" height="100" fill="#fff7ed" class="lane"/><rect x="870" y="875" width="110" height="100" fill="#fff7ed" class="lane"/><rect x="980" y="875" width="110" height="100" fill="#fff7ed" class="lane"/>
-  <text x="815" y="938" text-anchor="middle" class="body">0</text><text x="925" y="938" text-anchor="middle" class="body">1</text><text x="1035" y="938" text-anchor="middle" class="body">2</text>
-  <text x="260" y="920" class="body">fixed two-clock</text>
-  <text x="260" y="962" class="note">request-to-response contract</text>
-
-  <text x="55" y="1075" class="head">Payload</text>
-  <rect x="230" y="1020" width="190" height="110" rx="6" fill="#cffafe" class="lane"/>
-  <rect x="520" y="1020" width="190" height="110" rx="6" fill="#cffafe" class="lane"/>
-  <rect x="830" y="1020" width="180" height="110" rx="6" fill="#cffafe" class="lane"/>
-  <text x="325" y="1062" text-anchor="middle" class="note">TVALID</text><text x="325" y="1102" text-anchor="middle" class="note">burst</text>
-  <text x="615" y="1062" text-anchor="middle" class="note">TVALID</text><text x="615" y="1102" text-anchor="middle" class="note">burst</text>
-  <text x="920" y="1085" text-anchor="middle" class="note">final burst</text>
-  <text x="470" y="1085" text-anchor="middle" class="note">bubble</text><text x="770" y="1085" text-anchor="middle" class="note">bubble</text>
-  <line x1="1010" y1="1000" x2="1010" y2="1150" stroke="#dc2626" stroke-width="5"/>
-  <text x="1030" y="1050" class="note">TLAST</text>
-  <text x="830" y="1184" text-anchor="middle" class="note">TUSER[3:0]</text>
-  <text x="830" y="1222" text-anchor="middle" class="note">= final valid bytes - 1</text>
-
-  <rect x="60" y="1255" width="1080" height="85" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="3"/>
-  <text x="600" y="1293" text-anchor="middle" class="body">Normal: low TREADY holds TVALID / data / TLAST / TUSER stable.</text>
-  <text x="600" y="1330" text-anchor="middle" class="note">Source II=1 does not imply continuous output TVALID.</text>
+<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="810" viewBox="0 0 1000 810" role="img" aria-labelledby="title desc">
+  <title id="title">Direct wrapper stream trace: Engine 0 / Block 0</title>
+  <desc id="desc">Fixed ModelSim functional trace from the final two-Engine Direct wrapper. The diagram derives input, prefix, ring, output, and deterministic backpressure events from public nominal and backpressure CSV files.</desc>
+  <style>.title{font:700 36px Arial,sans-serif;fill:#0f172a}.sub{font:400 25px Arial,sans-serif;fill:#475569}.lane{font:700 26px Arial,sans-serif;fill:#0f172a}.note{font:400 24px Arial,sans-serif;fill:#334155}.tiny{font:400 22px Arial,sans-serif;fill:#475569}.hash{font:400 24px 'Courier New',monospace;fill:#475569}.inside{font:700 20px Arial,sans-serif;fill:#0f172a}.axis{stroke:#64748b;stroke-width:2}.marker{stroke:#cbd5e1;stroke-width:1.5;stroke-dasharray:5 6}.input{fill:#bfdbfe;stroke:#2563eb;stroke-width:1}.prefix{fill:#dbeafe;stroke:#2563eb;stroke-width:1}.write{fill:#dcfce7;stroke:#16a34a;stroke-width:1}.request{fill:#fef3c7;stroke:#d97706;stroke-width:1}.response{fill:#ffedd5;stroke:#ea580c;stroke-width:1}.header{fill:#ddd6fe;stroke:#7c3aed;stroke-width:1}.payload{fill:#cffafe;stroke:#0891b2;stroke-width:1}.hold{fill:#fecaca;stroke:#dc2626;stroke-width:1}.accepted{fill:#bbf7d0;stroke:#16a34a;stroke-width:1}.panel{fill:#ffffff;stroke:#cbd5e1;stroke-width:1.5}</style>
+  <rect width="1000" height="810" fill="#f8fafc"/>
+  <text x="42" y="45" class="title">Direct wrapper stream trace: Engine 0 / Block 0</text>
+  <text x="42" y="73" class="sub">Fixed ModelSim functional trace, 2-Engine / 2-block register-expanded Direct wrapper</text>
+  <text x="42" y="98" class="sub">Cycle positions audit protocol ordering only; not a frequency, throughput, or duty claim.</text>
+<line x1="194.00" y1="120" x2="194.00" y2="490" class="marker"/><text x="194.00" y="112" class="tiny" text-anchor="middle">c6</text><line x1="269.60" y1="120" x2="269.60" y2="490" class="marker"/><text x="269.60" y="112" class="tiny" text-anchor="middle">c38</text><line x1="312.12" y1="120" x2="312.12" y2="490" class="marker"/><text x="312.12" y="112" class="tiny" text-anchor="middle">c56</text><line x1="919.29" y1="120" x2="919.29" y2="490" class="marker"/><text x="919.29" y="112" class="tiny" text-anchor="middle">c313</text><line x1="950.00" y1="120" x2="950.00" y2="490" class="marker"/><text x="950.00" y="112" class="tiny" text-anchor="middle">c326</text>
+  <text x="42" y="166" class="lane">input fire</text><rect x="194.00" y="144" width="75.60" height="34" class="prefix"/><text x="231.80" y="167.0" text-anchor="middle" class="inside">first 32</text><rect x="269.60" y="144" width="529.20" height="34" class="input"/><text x="534.20" y="167.0" text-anchor="middle" class="inside">remaining 224</text><text x="490.00" y="190" class="tiny">256 accepted AXIS128 beats</text><text x="730.00" y="190" class="tiny">prefix-128 = first 32 beats</text>
+  <text x="42" y="206" class="lane">prefix / k</text><line x1="290.86" y1="184" x2="290.86" y2="229" stroke="#7c3aed" stroke-width="4"/><text x="298.86" y="205" class="tiny">prefix-128 done</text><line x1="293.23" y1="184" x2="293.23" y2="229" stroke="#be123c" stroke-width="4"/><text x="301.23" y="225" class="tiny">selected k valid</text>
+  <text x="42" y="264" class="lane">ring write</text><rect x="194.00" y="244" width="604.80" height="28" class="write"/>
+  <text x="42" y="304" class="lane">ring read req</text><rect x="312.12" y="284" width="604.80" height="28" class="request"/><text x="312.12" y="276" class="tiny">continuous addresses 0..255; II=1</text>
+  <text x="42" y="360" class="lane">ring read rsp</text><rect x="316.85" y="340" width="604.80" height="28" class="response"/><text x="799.29" y="390" class="tiny">response +2 cycles</text>
+  <line x1="194" y1="405" x2="950" y2="405" class="axis"/>
+  <text x="42" y="448" class="lane">m_axis TVALID</text><rect x="297.95" y="426" width="94" height="34" class="header"/><line x1="321.45" y1="426" x2="321.45" y2="460" stroke="#7c3aed" stroke-width="1"/><line x1="344.95" y1="426" x2="344.95" y2="460" stroke="#7c3aed" stroke-width="1"/><line x1="368.45" y1="426" x2="368.45" y2="460" stroke="#7c3aed" stroke-width="1"/><text x="344.95" y="449" text-anchor="middle" class="inside">H0 H1 H2 H3</text><rect x="383.00" y="426" width="2.36" height="34" class="payload"/><rect x="420.80" y="426" width="2.36" height="34" class="payload"/><rect x="458.60" y="426" width="2.36" height="34" class="payload"/><rect x="496.40" y="426" width="2.36" height="34" class="payload"/><rect x="534.20" y="426" width="2.36" height="34" class="payload"/><rect x="572.00" y="426" width="2.36" height="34" class="payload"/><rect x="609.80" y="426" width="2.36" height="34" class="payload"/><rect x="647.60" y="426" width="2.36" height="34" class="payload"/><rect x="685.40" y="426" width="2.36" height="34" class="payload"/><rect x="723.20" y="426" width="2.36" height="34" class="payload"/><rect x="761.00" y="426" width="2.36" height="34" class="payload"/><rect x="798.80" y="426" width="2.36" height="34" class="payload"/><rect x="836.60" y="426" width="2.36" height="34" class="payload"/><rect x="874.40" y="426" width="2.36" height="34" class="payload"/><rect x="912.20" y="426" width="2.36" height="34" class="payload"/><rect x="950.00" y="426" width="2.36" height="34" class="payload"/><text x="951.18" y="449.0" text-anchor="middle" class="inside">TLAST</text>
+  <text x="297.95" y="482" class="tiny">4 accepted header beats</text><text x="383.00" y="482" class="tiny">payload TVALID bubbles</text>
+  <text x="42" y="562" class="lane">backpressure</text><rect x="214" y="540" width="632" height="34" class="panel"/><rect x="236" y="540" width="58" height="34" class="accepted"/><rect x="294" y="540" width="116" height="34" class="hold"/><rect x="410" y="540" width="58" height="34" class="accepted"/><text x="352" y="562" text-anchor="middle" class="inside">H1 held</text><rect x="590" y="540" width="58" height="34" class="accepted"/><rect x="648" y="540" width="116" height="34" class="hold"/><rect x="764" y="540" width="58" height="34" class="accepted"/><text x="706" y="562" text-anchor="middle" class="inside">P0 held</text>
+  <text x="352" y="613" class="tiny" text-anchor="middle">header hold: 2 cycles (c51-c52)</text><text x="706" y="613" class="tiny" text-anchor="middle">payload hold: 2 cycles (c86-c87)</text>
+  <rect x="42" y="651" width="916" height="136" rx="5" class="panel"/>
+  <text x="58" y="680" class="note">TVALID &amp;&amp; !TREADY holds TDATA / TUSER / TLAST stable; red cells are deterministic two-cycle holds.</text>
+  <text x="58" y="710" class="tiny">nominal CSV SHA256</text><text x="58" y="738" class="hash">321b6f06d028183d4a0f776d87156d2a</text><text x="58" y="764" class="hash">1bf9693b38c375330a53428d41785392</text>
+  <text x="520" y="710" class="tiny">backpressure CSV SHA256</text><text x="520" y="738" class="hash">4ba2fc62ff54134081c0875187ebe4a3</text><text x="520" y="764" class="hash">382b585004c69ccbea059bde1d79aa1d</text>
 </svg>

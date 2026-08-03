@@ -14,19 +14,21 @@ GENERATED_ASSETS = (
     "bitpacker_pipeline_ab.svg",
     "compression_vs_snr.svg",
     "engine_scaling.svg",
+    "rdtc_multiengine_packet_timing.svg",
+    "rdtc_stream_timing.svg",
 )
 
 AUTHORED_ASSETS = (
     "bounded_direct_dual_engine.svg",
-    "rdtc_data_contract.svg",
     "rdtc_overview.svg",
-    "rdtc_stream_timing.svg",
     "rdtc_way_ring.svg",
     "system_context.svg",
     "single_engine_pipeline.svg",
     "multi_engine_wrapper.svg",
     "zynq_emulation_path.svg",
 )
+
+OBSOLETE_ASSETS = ("rdtc_data_contract.svg",)
 
 BINARY_ASSETS = {
     "matlab/rdb_before_after_rdtc_zero_rice.png": {
@@ -63,38 +65,6 @@ AUTHORED_ASSET_RULES = {
             "no software reorder PASS claimed",
         ),
         "forbidden": (),
-    },
-    "rdtc_data_contract.svg": {
-        "required": (
-            "RDTC encoder-centric data contract",
-            "Range-Doppler-Beam",
-            "256 AXIS128 input beats",
-            "4 header beats +",
-            "variable payload beats",
-            "Hardware RDTC",
-            "PC/C decoder",
-            "RTL decoder",
-            "verification path",
-            "bit-exact recovered I/Q",
-            "does not implement FFT",
-        ),
-        "forbidden": ("TKEEP", "measured duty"),
-    },
-    "rdtc_stream_timing.svg": {
-        "required": (
-            "protocol schematic, not a measured waveform",
-            "first 32 beats",
-            "total input block = 256 accepted beats",
-            "fixed four-beat header",
-            "fixed two-clock request-to-response contract",
-            "Legal capture",
-            "TVALID burst",
-            "TLAST",
-            "TREADY",
-            "Normal:",
-            "Source II=1 does not imply continuous output TVALID.",
-        ),
-        "forbidden": ("277", "measured duty", "Every accepted beat"),
     },
     "rdtc_way_ring.svg": {
         "required": (
@@ -152,6 +122,63 @@ AUTHORED_ASSET_RULES = {
         ),
     },
 }
+
+GENERATED_ASSET_RULES = {
+    "rdtc_stream_timing.svg": {
+        "required": (
+            "Engine 0 / Block 0",
+            "Fixed ModelSim functional trace",
+            "256 accepted AXIS128 beats",
+            "prefix-128 = first 32 beats",
+            "selected k valid",
+            "ring read req",
+            "continuous addresses 0..255; II=1",
+            "response +2 cycles",
+            "4 accepted header beats",
+            "payload TVALID bubbles",
+            "TLAST",
+            "header hold: 2 cycles",
+            "payload hold: 2 cycles",
+            "not a frequency, throughput, or duty claim",
+            "nominal CSV SHA256",
+            "backpressure CSV SHA256",
+        ),
+        "forbidden": ("NUM_ENGINES=1", "measured duty", "Fmax"),
+    },
+    "rdtc_multiengine_packet_timing.svg": {
+        "required": (
+            "B0 -&gt; E0",
+            "B1 -&gt; E1",
+            "P0",
+            "P1",
+            "packet lock",
+            "No beat interleaving",
+            "Packet-internal bubbles allowed",
+            "Fixed ModelSim functional trace",
+        ),
+        "forbidden": ("P2", "P3", "Fmax"),
+    },
+}
+
+DIRECT_TRACE_REQUIRED_FIELDS = frozenset(
+    (
+        "scenario",
+        "cycle",
+        "input_fire",
+        "input_owner",
+        "input_block",
+        "e0_prefix_done",
+        "e0_k_valid",
+        "e0_ring_wr",
+        "e0_ring_rd_req",
+        "e0_ring_rd_rsp",
+        "m_tvalid",
+        "m_tready",
+        "m_tlast",
+        "output_owner",
+        "output_block",
+    )
+)
 
 
 def read_csv(path):
@@ -251,6 +278,246 @@ def load_bitpacker_data(path):
         if by_role["baseline"][field] != by_role["optimized"][field]:
             raise ValueError("Bitpacker rows disagree on {} in {}".format(field, path))
     return by_role
+
+
+def _sha256_file(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+
+def _trace_rows(path, scenario):
+    rows = read_csv(path)
+    if not rows or not DIRECT_TRACE_REQUIRED_FIELDS.issubset(rows[0]):
+        raise ValueError("direct timing trace schema mismatch: {}".format(path))
+    if any(row.get("scenario") != scenario for row in rows):
+        raise ValueError("direct timing trace scenario mismatch: {}".format(path))
+    for row in rows:
+        if any("x" in value.lower() or "z" in value.lower() for value in row.values()):
+            raise ValueError("direct timing trace contains X/Z: {}".format(path))
+        for field in DIRECT_TRACE_REQUIRED_FIELDS - {"scenario"}:
+            if field not in row:
+                raise ValueError("direct timing trace field missing: {}".format(field))
+        try:
+            row["cycle"] = int(row["cycle"])
+            for field in (
+                "input_fire", "input_owner", "input_block", "e0_prefix_done",
+                "e0_k_valid", "e0_ring_wr", "e0_ring_rd_req", "e0_ring_rd_rsp",
+                "m_tvalid", "m_tready", "m_tlast", "output_owner", "output_block",
+            ):
+                row[field] = int(row[field])
+        except ValueError:
+            raise ValueError("direct timing trace has non-integer control field: {}".format(path))
+    cycles = [row["cycle"] for row in rows]
+    if cycles != list(range(cycles[0], cycles[-1] + 1)):
+        raise ValueError("direct timing trace cycles are not contiguous: {}".format(path))
+    return rows
+
+
+def _contiguous(values, expected_count, name):
+    if len(values) != expected_count or values != list(range(values[0], values[0] + expected_count)):
+        raise ValueError("direct timing trace {} is not contiguous".format(name))
+
+
+def load_direct_timing_data(nominal_path, backpressure_path):
+    """Load the fixed two-Engine trace fields used by the public timing figures."""
+    nominal = _trace_rows(nominal_path, "nominal")
+    backpressure = _trace_rows(backpressure_path, "backpressure")
+    e0_input = [row["cycle"] for row in nominal if row["input_fire"] and row["input_owner"] == 0]
+    e1_input = [row["cycle"] for row in nominal if row["input_fire"] and row["input_owner"] == 1]
+    _contiguous(e0_input, 256, "Engine 0 input")
+    _contiguous(e1_input, 256, "Engine 1 input")
+    prefix = [row["cycle"] for row in nominal if row["e0_prefix_done"]]
+    selected_k = [row["cycle"] for row in nominal if row["e0_k_valid"]]
+    requests = [row["cycle"] for row in nominal if row["e0_ring_rd_req"]]
+    responses = [row["cycle"] for row in nominal if row["e0_ring_rd_rsp"]]
+    if prefix != [e0_input[31] + 10] or not selected_k or selected_k[0] <= prefix[0]:
+        raise ValueError("direct timing trace prefix/k ordering changed")
+    _contiguous(requests, 256, "Engine 0 ring request")
+    _contiguous(responses, 256, "Engine 0 ring response")
+    if any(response - request != 2 for request, response in zip(requests, responses)):
+        raise ValueError("direct timing trace response latency changed")
+
+    e0_output = [
+        row for row in nominal if row["m_tvalid"] and row["output_owner"] == 0 and row["output_block"] == 0
+    ]
+    e1_output = [
+        row for row in nominal if row["m_tvalid"] and row["output_owner"] == 1 and row["output_block"] == 1
+    ]
+    if len(e0_output) != 20 or len(e1_output) != 72:
+        raise ValueError("direct timing trace packet beat count changed")
+    headers = e0_output[:4]
+    if [row["cycle"] for row in headers] != list(range(headers[0]["cycle"], headers[0]["cycle"] + 4)):
+        raise ValueError("direct timing trace header is not four contiguous beats")
+    if any(row["m_tlast"] for row in e0_output[:-1]) or not e0_output[-1]["m_tlast"]:
+        raise ValueError("direct timing trace Engine 0 TLAST changed")
+    if any(row["m_tlast"] for row in e1_output[:-1]) or not e1_output[-1]["m_tlast"]:
+        raise ValueError("direct timing trace Engine 1 TLAST changed")
+
+    stalls = [
+        row["cycle"] for row in backpressure if row["m_tvalid"] and not row["m_tready"] and row["output_owner"] == 0
+    ]
+    if stalls != [51, 52, 86, 87]:
+        raise ValueError("direct timing trace backpressure hold locations changed")
+    return {
+        "nominal_sha256": _sha256_file(nominal_path),
+        "backpressure_sha256": _sha256_file(backpressure_path),
+        "e0_input": e0_input,
+        "e1_input": e1_input,
+        "prefix_cycle": prefix[0],
+        "selected_k_cycle": selected_k[0],
+        "requests": requests,
+        "responses": responses,
+        "e0_output": e0_output,
+        "e1_output": e1_output,
+        "stalls": stalls,
+    }
+
+
+def _svg_escape(value):
+    return str(value).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+
+
+def _cycle_x(cycle, first_cycle, last_cycle, left, right):
+    return left + (cycle - first_cycle) * (right - left) / float(last_cycle - first_cycle)
+
+
+def _rect_for_cycles(first, last, y, height, first_cycle, last_cycle, left, right, css, label=""):
+    x = _cycle_x(first, first_cycle, last_cycle, left, right)
+    end = _cycle_x(last + 1, first_cycle, last_cycle, left, right)
+    text = '<rect x="{:.2f}" y="{}" width="{:.2f}" height="{}" class="{}"/>'.format(
+        x, y, max(2.0, end - x), height, css
+    )
+    if label:
+        text += '<text x="{:.2f}" y="{}" text-anchor="middle" class="inside">{}</text>'.format(
+            (x + end) / 2, y + height / 2 + 6, _svg_escape(label)
+        )
+    return text
+
+
+def direct_stream_timing_svg(trace):
+    first_cycle = trace["e0_input"][0]
+    last_cycle = trace["e0_output"][-1]["cycle"]
+    left, right = 194, 950
+    x = lambda cycle: _cycle_x(cycle, first_cycle, last_cycle, left, right)
+    prefix_end = trace["e0_input"][31]
+    input_blocks = (
+        _rect_for_cycles(first_cycle, prefix_end, 144, 34, first_cycle, last_cycle, left, right, "prefix", "first 32"),
+        _rect_for_cycles(prefix_end + 1, trace["e0_input"][-1], 144, 34, first_cycle, last_cycle, left, right, "input", "remaining 224"),
+    )
+    requests = _rect_for_cycles(trace["requests"][0], trace["requests"][-1], 284, 28, first_cycle, last_cycle, left, right, "request")
+    responses = _rect_for_cycles(trace["responses"][0], trace["responses"][-1], 340, 28, first_cycle, last_cycle, left, right, "response")
+    header_x = x(trace["e0_output"][0]["cycle"])
+    header_width = 94
+    headers = '<rect x="{:.2f}" y="426" width="{}" height="34" class="header"/>'.format(header_x, header_width)
+    headers += "".join(
+        '<line x1="{:.2f}" y1="426" x2="{:.2f}" y2="460" stroke="#7c3aed" stroke-width="1"/>'.format(
+            header_x + index * header_width / 4, header_x + index * header_width / 4
+        )
+        for index in range(1, 4)
+    )
+    headers += '<text x="{:.2f}" y="449" text-anchor="middle" class="inside">H0 H1 H2 H3</text>'.format(header_x + header_width / 2)
+    payload = "".join(
+        _rect_for_cycles(row["cycle"], row["cycle"], 426, 34, first_cycle, last_cycle, left, right, "payload", "TLAST" if row["m_tlast"] else "")
+        for row in trace["e0_output"][4:]
+    )
+    e0_end = trace["e0_output"][-1]["cycle"]
+    backpressure_display = (
+        '<rect x="236" y="540" width="58" height="34" class="accepted"/>'
+        '<rect x="294" y="540" width="116" height="34" class="hold"/>'
+        '<rect x="410" y="540" width="58" height="34" class="accepted"/>'
+        '<text x="352" y="562" text-anchor="middle" class="inside">H1 held</text>'
+        '<rect x="590" y="540" width="58" height="34" class="accepted"/>'
+        '<rect x="648" y="540" width="116" height="34" class="hold"/>'
+        '<rect x="764" y="540" width="58" height="34" class="accepted"/>'
+        '<text x="706" y="562" text-anchor="middle" class="inside">P0 held</text>'
+    )
+    markers = "".join(
+        '<line x1="{0:.2f}" y1="120" x2="{0:.2f}" y2="490" class="marker"/><text x="{1:.2f}" y="112" class="tiny" text-anchor="middle">c{2}</text>'.format(
+            x(cycle), x(cycle), cycle
+        )
+        for cycle in (first_cycle, prefix_end + 1, trace["requests"][0], trace["responses"][-1], e0_end)
+    )
+    return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="810" viewBox="0 0 1000 810" role="img" aria-labelledby="title desc">
+  <title id="title">Direct wrapper stream trace: Engine 0 / Block 0</title>
+  <desc id="desc">Fixed ModelSim functional trace from the final two-Engine Direct wrapper. The diagram derives input, prefix, ring, output, and deterministic backpressure events from public nominal and backpressure CSV files.</desc>
+  <style>.title{{font:700 36px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 25px Arial,sans-serif;fill:#475569}}.lane{{font:700 26px Arial,sans-serif;fill:#0f172a}}.note{{font:400 24px Arial,sans-serif;fill:#334155}}.tiny{{font:400 22px Arial,sans-serif;fill:#475569}}.hash{{font:400 24px 'Courier New',monospace;fill:#475569}}.inside{{font:700 20px Arial,sans-serif;fill:#0f172a}}.axis{{stroke:#64748b;stroke-width:2}}.marker{{stroke:#cbd5e1;stroke-width:1.5;stroke-dasharray:5 6}}.input{{fill:#bfdbfe;stroke:#2563eb;stroke-width:1}}.prefix{{fill:#dbeafe;stroke:#2563eb;stroke-width:1}}.write{{fill:#dcfce7;stroke:#16a34a;stroke-width:1}}.request{{fill:#fef3c7;stroke:#d97706;stroke-width:1}}.response{{fill:#ffedd5;stroke:#ea580c;stroke-width:1}}.header{{fill:#ddd6fe;stroke:#7c3aed;stroke-width:1}}.payload{{fill:#cffafe;stroke:#0891b2;stroke-width:1}}.hold{{fill:#fecaca;stroke:#dc2626;stroke-width:1}}.accepted{{fill:#bbf7d0;stroke:#16a34a;stroke-width:1}}.panel{{fill:#ffffff;stroke:#cbd5e1;stroke-width:1.5}}</style>
+  <rect width="1000" height="810" fill="#f8fafc"/>
+  <text x="42" y="45" class="title">Direct wrapper stream trace: Engine 0 / Block 0</text>
+  <text x="42" y="73" class="sub">Fixed ModelSim functional trace, 2-Engine / 2-block register-expanded Direct wrapper</text>
+  <text x="42" y="98" class="sub">Cycle positions audit protocol ordering only; not a frequency, throughput, or duty claim.</text>
+{markers}
+  <text x="42" y="166" class="lane">input fire</text>{input0}{input1}<text x="{input_note_x:.2f}" y="190" class="tiny">256 accepted AXIS128 beats</text><text x="{prefix_note_x:.2f}" y="190" class="tiny">prefix-128 = first 32 beats</text>
+  <text x="42" y="206" class="lane">prefix / k</text><line x1="{prefix_x:.2f}" y1="184" x2="{prefix_x:.2f}" y2="229" stroke="#7c3aed" stroke-width="4"/><text x="{prefix_label_x:.2f}" y="205" class="tiny">prefix-128 done</text><line x1="{k_x:.2f}" y1="184" x2="{k_x:.2f}" y2="229" stroke="#be123c" stroke-width="4"/><text x="{k_label_x:.2f}" y="225" class="tiny">selected k valid</text>
+  <text x="42" y="264" class="lane">ring write</text>{writes}
+  <text x="42" y="304" class="lane">ring read req</text>{requests}<text x="{req_x:.2f}" y="276" class="tiny">continuous addresses 0..255; II=1</text>
+  <text x="42" y="360" class="lane">ring read rsp</text>{responses}<text x="{rsp_x:.2f}" y="390" class="tiny">response +2 cycles</text>
+  <line x1="{left}" y1="405" x2="{right}" y2="405" class="axis"/>
+  <text x="42" y="448" class="lane">m_axis TVALID</text>{headers}{payload}
+  <text x="{header_note_x:.2f}" y="482" class="tiny">4 accepted header beats</text><text x="{payload_note_x:.2f}" y="482" class="tiny">payload TVALID bubbles</text>
+  <text x="42" y="562" class="lane">backpressure</text><rect x="214" y="540" width="632" height="34" class="panel"/>{backpressure_display}
+  <text x="352" y="613" class="tiny" text-anchor="middle">header hold: 2 cycles (c51-c52)</text><text x="706" y="613" class="tiny" text-anchor="middle">payload hold: 2 cycles (c86-c87)</text>
+  <rect x="42" y="651" width="916" height="136" rx="5" class="panel"/>
+  <text x="58" y="680" class="note">TVALID &amp;&amp; !TREADY holds TDATA / TUSER / TLAST stable; red cells are deterministic two-cycle holds.</text>
+  <text x="58" y="710" class="tiny">nominal CSV SHA256</text><text x="58" y="738" class="hash">{nominal_hash_a}</text><text x="58" y="764" class="hash">{nominal_hash_b}</text>
+  <text x="520" y="710" class="tiny">backpressure CSV SHA256</text><text x="520" y="738" class="hash">{backpressure_hash_a}</text><text x="520" y="764" class="hash">{backpressure_hash_b}</text>
+</svg>
+""".format(
+        markers=markers, input0=input_blocks[0], input1=input_blocks[1], input_note_x=490, prefix_note_x=730,
+        prefix_x=x(trace["prefix_cycle"]), prefix_label_x=x(trace["prefix_cycle"]) + 8,
+        k_x=x(trace["selected_k_cycle"]), k_label_x=x(trace["selected_k_cycle"]) + 8,
+        writes=_rect_for_cycles(first_cycle, trace["e0_input"][-1], 244, 28, first_cycle, last_cycle, left, right, "write"),
+        requests=requests, req_x=x(trace["requests"][0]), responses=responses, rsp_x=x(trace["responses"][-1]) - 120,
+        left=left, right=right, headers=headers, payload=payload,
+        header_note_x=header_x, payload_note_x=x(trace["e0_output"][4]["cycle"]),
+        backpressure_display=backpressure_display,
+        nominal_hash_a=trace["nominal_sha256"][:32], nominal_hash_b=trace["nominal_sha256"][32:],
+        backpressure_hash_a=trace["backpressure_sha256"][:32], backpressure_hash_b=trace["backpressure_sha256"][32:],
+    )
+
+
+def direct_multiengine_packet_timing_svg(trace):
+    first_cycle = trace["e0_input"][0]
+    last_cycle = trace["e1_output"][-1]["cycle"]
+    left, right = 196, 950
+    e0_out = trace["e0_output"]
+    e1_out = trace["e1_output"]
+    lanes = []
+    for output, y, css in ((e0_out, 290, "p0"), (e1_out, 370, "p1")):
+        for row in output:
+            lanes.append(_rect_for_cycles(row["cycle"], row["cycle"], y, 28, first_cycle, last_cycle, left, right, css))
+    shared = []
+    for output, css in ((e0_out, "p0"), (e1_out, "p1")):
+        for row in output:
+            shared.append(_rect_for_cycles(row["cycle"], row["cycle"], 486, 34, first_cycle, last_cycle, left, right, css))
+    x = lambda cycle: _cycle_x(cycle, first_cycle, last_cycle, left, right)
+    return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="660" viewBox="0 0 1000 660" role="img" aria-labelledby="title desc">
+  <title id="title">Two-Engine Direct wrapper packet service trace</title>
+  <desc id="desc">Fixed ModelSim functional trace showing Block 0 assigned to Engine 0 and Block 1 to Engine 1. Shared output presents packet 0 then packet 1 without beat interleaving; packet-internal TVALID bubbles are shown as gaps.</desc>
+  <style>.title{{font:700 34px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 21px Arial,sans-serif;fill:#475569}}.lane{{font:700 22px Arial,sans-serif;fill:#0f172a}}.note{{font:400 19px Arial,sans-serif;fill:#334155}}.tiny{{font:400 17px Arial,sans-serif;fill:#475569}}.inside{{font:700 18px Arial,sans-serif;fill:#0f172a}}.axis{{stroke:#64748b;stroke-width:2}}.p0{{fill:#bfdbfe;stroke:#2563eb;stroke-width:1}}.p1{{fill:#dcfce7;stroke:#16a34a;stroke-width:1}}.dispatch0{{fill:#dbeafe;stroke:#2563eb;stroke-width:1.5}}.dispatch1{{fill:#bbf7d0;stroke:#16a34a;stroke-width:1.5}}.window0{{fill:#eff6ff;stroke:#93c5fd;stroke-width:1.5;stroke-dasharray:5 4}}.window1{{fill:#f0fdf4;stroke:#86efac;stroke-width:1.5;stroke-dasharray:5 4}}.panel{{fill:#ffffff;stroke:#cbd5e1;stroke-width:1.5}}</style>
+  <rect width="1000" height="660" fill="#f8fafc"/>
+  <text x="42" y="45" class="title">Two-Engine Direct wrapper packet service</text>
+  <text x="42" y="73" class="sub">Fixed ModelSim functional trace: B0 -&gt; E0 and B1 -&gt; E1; not historical scaling data.</text>
+  <text x="42" y="107" class="lane">input dispatch</text>
+  <rect x="{b0_x:.2f}" y="86" width="{b0_w:.2f}" height="34" class="dispatch0"/><text x="{b0_t:.2f}" y="109" text-anchor="middle" class="inside">B0 -&gt; E0</text>
+  <rect x="{b1_x:.2f}" y="86" width="{b1_w:.2f}" height="34" class="dispatch1"/><text x="{b1_t:.2f}" y="109" text-anchor="middle" class="inside">B1 -&gt; E1</text>
+  <text x="42" y="180" class="lane">Engine 0</text><rect x="{p0_x:.2f}" y="154" width="{p0_w:.2f}" height="52" class="window0"/><text x="{p0_t:.2f}" y="178" text-anchor="middle" class="inside">P0 packet window</text><text x="{p0_t:.2f}" y="199" text-anchor="middle" class="tiny">accepted beats separated by bubbles</text>
+  <text x="42" y="260" class="lane">Engine 1</text><rect x="{p1_x:.2f}" y="234" width="{p1_w:.2f}" height="52" class="window1"/><text x="{p1_t:.2f}" y="258" text-anchor="middle" class="inside">P1 packet window</text><text x="{p1_t:.2f}" y="279" text-anchor="middle" class="tiny">accepted beats separated by bubbles</text>
+  <text x="42" y="310" class="lane">E0 output</text>{e0_lanes}
+  <text x="42" y="390" class="lane">E1 output</text>{e1_lanes}
+  <line x1="{left}" y1="440" x2="{right}" y2="440" class="axis"/>
+  <text x="42" y="507" class="lane">shared AXIS</text><rect x="{p0_x:.2f}" y="486" width="{p0_w:.2f}" height="34" class="window0"/><rect x="{p1_x:.2f}" y="486" width="{p1_w:.2f}" height="34" class="window1"/>{shared}
+  <text x="{p0_t:.2f}" y="548" text-anchor="middle" class="tiny">packet lock: P0</text><text x="{p1_t:.2f}" y="548" text-anchor="middle" class="tiny">packet lock: P1</text>
+  <rect x="42" y="575" width="916" height="60" rx="5" class="panel"/>
+  <text x="58" y="602" class="note">No beat interleaving: shared AXIS remains on one owner until its accepted TLAST. Packet-internal bubbles allowed.</text>
+  <text x="58" y="625" class="tiny">Derived from nominal CSV SHA256 {nominal_hash}; only B0/B1 and P0/P1 are shown.</text>
+</svg>
+""".format(
+        b0_x=x(trace["e0_input"][0]), b0_w=x(trace["e0_input"][-1] + 1) - x(trace["e0_input"][0]), b0_t=(x(trace["e0_input"][0]) + x(trace["e0_input"][-1] + 1)) / 2,
+        b1_x=x(trace["e1_input"][0]), b1_w=x(trace["e1_input"][-1] + 1) - x(trace["e1_input"][0]), b1_t=(x(trace["e1_input"][0]) + x(trace["e1_input"][-1] + 1)) / 2,
+        p0_x=x(e0_out[0]["cycle"]), p0_w=x(e0_out[-1]["cycle"] + 1) - x(e0_out[0]["cycle"]), p0_t=(x(e0_out[0]["cycle"]) + x(e0_out[-1]["cycle"] + 1)) / 2,
+        p1_x=x(e1_out[0]["cycle"]), p1_w=x(e1_out[-1]["cycle"] + 1) - x(e1_out[0]["cycle"]), p1_t=(x(e1_out[0]["cycle"]) + x(e1_out[-1]["cycle"] + 1)) / 2,
+        e0_lanes="".join(lanes[:len(e0_out)]), e1_lanes="".join(lanes[len(e0_out):]), shared="".join(shared),
+        left=left, right=right, nominal_hash=trace["nominal_sha256"],
+    )
 
 
 def compression_svg(snr_values, grouped):
@@ -487,6 +754,18 @@ def validate_authored_asset_semantics(name, content):
             raise ValueError("{} contains obsolete text: {}".format(name, fragment))
 
 
+def validate_generated_asset_semantics(name, content):
+    rules = GENERATED_ASSET_RULES.get(name)
+    if not rules:
+        return
+    for fragment in rules["required"]:
+        if fragment not in content:
+            raise ValueError("{} is missing required text: {}".format(name, fragment))
+    for fragment in rules["forbidden"]:
+        if fragment in content:
+            raise ValueError("{} contains forbidden text: {}".format(name, fragment))
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -508,26 +787,39 @@ def main():
     )
     scaling_data = load_scaling_data(data_dir / "rdtc_v1_multiengine_scaling.csv")
     bitpacker_data = load_bitpacker_data(data_dir / "rdtc_v1_bitpacker_pipeline_ab.csv")
+    direct_timing_data = load_direct_timing_data(
+        data_dir / "rdtc_v1_direct_stream_timing_nominal.csv",
+        data_dir / "rdtc_v1_direct_stream_timing_backpressure.csv",
+    )
     expected = {
         "bitpacker_pipeline_ab.svg": bitpacker_svg(bitpacker_data),
         "compression_vs_snr.svg": compression_svg(snr_values, compression_data),
         "engine_scaling.svg": scaling_svg(scaling_data, bitpacker_data),
+        "rdtc_multiengine_packet_timing.svg": direct_multiengine_packet_timing_svg(direct_timing_data),
+        "rdtc_stream_timing.svg": direct_stream_timing_svg(direct_timing_data),
     }
 
     for name, content in expected.items():
         validate_xml(name, content)
+        validate_generated_asset_semantics(name, content)
 
     if args.write:
         assets_dir.mkdir(parents=True, exist_ok=True)
         for name, content in expected.items():
             (assets_dir / name).write_text(content, encoding="utf-8", newline="\n")
             print("showcase-assets: wrote {}".format(assets_dir / name))
+        for name in OBSOLETE_ASSETS:
+            path = assets_dir / name
+            if path.exists():
+                path.unlink()
+                print("showcase-assets: removed obsolete {}".format(path))
     else:
         stale = []
         for name, content in expected.items():
             path = assets_dir / name
             if not path.is_file() or path.read_text(encoding="utf-8") != content:
                 stale.append(name)
+        stale.extend(name for name in OBSOLETE_ASSETS if (assets_dir / name).exists())
         if stale:
             print(
                 "showcase-assets: stale generated assets: {}".format(", ".join(stale)),
@@ -547,6 +839,7 @@ def main():
         content = path.read_text(encoding="utf-8")
         validate_xml(name, content)
         validate_authored_asset_semantics(name, content)
+        validate_generated_asset_semantics(name, content)
 
     for name, expected in BINARY_ASSETS.items():
         path = assets_dir / name
