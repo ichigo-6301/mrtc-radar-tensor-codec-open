@@ -16,15 +16,13 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 
 ## 60 秒总览
 
-| 结果 | 已核验内容与适用范围 | 直接 Evidence |
-|---|---|---|
-| 编解码与验证 | `RAW_BYPASS`、`ZERO_RICE`、`DELTA_RICE` 三模式；`1024` 个 I16Q16 sample/block、64-byte header、128-bit AXI-Stream；MATLAB/C/DPI-C/RTL 有限向量 bit-exact | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [验证矩阵](docs/zh-CN/verification.md) |
-| 单 Engine 流水 A/B | 固定 256-block ZERO_RICE 历史 RTL stream；平均 packet-completion spacing `8220 -> 785 cycles/block`，提升 `10.47×`；另一项固定 `smoke_zero_sparse` 测量中，首个 payload valid 到 accepted `TLAST` 为 `7693 -> 721 cycles`、`10.67×` | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
-| Multi-Engine 扩展 | 固定 256-block 历史 RTL workload；同 workload 的 Stage16D2 单 Engine reference 与 2/4-Engine buffered-wrapper run 分别为 `785 / 397.52 / 197.41 cycles/block`，扩展效率 `98.7368% / 99.4115%` | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
-| Bounded Direct 双 Engine | 单路 AXIS128、严格 Engine `0 -> 1` block 轮转、有序 packet mux；双 block regression 的 packet/sideband/selected-k 一致且 decoder bit-exact；`~277 > 256 cycles/block`，不声明持续零间隔调度 | [Direct RTL evidence](evidence/rdtc_v1_bounded_direct_rtl.yaml) |
-| Direct-AXIS DC A/B | 同一 Nangate45 library、315 MHz SDC、双 Engine、全寄存器、禁止 retime；cell area/count 减少 `72.53% / 71.98%`，仅为 DC-only 架构 A/B | [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
-| ASIC post-route STA | Direct register-expanded / 8-macro OpenRAM profile 分别在 `600/300 MHz` 完成 fixed academic post-route PrimeTime setup/hold 闭合；不是 Fmax 或 foundry signoff | [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [结果矩阵](docs/zh-CN/results.md) |
-| FPGA OOC | Direct-AXIS 在 `xc7z100ffg900-2` 上完成 Vivado 2022.2 OOC post-route 200 MHz；WNS `+0.001/+0.062 ns`，`32,672 LUT / 18,519 FF / 0 BRAM`；不声明 bitstream 或板级吞吐 | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) |
+| 贡献 | 量化结果 | Profile / 边界 | 直接 Evidence |
+|---|---|---|---|
+| 三模式 AXIS128 codec 与验证链 | `RAW_BYPASS`、`ZERO_RICE`、`DELTA_RICE`；`1024` 个 I16Q16 sample/block、64-byte header；MATLAB/C/DPI-C/RTL 有限向量 bit-exact | 编码器/压缩数据面为主；RTL decoder 用于 loopback 与协议闭环 | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [验证矩阵](docs/zh-CN/verification.md) |
+| prefix-128 + Lane-parallel Bitpacker | 固定 `smoke_zero_sparse` RTL workload 的 payload interval 为 `7693 -> 721 cycles`，提升 `10.67×`；packet 逐字节一致 | 历史固定 workload；这是 payload interval，不是 whole-block latency、持续吞吐或 Fmax | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
+| Multi-Engine wrapper | 历史 buffered profile 为 `785 / 397.52 / 197.41 cycles/block`，2/4 Engine 扩展效率 `98.7368% / 99.4115%` | `785` 是 Stage16D2 导入 reference，不是 wrapper `NUM_ENGINES=1` 重跑；历史平均 spacing 为 `8220 -> 785 cycles/block`、`10.47×`，见详细文档 | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
+| Direct-AXIS 低缓存重构 | 删除 DDR feeder 与 per-Engine payload commit；同库同约束 315 MHz DC A/B 的 cell area/count 减少 `72.53% / 71.98%` | 双 Engine、全寄存器、DC-only 架构 A/B；Direct RTL 约 `~277 > 256 cycles/block`，不声明持续零间隔调度 | [Direct RTL evidence](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
+| FPGA / ASIC 落地边界 | Direct FPGA OOC 200 MHz；Direct register-expanded / 8-macro OpenRAM 分别在 `600/300 MHz` 完成 fixed academic post-route PrimeTime setup/hold 闭合 | FPGA 不声明 bitstream/板级吞吐；ASIC 频率不是 Fmax 或 foundry signoff | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [结果矩阵](docs/zh-CN/results.md) |
 
 <p align="center">
   <a href="evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"><img src="docs/assets/bitpacker_pipeline_ab.svg" width="760" alt="Single-Engine steady-state RTL pipeline A/B"></a>
@@ -37,9 +35,23 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 
 ## 数据合同：4096B 原始 Block 如何变成变长 Packet
 
-<p align="center">
-  <a href="docs/zh-CN/bitstream_format.md"><img src="docs/assets/rdtc_data_contract.svg" width="1000" alt="RDTC encoder-centric raw-block to variable-packet data contract"></a>
-</p>
+```text
+Raw Tensor Block / 原始张量块
+[1 beam x 64 Doppler x 16 Range]
+             | range fastest / Range 最快
+             v
+       256 x AXIS128
+             |
+             v
+    Predict / Map / Rice / Pack
+             |
+             v
+    +------------+------------------+
+    | 64B Header | Variable Payload |
+    | 4 beats    | N beats          |
+    +------------+------------------+
+                                  TLAST
+```
 
 - Producer 按 `S[spatial/beam, doppler, range]` 扁平化，Range 最快变化；RTL 接收扁平序列，不实现上游 FFT。
 - 每个 sample 是 `{Q[15:0], I[15:0]}`，一个 AXIS128 beat 按 lane 顺序携带 4 个 sample。
@@ -47,7 +59,27 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 
 `packet = 4 个 128-bit header beat + 变长 payload beat`，物理尾拍由 TLAST/TUSER 描述。固定 `delta_smooth` C demo 把 `4096 B` 原始 block 编成 `360 B` packet（2365 payload bit、23 AXIS128 beat），再 bit-exact 恢复 I/Q。
 
+| 握手 / framing | 合同 |
+|---|---|
+| 输入 | `256` 个完整 AXIS128 beat；`s_axis_raw_tlast` 位于 beat `255` |
+| 输出 | 固定 `4` 个 header beat，后接变长 payload；`m_axis_comp_tlast` 只在 packet 末拍置位 |
+| 尾拍 | `m_axis_comp_tuser[3:0] = valid_byte_count - 1`；主 AXIS128 不使用 TKEEP |
+| Backpressure | 正常非 fatal 路径中 `TVALID=1, TREADY=0` 时，`TDATA/TUSER/TLAST` 保持稳定 |
+
 [查看 64-byte header、payload 与两种长度合同](docs/zh-CN/bitstream_format.md) · [查看 Direct 四路浅输入 ring](docs/zh-CN/architecture.md#four-way-shallow-input-ring)
+
+README 使用上面的紧凑文本合同，不嵌入 legacy 图资产 `docs/assets/rdtc_data_contract.svg`；详细字节格式与协议时序分别见 linked pages。
+
+### 选择集成入口
+
+| 目标 | Canonical top | Filelist / 检查 |
+|---|---|---|
+| 完整 AXI4-Lite + AXIS128 IP | [`mrtc_top`](rtl/top/mrtc_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
+| 单 Engine codec datapath | [`mrtc_rdtc_codec_top`](rtl/rdtc/mrtc_rdtc_codec_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
+| Bounded Direct-AXIS 双 Engine（opt-in） | [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) | 固定 `ZERO_RICE + prefix-128`；[`rdtc_v1_bounded_direct.f`](flows/manifests/rdtc_v1_bounded_direct.f) · `make bounded-direct-rtl-smoke` |
+| 历史 Zynq AXIS32 adaptation | [`mrtc_rdtc_axis32_wrapper`](rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) | [`rdtc_v1_fpga_wrapper_smoke.f`](flows/manifests/rdtc_v1_fpga_wrapper_smoke.f) · `make fpga-wrapper-smoke` |
+
+Direct profile 是最终双 Engine 的 bounded input 合同；producer 必须先完成 descriptor 预约并在 wrapper 允许的 ready 窗口送数，不能把 `TVALID && !TREADY` 当作可无限保持的普通输入 backpressure。
 
 <a id="rtl-reading-path"></a>
 
@@ -63,16 +95,6 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 | 6 | [`mrtc_rdtc_ddr_multiengine_wrapper.sv`](rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) · [`mrtc_axis_packet_buffer.sv`](rtl/rdtc/mrtc_axis_packet_buffer.sv) | 定位 block dispatcher、per-Engine packet buffer 与锁定到 `tlast` 的输出仲裁。 |
 | 7 | [`mrtc_rdtc_bounded_axis_multiengine_wrapper.sv`](rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) | 对照最终 Direct-AXIS 双 Engine job table、有序 packet mux 和有限 output credit。 |
 | 8 | [`mrtc_dpi_pkg.sv`](tb/dpi/mrtc_dpi_pkg.sv) · [`tb_rdtc_dpi_smoke.sv`](sv/tb_rdtc_dpi_smoke.sv) · [`tb_rdtc_codec_top_smoke.sv`](tb/sv/tb_rdtc_codec_top_smoke.sv) | 查看 C/DPI-C 函数边界以及公开 RTL AXIS128 encode/decode smoke。 |
-
-### 选择集成入口
-
-| 目标 | Canonical top | Filelist / 检查 |
-|---|---|---|
-| 完整 AXI4-Lite + AXIS128 IP | [`mrtc_top`](rtl/top/mrtc_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
-| 单 Engine codec datapath | [`mrtc_rdtc_codec_top`](rtl/rdtc/mrtc_rdtc_codec_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
-| Descriptor/DDR Multi-Engine | [`mrtc_rdtc_ddr_multiengine_wrapper`](rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) | [`rdtc_v1_multiengine_smoke.f`](flows/manifests/rdtc_v1_multiengine_smoke.f) · `make multiengine-smoke` |
-| Bounded Direct-AXIS 双 Engine（opt-in） | [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) | [`rdtc_v1_bounded_direct.f`](flows/manifests/rdtc_v1_bounded_direct.f) · `make bounded-direct-rtl-smoke` |
-| 历史 Zynq AXIS32 adaptation | [`mrtc_rdtc_axis32_wrapper`](rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) | [`rdtc_v1_fpga_wrapper_smoke.f`](flows/manifests/rdtc_v1_fpga_wrapper_smoke.f) · `make fpga-wrapper-smoke` |
 
 [查看参数、端口、transaction 和 ordering contract](docs/zh-CN/interfaces.md)
 

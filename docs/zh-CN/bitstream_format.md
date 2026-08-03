@@ -2,7 +2,7 @@
 
 [English](../en/bitstream_format.md) · [返回首页](../../README.md)
 
-RDTC packet 由 64-byte little-endian header 和 payload 组成。本页给出公开 RDTC v1 的字节、bit 与长度合同；Rice 算法推导见[算法](algorithm.md)，端口握手见[接口](interfaces.md)。
+RDTC packet 由 64-byte little-endian header 和 payload 组成。本页给出公开 RDTC v1 的字节、bit 与长度合同；Rice 算法推导见[算法](algorithm.md)，端口握手见[接口](interfaces.md)，组合时序见[流时序](stream_timing.md#protocol-timing-contract)。
 
 ## 原始输入 Block
 

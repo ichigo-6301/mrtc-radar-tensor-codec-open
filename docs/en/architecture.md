@@ -109,7 +109,7 @@ On a legal, non-fatal capture, each accepted input word writes its mapped slot a
 
 ![RDTC protocol stream timing schematic](../assets/rdtc_stream_timing.svg)
 
-The timing diagram is a protocol schematic, not a measured waveform. The first 32 accepted beats provide 128 prefix samples. Once prefix `k` is selected, the four-beat header can begin while later input continues writing the ring. After the header completes, the Bitpacker requests ring words in original order. Its continuous legal source-request cadence is `II=1`, with a fixed two-clock response delay.
+The timing diagram is a protocol schematic, not a measured waveform. The first 32 accepted beats provide 128 prefix samples. Once prefix `k` is selected, the four-beat header can begin while later input continues writing the ring. After the header completes, the Bitpacker requests ring words in original order. Its continuous legal source-request cadence is `II=1`, with a fixed two-clock response delay. The reserved per-cycle trace and integration interpretation are described on the [stream timing page](stream_timing.md#protocol-timing-contract).
 
 Each of the four header beats commits on `TVALID && TREADY`. Rice token accumulation emits a payload beat only when a complete output word is available, so bubbles are legal between header and payload and within payload. On the normal non-fatal path, when downstream deasserts `TREADY`, the current `TVALID`, `TDATA`, `TLAST`, and `TUSER` remain stable until handshake. A fail-stop halt is the explicit exception described below. TLAST appears only on the physical packet end. Ring-read source `II=1` does not mean compressed-output `TVALID` is continuous.
 

@@ -2,7 +2,7 @@
 
 [中文](../zh-CN/bitstream_format.md) · [Back to README](../../README.en.md)
 
-An RDTC packet contains a 64-byte little-endian header followed by a payload. This page defines the public RDTC v1 byte, bit, and length contracts. See [Algorithm](algorithm.md) for the Rice derivation and [Interfaces](interfaces.md) for port handshakes.
+An RDTC packet contains a 64-byte little-endian header followed by a payload. This page defines the public RDTC v1 byte, bit, and length contracts. See [Algorithm](algorithm.md) for the Rice derivation, [Interfaces](interfaces.md) for port handshakes, and [Stream Timing](stream_timing.md#protocol-timing-contract) for composed timing.
 
 ## Raw Input Block
 

@@ -40,7 +40,7 @@ The published RTL uses one `clk` and an active-low asynchronous datapath reset, 
 5. The final output beat asserts `m_axis_comp_tlast`; on that beat `m_axis_comp_tuser[3:0]` carries valid-byte-count minus one, with `15` denoting a full 16-byte tail.
 6. On the normal non-fatal path, the consumer may deassert `m_axis_comp_tready`; packet content and boundaries remain stable until handshake. A fail-stop halt is the explicit exception described below.
 
-The decoder accepts the same physical packet boundary on `s_axis_comp_*` and reconstructs 1024 I16Q16 samples on `m_axis_raw_*`. Conventional C/RTL packets carry payload length in the header, while bounded Direct packets take physical length from TLAST/TUSER. See [Bitstream Format](bitstream_format.md#packet-length-contracts) for compatibility and the current C-decoder gap. Run `make codec-demo` for a fixed example whose input, packet, and decoded-output SHA256 values are recorded in the [codec demo evidence](../../evidence/rdtc_v1_codec_demo.yaml).
+The decoder accepts the same physical packet boundary on `s_axis_comp_*` and reconstructs 1024 I16Q16 samples on `m_axis_raw_*`. Conventional C/RTL packets carry payload length in the header, while bounded Direct packets take physical length from TLAST/TUSER. See [Bitstream Format](bitstream_format.md#packet-length-contracts) for compatibility and the current C-decoder gap. Run `make codec-demo` for a fixed example whose input, packet, and decoded-output SHA256 values are recorded in the [codec demo evidence](../../evidence/rdtc_v1_codec_demo.yaml). See [Stream Timing](stream_timing.md#protocol-timing-contract) for handshake and Direct packet-service timing.
 
 ## Key parameters
 

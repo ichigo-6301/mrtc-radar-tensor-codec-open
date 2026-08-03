@@ -109,7 +109,7 @@ offset = global_word_index mod 32
 
 ![RDTC protocol stream timing schematic](../assets/rdtc_stream_timing.svg)
 
-时序图是 protocol schematic，不是 measured waveform。前 32 个已接收 beat 提供 128 个 prefix sample；prefix `k` 选定后可开始四拍 header，同时后续输入仍可写 ring。Header 完成后 Bitpacker 按原始顺序发起 ring read，连续合法请求的 source cadence 为 `II=1`，response 固定延迟两拍。
+时序图是 protocol schematic，不是 measured waveform。前 32 个已接收 beat 提供 128 个 prefix sample；prefix `k` 选定后可开始四拍 header，同时后续输入仍可写 ring。Header 完成后 Bitpacker 按原始顺序发起 ring read，连续合法请求的 source cadence 为 `II=1`，response 固定延迟两拍。逐周期 trace 预留与接口解释见[流时序页](stream_timing.md#protocol-timing-contract)。
 
 四个 header beat 各自在 `TVALID && TREADY` 时提交。Rice token 累加只有形成完整输出 word 时才产生 payload beat，因此 header 与 payload 之间以及 payload 内都允许 `TVALID` bubble。在正常非 fatal 路径，下游拉低 `TREADY` 时，当前 `TVALID`、`TDATA`、`TLAST` 与 `TUSER` 必须保持到握手；fail-stop halt 是下文明确说明的例外。TLAST 只出现在物理 packet 末尾。Ring-read source `II=1` 不代表 compressed-output `TVALID` 每拍连续。
 

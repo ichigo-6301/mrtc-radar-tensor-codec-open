@@ -16,15 +16,13 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 
 ## 60-Second Overview
 
-| Result | Verified content and applicability | Direct evidence |
-|---|---|---|
-| Codec and verification | `RAW_BYPASS`, `ZERO_RICE`, and `DELTA_RICE`; `1024` I16Q16 samples/block, a 64-byte header, and 128-bit AXI-Stream; finite-vector MATLAB/C/DPI-C/RTL bit-exact agreement | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [verification matrix](docs/en/verification.md) |
-| Single-Engine pipeline A/B | Fixed 256-block ZERO_RICE historical RTL streams; average packet-completion spacing falls `8220 -> 785 cycles/block`, a `10.47×` speedup; a separate fixed `smoke_zero_sparse` measurement records `7693 -> 721 cycles`, or `10.67×`, from first payload valid to accepted `TLAST` | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
-| Multi-Engine scaling | Fixed 256-block historical RTL workload; the same-workload Stage16D2 single-Engine reference and 2/4-Engine buffered-wrapper runs are `785 / 397.52 / 197.41 cycles/block`, with `98.7368% / 99.4115%` scaling efficiency | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
-| Bounded Direct dual Engine | One AXIS128 input, strict Engine `0 -> 1` block rotation, and an ordered packet mux; the two-block regression matches packet/sideband/selected-k and decodes bit-exactly; `~277 > 256 cycles/block`, so sustained zero-gap scheduling is not claimed | [Direct RTL evidence](evidence/rdtc_v1_bounded_direct_rtl.yaml) |
-| Direct-AXIS DC A/B | One Nangate45 library, one 315 MHz SDC, two Engines, register-expanded storage, and disabled retiming; cell area/count fall `72.53% / 71.98%`; DC-only architecture A/B | [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
-| ASIC post-route STA | Direct register-expanded / eight-macro OpenRAM profiles complete fixed academic post-route PrimeTime setup/hold closure at `600/300 MHz`; not Fmax or foundry signoff | [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [result matrix](docs/en/results.md) |
-| FPGA OOC | Direct-AXIS completes Vivado 2022.2 OOC post-route at 200 MHz on `xc7z100ffg900-2`; WNS `+0.001/+0.062 ns` and `32,672 LUT / 18,519 FF / 0 BRAM`; no bitstream or board-throughput claim | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) |
+| Contribution | Result | Profile / boundary | Direct evidence |
+|---|---|---|---|
+| Three-mode AXIS128 codec and verification chain | `RAW_BYPASS`, `ZERO_RICE`, and `DELTA_RICE`; `1024` I16Q16 samples/block, 64-byte header; finite-vector MATLAB/C/DPI-C/RTL bit-exact agreement | Encoder/compression datapath is primary; RTL decoder supplies loopback and protocol closure | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [verification matrix](docs/en/verification.md) |
+| prefix-128 + lane-parallel Bitpacker | On the fixed `smoke_zero_sparse` RTL workload, the payload interval is `7693 -> 721 cycles`, a `10.67×` improvement; packet bytes match exactly | Historical fixed workload; this is a payload interval, not whole-block latency, sustained throughput, or Fmax | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
+| Multi-Engine wrapper | Historical buffered profile reaches `785 / 397.52 / 197.41 cycles/block`, with `98.7368% / 99.4115%` 2/4-Engine scaling efficiency | `785` is the imported Stage16D2 reference, not a wrapper `NUM_ENGINES=1` rerun; historical average spacing is `8220 -> 785 cycles/block`, a `10.47×` change, detailed below | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
+| Direct-AXIS low-storage refactor | Removes the DDR feeder and per-Engine payload commit; same-library, same-315 MHz DC A/B reduces cell area/count by `72.53% / 71.98%` | Dual Engine, register-expanded, DC-only architectural A/B; Direct RTL is `~277 > 256 cycles/block`, so sustained zero-gap scheduling is not claimed | [Direct RTL evidence](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [DC A/B evidence](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
+| FPGA / ASIC implementation boundary | Direct FPGA OOC at 200 MHz; Direct register-expanded / eight-macro OpenRAM profiles complete fixed academic post-route PrimeTime setup/hold closure at `600/300 MHz` | FPGA result is not a bitstream/board claim; ASIC frequencies are not Fmax or foundry signoff | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [result matrix](docs/en/results.md) |
 
 <p align="center">
   <a href="evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"><img src="docs/assets/bitpacker_pipeline_ab.svg" width="760" alt="Single-Engine steady-state RTL pipeline A/B"></a>
@@ -37,9 +35,23 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 
 ## Data Contract: From A 4096-Byte Raw Block To A Variable-Length Packet
 
-<p align="center">
-  <a href="docs/en/bitstream_format.md"><img src="docs/assets/rdtc_data_contract.svg" width="1000" alt="RDTC encoder-centric raw-block to variable-packet data contract"></a>
-</p>
+```text
+Raw Tensor Block / 原始张量块
+[1 beam x 64 Doppler x 16 Range]
+             | range fastest / Range 最快
+             v
+       256 x AXIS128
+             |
+             v
+    Predict / Map / Rice / Pack
+             |
+             v
+    +------------+------------------+
+    | 64B Header | Variable Payload |
+    | 4 beats    | N beats          |
+    +------------+------------------+
+                                  TLAST
+```
 
 - The producer flattens `S[spatial/beam, doppler, range]` with Range changing fastest. RTL consumes the flat sequence; it does not implement the upstream FFT.
 - Each sample is `{Q[15:0], I[15:0]}`, and one AXIS128 beat carries four samples in ascending lane order.
@@ -47,7 +59,27 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 
 `packet = four 128-bit header beats + variable payload beats`; TLAST/TUSER describe the physical tail. The fixed `delta_smooth` C demo encodes a `4096 B` raw block as a `360 B` packet (2365 payload bits and 23 AXIS128 beats), then reconstructs I/Q bit-exactly.
 
+| Handshake / framing | Contract |
+|---|---|
+| Input | `256` fully populated AXIS128 beats; `s_axis_raw_tlast` is on beat `255` |
+| Output | Four header beats, then variable payload; `m_axis_comp_tlast` is asserted only on packet end |
+| Tail beat | `m_axis_comp_tuser[3:0] = valid_byte_count - 1`; the main AXIS128 path does not use TKEEP |
+| Backpressure | On the normal non-fatal path, `TVALID=1, TREADY=0` holds `TDATA/TUSER/TLAST` stable |
+
 [See the 64-byte header, payload, and two length contracts](docs/en/bitstream_format.md) · [See the Direct four-way shallow input ring](docs/en/architecture.md#four-way-shallow-input-ring)
+
+The README uses the compact text contract above and does not embed the legacy visual asset `docs/assets/rdtc_data_contract.svg`; detailed byte format and protocol timing remain in the linked pages.
+
+### Choose an integration entrypoint
+
+| Goal | Canonical top | Filelist / check |
+|---|---|---|
+| Complete AXI4-Lite + AXIS128 IP | [`mrtc_top`](rtl/top/mrtc_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
+| Single-Engine codec datapath | [`mrtc_rdtc_codec_top`](rtl/rdtc/mrtc_rdtc_codec_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
+| Bounded Direct-AXIS dual Engine (opt-in) | [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) | Fixed `ZERO_RICE + prefix-128`; [`rdtc_v1_bounded_direct.f`](flows/manifests/rdtc_v1_bounded_direct.f) · `make bounded-direct-rtl-smoke` |
+| Historical Zynq AXIS32 adaptation | [`mrtc_rdtc_axis32_wrapper`](rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) | [`rdtc_v1_fpga_wrapper_smoke.f`](flows/manifests/rdtc_v1_fpga_wrapper_smoke.f) · `make fpga-wrapper-smoke` |
+
+The Direct profile is the final dual-Engine bounded-input contract: the producer must reserve a descriptor and send data only in the wrapper's legal ready window; `TVALID && !TREADY` must not be treated as indefinitely holdable ordinary input backpressure.
 
 <a id="rtl-reading-path"></a>
 
@@ -63,16 +95,6 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 | 6 | [`mrtc_rdtc_ddr_multiengine_wrapper.sv`](rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) · [`mrtc_axis_packet_buffer.sv`](rtl/rdtc/mrtc_axis_packet_buffer.sv) | Locate the block dispatcher, per-Engine packet buffers, and output grant held through `tlast`. |
 | 7 | [`mrtc_rdtc_bounded_axis_multiengine_wrapper.sv`](rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) | Contrast the final Direct-AXIS dual-Engine job table, ordered packet mux, and bounded output credit. |
 | 8 | [`mrtc_dpi_pkg.sv`](tb/dpi/mrtc_dpi_pkg.sv) · [`tb_rdtc_dpi_smoke.sv`](sv/tb_rdtc_dpi_smoke.sv) · [`tb_rdtc_codec_top_smoke.sv`](tb/sv/tb_rdtc_codec_top_smoke.sv) | Inspect the C/DPI-C boundary and the public RTL AXIS128 encode/decode smoke. |
-
-### Choose an integration entrypoint
-
-| Goal | Canonical top | Filelist / check |
-|---|---|---|
-| Complete AXI4-Lite + AXIS128 IP | [`mrtc_top`](rtl/top/mrtc_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
-| Single-Engine codec datapath | [`mrtc_rdtc_codec_top`](rtl/rdtc/mrtc_rdtc_codec_top.sv) | [`rdtc_v1.f`](flows/manifests/rdtc_v1.f) · `make integration-smoke` |
-| Descriptor/DDR Multi-Engine | [`mrtc_rdtc_ddr_multiengine_wrapper`](rtl/rdtc/mrtc_rdtc_ddr_multiengine_wrapper.sv) | [`rdtc_v1_multiengine_smoke.f`](flows/manifests/rdtc_v1_multiengine_smoke.f) · `make multiengine-smoke` |
-| Bounded Direct-AXIS dual Engine (opt-in) | [`mrtc_rdtc_bounded_axis_multiengine_wrapper`](rtl/rdtc/mrtc_rdtc_bounded_axis_multiengine_wrapper.sv) | [`rdtc_v1_bounded_direct.f`](flows/manifests/rdtc_v1_bounded_direct.f) · `make bounded-direct-rtl-smoke` |
-| Historical Zynq AXIS32 adaptation | [`mrtc_rdtc_axis32_wrapper`](rtl/rdtc/mrtc_rdtc_axis32_wrapper.sv) | [`rdtc_v1_fpga_wrapper_smoke.f`](flows/manifests/rdtc_v1_fpga_wrapper_smoke.f) · `make fpga-wrapper-smoke` |
 
 [See parameters, ports, transactions, and the ordering contract](docs/en/interfaces.md)
 

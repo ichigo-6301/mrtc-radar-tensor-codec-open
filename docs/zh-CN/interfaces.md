@@ -40,7 +40,7 @@
 5. 最后一个输出 beat 置 `m_axis_comp_tlast=1`，此时 `m_axis_comp_tuser[3:0]` 给出有效字节数减一；完整 16-byte 尾拍为 `15`。
 6. 在正常非 fatal 路径，下游可以拉低 `m_axis_comp_tready`，packet 内容和边界保持到握手；fail-stop halt 是下文明确说明的例外。
 
-Decoder 在 `s_axis_comp_*` 接收同一物理 packet 边界，并在 `m_axis_raw_*` 恢复 1024 个 I16Q16 sample。常规 C/RTL packet 由 header 给出 payload length；bounded Direct packet 由 TLAST/TUSER 给出物理长度。两者兼容性和当前 C decoder 缺口见[码流格式](bitstream_format.md#packet-length-contracts)。固定示例可运行 `make codec-demo`，其输入、packet 和解码输出 SHA256 记录在 [codec demo evidence](../../evidence/rdtc_v1_codec_demo.yaml)。
+Decoder 在 `s_axis_comp_*` 接收同一物理 packet 边界，并在 `m_axis_raw_*` 恢复 1024 个 I16Q16 sample。常规 C/RTL packet 由 header 给出 payload length；bounded Direct packet 由 TLAST/TUSER 给出物理长度。两者兼容性和当前 C decoder 缺口见[码流格式](bitstream_format.md#packet-length-contracts)。固定示例可运行 `make codec-demo`，其输入、packet 和解码输出 SHA256 记录在 [codec demo evidence](../../evidence/rdtc_v1_codec_demo.yaml)。接口握手与 Direct packet 服务时序见[流时序](stream_timing.md#protocol-timing-contract)。
 
 ## 关键参数
 
