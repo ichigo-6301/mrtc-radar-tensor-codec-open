@@ -75,7 +75,7 @@ evidence:
     tool: MATLAB R2024b
     claims:
       - rdtc_v1_matlab_lossless_synthetic_snr
-    sha256: a8b22c182e31baeb27abb69d1d3afee966650a5ca1d7ff2446b661557339fa75
+    sha256: dfc1a86d2e99022ebb04a566b5c526918821161d2c99f3a9b24876c3ff271e79
     public: true
     maturity: verified
   - id: rdtc_v1_multiengine_rtl_public

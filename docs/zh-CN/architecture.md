@@ -41,9 +41,9 @@ RDTC 位于感知数据生成与片外存储或传输之间。Encoder 将连续 
 
 DDR-backed `mrtc_rdtc_encoder_top` 支持基于编码代价的 RAW fallback；AXIS32 wrapper 使用的 small-buffer lane 未启用内部 RAW fallback。因此架构图把 RAW 标为 path-dependent 能力，而不是所有 wrapper 的共同保证。
 
-## 历史 DDR-Backed Multi-Engine Wrapper
+## Descriptor/DDR Multi-Engine Wrapper
 
-![历史 DDR-backed MRTC-RDTC Multi-Engine architecture](../assets/multi_engine_wrapper.svg)
+![Descriptor 与 DDR-backed MRTC-RDTC Multi-Engine architecture](../assets/multi_engine_wrapper.svg)
 
 Multi-Engine wrapper 解决单 Engine 数据相关延迟与输入供给之间的系统吞吐问题：
 

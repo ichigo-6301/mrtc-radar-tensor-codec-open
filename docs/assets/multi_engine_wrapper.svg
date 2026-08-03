@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1500" height="700" viewBox="0 0 1500 700" role="img" aria-labelledby="title desc">
-  <title id="title">Historical DDR-backed MRTC-RDTC Multi-Engine wrapper</title>
-  <desc id="desc">The historical buffered profile sends blocks through independent feeders, RDTC engines, and packet buffers. This is not the current bounded Direct-AXIS structure.</desc>
+  <title id="title">Descriptor and DDR-backed MRTC-RDTC Multi-Engine wrapper</title>
+  <desc id="desc">The published buffered profile sends blocks through independent feeders, RDTC engines, and packet buffers. Its fixed 1, 2, and 4 Engine scaling measurements are historical and separate from the current bounded Direct-AXIS profile.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
     <style>.title{font:700 29px Arial,sans-serif;fill:#0f172a}.sub{font:400 15px Arial,sans-serif;fill:#475569}.label{font:700 17px Arial,sans-serif;fill:#0f172a}.small{font:400 13px Arial,sans-serif;fill:#334155}.tiny{font:400 12px Arial,sans-serif;fill:#475569}.box{stroke:#334155;stroke-width:2;rx:6}.arrow{stroke:#334155;stroke-width:2.5;fill:none;marker-end:url(#arrow)}.lane{stroke:#94a3b8;stroke-width:1.5;fill:#fff;rx:6}</style>
   </defs>
   <rect width="1500" height="700" fill="#f8fafc"/>
-  <text x="55" y="48" class="title">Historical DDR-backed Multi-Engine wrapper</text>
-  <text x="55" y="76" class="sub">Buffered profile with per-Engine feeders and packet buffers; retained for historical evidence.</text>
+  <text x="55" y="48" class="title">Descriptor and DDR-backed Multi-Engine wrapper</text>
+  <text x="55" y="76" class="sub">Published buffered integration path; its fixed scaling measurements are historical.</text>
 
   <rect x="50" y="255" width="145" height="120" class="box" fill="#dbeafe"/>
   <text x="122" y="292" text-anchor="middle" class="label">Input blocks</text>

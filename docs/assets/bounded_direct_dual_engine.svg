@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="680" viewBox="0 0 1200 680" role="img" aria-labelledby="title desc">
   <title id="title">Bounded Direct-AXIS dual-Engine implementation snapshot</title>
-  <desc id="desc">The current opt-in bounded Direct-AXIS profile rotates 256-beat blocks strictly between two Engines, uses four 32 by 128 one-read-write ways per Engine, preserves ordered packet output through a 16-beat FIFO, and has fixed register-expanded 600 MHz and eight-macro OpenRAM 300 MHz post-route PrimeTime closure points. Ordered packet service is approximately 277 cycles, so sustained zero-gap operation is not claimed.</desc>
+  <desc id="desc">The current opt-in bounded Direct-AXIS profile accepts a separate descriptor before each 256-beat AXIS128 block, rotates blocks strictly between two Engines, uses four 32 by 128 one-read-write ways per Engine, preserves ordered packet output through a 16-beat FIFO, and has fixed register-expanded 600 MHz and eight-macro OpenRAM 300 MHz post-route PrimeTime closure points. Ordered packet service is approximately 277 cycles, so sustained zero-gap operation is not claimed.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
     <style>
@@ -11,20 +11,26 @@
   <text x="48" y="48" class="title">Current bounded Direct-AXIS dual-Engine profile</text>
   <text x="48" y="76" class="sub">Opt-in ZERO_RICE + prefix-128 datapath; current architecture and fixed implementation points.</text>
 
-  <rect x="45" y="135" width="150" height="150" rx="6" class="box" fill="#dbeafe"/>
-  <text x="120" y="174" text-anchor="middle" class="heading">AXIS128 input</text>
-  <text x="120" y="208" text-anchor="middle" class="body">single stream</text>
-  <text x="120" y="232" text-anchor="middle" class="body">256 beats / block</text>
-  <text x="120" y="260" text-anchor="middle" class="small">descriptor + data</text>
-  <path d="M195 210 H240" class="arrow"/>
+  <rect x="45" y="115" width="150" height="82" rx="6" class="box" fill="#dbeafe"/>
+  <text x="120" y="145" text-anchor="middle" class="heading">Descriptor</text>
+  <text x="120" y="170" text-anchor="middle" class="body">separate valid / ready</text>
+  <text x="120" y="190" text-anchor="middle" class="small">reserve before data</text>
+  <path d="M195 156 H240" class="arrow"/>
 
-  <rect x="245" y="135" width="175" height="150" rx="6" class="box" fill="#dcfce7"/>
-  <text x="332" y="174" text-anchor="middle" class="heading">Two-entry job table</text>
-  <text x="332" y="208" text-anchor="middle" class="body">strict block rotation</text>
-  <text x="332" y="234" text-anchor="middle" class="metric">0 -&gt; 1</text>
-  <text x="332" y="262" text-anchor="middle" class="small">one job per Engine</text>
-  <path d="M420 180 H465" class="arrow"/>
-  <path d="M420 240 H445 V355 H465" class="arrow"/>
+  <rect x="45" y="220" width="150" height="95" rx="6" class="box" fill="#cffafe"/>
+  <text x="120" y="253" text-anchor="middle" class="heading">AXIS128 data</text>
+  <text x="120" y="280" text-anchor="middle" class="body">single stream</text>
+  <text x="120" y="302" text-anchor="middle" class="small">256 beats / block</text>
+  <path d="M195 268 H220 V252 H240" class="arrow"/>
+
+  <rect x="245" y="115" width="175" height="200" rx="6" class="box" fill="#dcfce7"/>
+  <text x="332" y="151" text-anchor="middle" class="heading">Two-entry job table</text>
+  <text x="332" y="183" text-anchor="middle" class="body">strict block rotation</text>
+  <text x="332" y="215" text-anchor="middle" class="metric">0 -&gt; 1</text>
+  <text x="332" y="247" text-anchor="middle" class="small">data follows reservation</text>
+  <text x="332" y="278" text-anchor="middle" class="small">one job per Engine</text>
+  <path d="M420 178 H465" class="arrow"/>
+  <path d="M420 252 H445 V355 H465" class="arrow"/>
 
   <rect x="470" y="105" width="365" height="210" rx="6" class="box" fill="#fef3c7"/>
   <text x="652" y="140" text-anchor="middle" class="heading">Engine 0</text>

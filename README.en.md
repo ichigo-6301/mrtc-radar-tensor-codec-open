@@ -27,7 +27,7 @@ RDTC compresses I16Q16 samples block by block while preserving bit-exact reconst
   <a href="evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"><img src="docs/assets/bitpacker_pipeline_ab.svg" width="760" alt="Fixed-workload Bitpacker RTL pipeline A/B"></a>
 </p>
 <p align="center">
-  <a href="evidence/rdtc_v1_bounded_direct_rtl.yaml"><img src="docs/assets/bounded_direct_dual_engine.svg" width="760" alt="Current bounded Direct-AXIS dual-Engine architecture and fixed closure points"></a>
+  <a href="docs/en/results.md"><img src="docs/assets/bounded_direct_dual_engine.svg" width="760" alt="Current bounded Direct-AXIS dual-Engine architecture and fixed closure points"></a>
 </p>
 
 <a id="rtl-reading-path"></a>

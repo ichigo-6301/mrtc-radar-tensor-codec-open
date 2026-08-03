@@ -41,9 +41,9 @@ A Single Engine progresses through these stages:
 
 The DDR-backed `mrtc_rdtc_encoder_top` supports coding-cost-based RAW fallback. The small-buffer lane used by the AXIS32 wrapper has internal RAW fallback disabled. The architecture therefore presents RAW fallback as a path-dependent capability, not a universal wrapper guarantee.
 
-## Historical DDR-Backed Multi-Engine Wrapper
+## Descriptor/DDR Multi-Engine Wrapper
 
-![Historical DDR-backed MRTC-RDTC Multi-Engine architecture](../assets/multi_engine_wrapper.svg)
+![Descriptor and DDR-backed MRTC-RDTC Multi-Engine architecture](../assets/multi_engine_wrapper.svg)
 
 The Multi-Engine wrapper addresses system throughput when Single-Engine latency depends on block data:
 
