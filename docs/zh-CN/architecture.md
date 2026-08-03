@@ -41,9 +41,9 @@ RDTC 位于感知数据生成与片外存储或传输之间。Encoder 将连续 
 
 DDR-backed `mrtc_rdtc_encoder_top` 支持基于编码代价的 RAW fallback；AXIS32 wrapper 使用的 small-buffer lane 未启用内部 RAW fallback。因此架构图把 RAW 标为 path-dependent 能力，而不是所有 wrapper 的共同保证。
 
-## Multi-Engine Wrapper
+## 历史 DDR-Backed Multi-Engine Wrapper
 
-![MRTC-RDTC Multi-Engine architecture](../assets/multi_engine_wrapper.svg)
+![历史 DDR-backed MRTC-RDTC Multi-Engine architecture](../assets/multi_engine_wrapper.svg)
 
 Multi-Engine wrapper 解决单 Engine 数据相关延迟与输入供给之间的系统吞吐问题：
 
@@ -67,6 +67,8 @@ Multi-Engine wrapper 解决单 Engine 数据相关延迟与输入供给之间的
 
 ## Bounded Direct-AXIS Profile
 
+![当前 bounded Direct-AXIS 双 Engine 架构](../assets/bounded_direct_dual_engine.svg)
+
 opt-in Direct profile 面向受约束信号域，以更少存储完成双 Engine 调度。单路 AXIS128 每个 block 输入 256 拍；两项 job table 将完整 block 严格按 Engine 0、Engine 1 轮转，输出按输入 job 顺序选择 Engine，并锁定 packet 直到 `tlast`。
 
 每个 Engine 包含四个 `32x128` true-1RW way、两项 registered ingress queue、prefix-128 estimator 与固定速率 bounded bitpacker。Estimator 直接观察已接收输入，不占用 RAM 读端口。Wrapper 删除 DDR feeder 和每 Engine payload commit store，仅使用全局 16-beat FIFO 吸收短输出 stall。双 Engine bulk ring 共 `32,768 bit`，而之前 payload-backed 实验的 bulk storage 为 `180,224 bit`。
@@ -81,11 +83,11 @@ opt-in Direct profile 面向受约束信号域，以更少存储完成双 Engine
 
 固定回归测得有序 packet service 约 `277 cycles`，而连续 block 每 `256 cycles` 到达；该差额会累计并最终触发合法 way conflict。因此该 profile 验证 bounded datapath 与实现闭合，但不验证持续零间隔调度。
 
-## 吞吐扩展
+## 历史 Buffered 吞吐扩展
 
 历史 fixed-commit 256-block workload 使用 simulated DDR feeder，1/2/4 Engine 分别达到 `785 / 397.52 / 197.41 cycles/block`。2/4 Engine efficiency 为 `98.7368% / 99.4115%`；一个 beam 在该记录中定义为 256 个 block。
 
-![Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
+![历史 buffered Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
 
 假设 200 MHz 时，由 CSV 中未舍入的总周期投影得到 `1965.3022 / 3957.4642 beam/s`。这些是 RTL simulation projection，不是 FPGA implemented timing、板级 DDR 测量或网络吞吐。当前公开 adaptation 仅运行 2-Engine、2-block correctness smoke，不重算历史性能矩阵。
 

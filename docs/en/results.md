@@ -37,7 +37,7 @@ The historical fixed-commit 256-block prefix workload uses a simulated DDR feede
 | 2 | 397.52 | 98.7368% | 1965.3022 |
 | 4 | 197.41 | 99.4115% | 3957.4642 |
 
-![Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
+![Historical buffered Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
 
 These are RTL simulation projections, not FPGA timing closure, an implemented clock, or measured board DDR throughput. The current public adaptation has a separate two-Engine, two-block correctness smoke and does not recompute this matrix. Output packets remain atomic and beats from different packets do not interleave; completion order is not guaranteed. Frame/Block metadata enables indexed software reconstruction, but no software reorder-program PASS is claimed, and the recorded scenarios do not directly prove an observed reordered event.
 

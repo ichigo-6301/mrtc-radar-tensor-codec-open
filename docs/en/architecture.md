@@ -41,9 +41,9 @@ A Single Engine progresses through these stages:
 
 The DDR-backed `mrtc_rdtc_encoder_top` supports coding-cost-based RAW fallback. The small-buffer lane used by the AXIS32 wrapper has internal RAW fallback disabled. The architecture therefore presents RAW fallback as a path-dependent capability, not a universal wrapper guarantee.
 
-## Multi-Engine Wrapper
+## Historical DDR-Backed Multi-Engine Wrapper
 
-![MRTC-RDTC Multi-Engine architecture](../assets/multi_engine_wrapper.svg)
+![Historical DDR-backed MRTC-RDTC Multi-Engine architecture](../assets/multi_engine_wrapper.svg)
 
 The Multi-Engine wrapper addresses system throughput when Single-Engine latency depends on block data:
 
@@ -67,6 +67,8 @@ This choice avoids the buffering, control complexity, and head-of-line blocking 
 
 ## Bounded Direct-AXIS Profile
 
+![Current bounded Direct-AXIS dual-Engine architecture](../assets/bounded_direct_dual_engine.svg)
+
 The opt-in Direct profile targets a lower-storage path for a bounded signal domain. One AXIS128 source sends 256 beats per block. A two-entry job table assigns complete blocks strictly to Engine 0, then Engine 1, while output remains input-job ordered and packet-locked through `tlast`.
 
 Each Engine contains four `32x128` true-1RW ways, a two-entry registered ingress queue, a prefix-128 estimator, and the fixed-rate bounded bitpacker. The estimator observes accepted input directly and does not consume the RAM read port. The wrapper removes the DDR feeder and per-Engine payload commit stores; a global 16-beat FIFO absorbs short output stalls. The two Engines therefore contain `32,768` bulk ring bits, versus the prior payload-backed experiment's `180,224` bulk bits.
@@ -81,11 +83,11 @@ This simplification is deliberately fail-stop:
 
 The fixed regression observes about `277 cycles` of ordered packet service for a block arriving every `256 cycles`. That deficit accumulates and eventually creates a legal way conflict. The profile verifies bounded datapath behavior and implementation closure, but does not verify sustained zero-gap scheduling.
 
-## Throughput Scaling
+## Historical Buffered Throughput Scaling
 
 The historical fixed-commit 256-block workload uses a simulated DDR feeder. The 1/2/4-Engine configurations achieve `785 / 397.52 / 197.41 cycles/block`, with 2/4-Engine efficiencies of `98.7368% / 99.4115%`. One beam is defined as 256 blocks in this record.
 
-![Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
+![Historical buffered Multi-Engine RTL simulation scaling](../assets/engine_scaling.svg)
 
 At an assumed 200 MHz, unrounded total-cycle values in the CSV project `1965.3022 / 3957.4642 beam/s`. These are RTL simulation projections, not FPGA implemented timing, measured board DDR throughput, or network throughput. The current public adaptation runs only a 2-Engine, 2-block correctness smoke and does not recompute the historical performance matrix.
 
