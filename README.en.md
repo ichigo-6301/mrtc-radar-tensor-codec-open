@@ -33,6 +33,22 @@ Hardware implementation and performance optimization are encoder-centric. A rece
   <a href="evidence/rdtc_v1_multiengine_rtl.yaml"><img src="docs/assets/engine_scaling.svg" width="760" alt="Historical buffered Multi-Engine average block-interval scaling"></a>
 </p>
 
+<a id="data-contract"></a>
+
+## Data Contract: From A 4096-Byte Raw Block To A Variable-Length Packet
+
+<p align="center">
+  <a href="docs/en/bitstream_format.md"><img src="docs/assets/rdtc_data_contract.svg" width="1000" alt="RDTC encoder-centric raw-block to variable-packet data contract"></a>
+</p>
+
+- The producer flattens `S[spatial/beam, doppler, range]` with Range changing fastest. RTL consumes the flat sequence; it does not implement the upstream FFT.
+- Each sample is `{Q[15:0], I[15:0]}`, and one AXIS128 beat carries four samples in ascending lane order.
+- The default block is `1024 samples = 4096 B = 256 beats`, with input TLAST on zero-based beat 255.
+
+`packet = four 128-bit header beats + variable payload beats`; TLAST/TUSER describe the physical tail. The fixed `delta_smooth` C demo encodes a `4096 B` raw block as a `360 B` packet (2365 payload bits and 23 AXIS128 beats), then reconstructs I/Q bit-exactly.
+
+[See the 64-byte header, payload, and two length contracts](docs/en/bitstream_format.md) · [See the Direct four-way shallow input ring](docs/en/architecture.md#four-way-shallow-input-ring)
+
 <a id="rtl-reading-path"></a>
 
 ## 10-Minute RTL Reading Path

@@ -23,10 +23,11 @@ One block is therefore `4096` raw bytes and `256` fully populated AXIS128 beats.
 
 ```text
 packet = 64-byte header + variable-length payload
-AXIS128 beats = 4 + ceil(payload_bytes / 16)
+header-length packet beats = 4 + ceil(header.payload_bytes / 16)
+physical packet beats = 4 + ceil(observed_payload_bytes / 16)
 ```
 
-The Encoder emits the fixed four-beat header before the payload. `m_axis_comp_tlast` marks the physical packet's final beat. On that beat, `m_axis_comp_tuser[3:0]` equals `valid_byte_count - 1`; a full 16-byte final beat carries `15`. TUSER is interpreted for the byte count on TLAST. The main AXIS128 contract does not export TKEEP.
+For a header-length packet, `header.payload_bytes` is the physical payload length. For a TLAST-length packet, the observed physical length must be counted from the stream because the header field may be zero. The Encoder emits the fixed four-beat header before the payload. `m_axis_comp_tlast` marks the physical packet's final beat. On that beat, `m_axis_comp_tuser[3:0]` equals `valid_byte_count - 1`; a full 16-byte final beat carries `15`. TUSER is interpreted for the byte count on TLAST. The main AXIS128 contract does not export TKEEP.
 
 <a id="header-layout"></a>
 

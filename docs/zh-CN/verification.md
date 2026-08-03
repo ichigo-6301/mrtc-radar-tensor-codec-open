@@ -80,7 +80,7 @@ Register profile 的 ModelSim regression 将两个完整 1024-sample block 严�
 
 负向测试覆盖非法 codec/Rice mode、descriptor 前数据、过早/过晚 `tlast`、129-bit Rice word、way conflict、output-credit 耗尽、sticky fatal 与 reset recovery。Direct filelist 的 64 个 RTL path 由 `make bounded-direct-rtl-identity-check` 与固定 evidence source 逐文件 byte-exact 比较。
 
-长序列零间隔测试明确记录 scheduler 边界：有序 packet service 约 277 cycles，高于 256-cycle block arrival interval；随后出现的合法 way conflict 是预期架构限制，不是持续吞吐 PASS。
+长序列零间隔测试明确记录 scheduler 边界：有序 packet service 约 277 cycles，高于 256-cycle block arrival interval；随后出现的 `MRTC_ERR_SRAM_WAY_CONFLICT` 是预期架构限制失败，不是持续吞吐 PASS。
 
 ## FPGA Emulation
 

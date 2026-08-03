@@ -23,10 +23,11 @@ RDTC packet 由 64-byte little-endian header 和 payload 组成。本页给出�
 
 ```text
 packet = 64-byte header + variable-length payload
-AXIS128 beats = 4 + ceil(payload_bytes / 16)
+header-length packet beats = 4 + ceil(header.payload_bytes / 16)
+physical packet beats = 4 + ceil(observed_payload_bytes / 16)
 ```
 
-Encoder 先输出固定四拍 header，再输出 payload。`m_axis_comp_tlast` 标记物理 packet 的最后一拍；该拍的 `m_axis_comp_tuser[3:0]` 等于 `valid_byte_count - 1`，完整 16-byte 尾拍取值为 `15`。TUSER 只在 TLAST 拍用于解释尾拍字节数；主 AXIS128 合同没有导出 TKEEP。
+对 header-length packet，`header.payload_bytes` 就是物理 payload 长度；对 TLAST-length packet，header 字段可以为零，必须从 stream 统计 observed physical length。Encoder 先输出固定四拍 header，再输出 payload。`m_axis_comp_tlast` 标记物理 packet 的最后一拍；该拍的 `m_axis_comp_tuser[3:0]` 等于 `valid_byte_count - 1`，完整 16-byte 尾拍取值为 `15`。TUSER 只在 TLAST 拍用于解释尾拍字节数；主 AXIS128 合同没有导出 TKEEP。
 
 <a id="header-layout"></a>
 

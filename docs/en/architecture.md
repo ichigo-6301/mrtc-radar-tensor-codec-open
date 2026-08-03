@@ -79,6 +79,8 @@ Each Engine contains four `32x128` true-1RW ways, a two-entry registered ingress
 
 ### Four-Way Shallow Input Ring
 
+![Bounded Direct-AXIS four-way shallow input ring](../assets/rdtc_way_ring.svg)
+
 This ring belongs only to the bounded Direct-AXIS Encoder. It sits between AXIS input capture and the Bitpacker; it is neither an output FIFO nor the historical full-block ping-pong buffer. Each Engine holds `4 ways x 32 words x 128 bits = 2048 bytes`, exactly half of a 4096-byte block. The prefix estimator observes accepted input directly. `prefix-128` means the first 128 complex samples, or 32 AXIS128 beats, and is distinct from the ring's 128-beat capacity.
 
 For a zero-based global AXIS word index:
@@ -99,15 +101,17 @@ offset = global_word_index mod 32
 | `192-223` | 2 | reuse released slots |
 | `224-255` | 3 | reuse released slots |
 
-Each accepted input word writes its mapped slot and sets valid. An accepted ring read clears that slot's valid state so a later wrap can reuse it. The external response arrives at a fixed two-clock delay from the read request. Reads and writes may overlap on different ways. A true-1RW way cannot read and write in the same cycle even at different offsets; that condition raises a way conflict. Writing a still-valid slot or reading an invalid slot raises a ring error, promoted by the bounded Encoder to sticky fatal status.
+On a legal, non-fatal capture, each accepted input word writes its mapped slot and sets valid. An accepted ring read clears that slot's valid state so a later wrap can reuse it. The external response arrives at a fixed two-clock delay from the read request. Reads and writes may overlap on different ways. A true-1RW way cannot read and write in the same cycle even at different offsets; that condition raises a way conflict. Writing a still-valid slot or reading an invalid slot raises a ring error, promoted by the bounded Encoder to sticky fatal status.
 
 <a id="stream-timing-contract"></a>
 
 ### Stream Timing Contract
 
+![RDTC protocol stream timing schematic](../assets/rdtc_stream_timing.svg)
+
 The timing diagram is a protocol schematic, not a measured waveform. The first 32 accepted beats provide 128 prefix samples. Once prefix `k` is selected, the four-beat header can begin while later input continues writing the ring. After the header completes, the Bitpacker requests ring words in original order. Its continuous legal source-request cadence is `II=1`, with a fixed two-clock response delay.
 
-Each of the four header beats commits on `TVALID && TREADY`. Rice token accumulation emits a payload beat only when a complete output word is available, so bubbles are legal between header and payload and within payload. When downstream deasserts `TREADY`, the current `TVALID`, `TDATA`, `TLAST`, and `TUSER` remain stable until handshake. TLAST appears only on the physical packet end. Ring-read source `II=1` does not mean compressed-output `TVALID` is continuous.
+Each of the four header beats commits on `TVALID && TREADY`. Rice token accumulation emits a payload beat only when a complete output word is available, so bubbles are legal between header and payload and within payload. On the normal non-fatal path, when downstream deasserts `TREADY`, the current `TVALID`, `TDATA`, `TLAST`, and `TUSER` remain stable until handshake. A fail-stop halt is the explicit exception described below. TLAST appears only on the physical packet end. Ring-read source `II=1` does not mean compressed-output `TVALID` is continuous.
 
 This simplification is deliberately fail-stop:
 
@@ -117,7 +121,7 @@ This simplification is deliberately fail-stop:
 - a same-way read/write collision, cadence failure, malformed block, or exhausted output credit raises sticky fatal status;
 - without speculative payload storage, a fatal event can leave a partial packet externally visible, so producer and receiver state must be reset together.
 
-The fixed regression observes about `277 cycles` of ordered packet service for a block arriving every `256 cycles`. That deficit accumulates and eventually creates a legal way conflict. This is workload evidence, not a protocol-cycle guarantee, and is not drawn into the timing schematic. The profile verifies bounded datapath behavior and implementation closure, but does not verify sustained zero-gap scheduling.
+The fixed regression observes about `277 cycles` of ordered packet service for a block arriving every `256 cycles`. That deficit accumulates and eventually triggers the illegal same-way condition reported as `MRTC_ERR_SRAM_WAY_CONFLICT`. This is workload evidence, not a protocol-cycle guarantee, and is not drawn into the timing schematic. The profile verifies bounded datapath behavior and implementation closure, but does not verify sustained zero-gap scheduling.
 
 ## Historical Buffered Throughput Scaling
 

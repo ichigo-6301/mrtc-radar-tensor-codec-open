@@ -1,13 +1,13 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1400" height="520" viewBox="0 0 1400 520" role="img" aria-labelledby="title desc">
-  <title id="title">MRTC-RDTC single-engine pipeline</title>
-  <desc id="desc">A configured ZERO or DELTA predictor feeds residual mapping, internal k selection, lane-parallel bit packing, packet buffering, and a bit-exact decoder path. RAW fallback is path-dependent.</desc>
+  <title id="title">MRTC-RDTC historical full-block single-engine pipeline</title>
+  <desc id="desc">The historical full-block ping-pong profile feeds configured ZERO or DELTA prediction into residual mapping, internal k selection, lane-parallel bit packing, packet buffering, and a bit-exact decoder reference. It is not the bounded Direct-AXIS four-way ring.</desc>
   <defs>
     <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
     <style>.title{font:700 28px Arial,sans-serif;fill:#0f172a}.sub{font:400 15px Arial,sans-serif;fill:#475569}.label{font:700 16px Arial,sans-serif;fill:#0f172a}.small{font:400 13px Arial,sans-serif;fill:#334155}.tiny{font:400 12px Arial,sans-serif;fill:#475569}.box{stroke:#334155;stroke-width:2}.arrow{stroke:#334155;stroke-width:2.5;fill:none;marker-end:url(#arrow)}</style>
   </defs>
   <rect width="1400" height="520" fill="#f8fafc"/>
-  <text x="45" y="44" class="title">Single-Engine lossless codec pipeline</text>
-  <text x="45" y="72" class="sub">Block capture overlaps computation; the packet buffer isolates variable-length output from AXI backpressure.</text>
+  <text x="45" y="44" class="title">Historical full-block Single-Engine pipeline</text>
+  <text x="45" y="72" class="sub">Ping-pong capture overlaps computation; this is not the bounded Direct-AXIS shallow ring.</text>
 
   <rect x="40" y="130" width="120" height="110" rx="6" class="box" fill="#dbeafe"/>
   <text x="100" y="164" text-anchor="middle" class="label">AXI input</text><text x="100" y="191" text-anchor="middle" class="small">I16Q16</text><text x="100" y="214" text-anchor="middle" class="small">1024 samples</text>
@@ -40,7 +40,7 @@
   <path d="M1180 185 H1215" class="arrow"/>
 
   <rect x="1220" y="130" width="140" height="110" rx="6" class="box" fill="#dbeafe"/>
-  <text x="1290" y="164" text-anchor="middle" class="label">AXI output</text><text x="1290" y="191" text-anchor="middle" class="small">128-bit beats</text><text x="1290" y="214" text-anchor="middle" class="small">tkeep / tlast</text>
+  <text x="1290" y="164" text-anchor="middle" class="label">AXI output</text><text x="1290" y="191" text-anchor="middle" class="small">128-bit beats</text><text x="1290" y="214" text-anchor="middle" class="small">tuser / tlast</text>
 
   <path d="M277 255 V310 H895 V270" stroke="#d97706" stroke-width="2.5" fill="none" marker-end="url(#arrow)"/>
   <text x="600" y="300" text-anchor="middle" class="small" fill="#92400e">RAW fallback only on supporting encoder paths</text>

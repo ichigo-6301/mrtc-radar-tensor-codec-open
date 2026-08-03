@@ -29,7 +29,7 @@ Start a new general integration from `mrtc_top`. Use `mrtc_rdtc_codec_top` when 
 
 ## Clock and reset
 
-The published RTL uses one `clk` and an active-low synchronous datapath reset, `rst_n`. `i_clear_status` clears sticky status and counters only; it does not replace reset and must not interrupt an active AXI-Stream handshake. Every `tvalid/tready` transfer occurs on a rising `clk` edge.
+The published RTL uses one `clk` and an active-low asynchronous datapath reset, `rst_n`. `i_clear_status` clears completion/counter statistics only; it does not clear sticky fatal status, replace reset, or interrupt an active AXI-Stream handshake. Every `tvalid/tready` transfer occurs on a rising `clk` edge.
 
 ## AXI-Stream encode transaction
 
@@ -38,7 +38,7 @@ The published RTL uses one `clk` and an active-low synchronous datapath reset, `
 3. With zero-based indexing, assert `s_axis_raw_tlast` on beat 255, the 256th AXIS128 beat; it still carries four valid I16Q16 samples.
 4. The encoder emits the 64-byte header before the payload.
 5. The final output beat asserts `m_axis_comp_tlast`; on that beat `m_axis_comp_tuser[3:0]` carries valid-byte-count minus one, with `15` denoting a full 16-byte tail.
-6. The consumer may deassert `m_axis_comp_tready` at any time; packet content and boundaries remain stable.
+6. On the normal non-fatal path, the consumer may deassert `m_axis_comp_tready`; packet content and boundaries remain stable until handshake. A fail-stop halt is the explicit exception described below.
 
 The decoder accepts the same physical packet boundary on `s_axis_comp_*` and reconstructs 1024 I16Q16 samples on `m_axis_raw_*`. Conventional C/RTL packets carry payload length in the header, while bounded Direct packets take physical length from TLAST/TUSER. See [Bitstream Format](bitstream_format.md#packet-length-contracts) for compatibility and the current C-decoder gap. Run `make codec-demo` for a fixed example whose input, packet, and decoded-output SHA256 values are recorded in the [codec demo evidence](../../evidence/rdtc_v1_codec_demo.yaml).
 

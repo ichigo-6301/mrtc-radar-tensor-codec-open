@@ -1,0 +1,71 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1360" viewBox="0 0 1200 1360" role="img" aria-labelledby="title desc">
+  <title id="title">RDTC stream timing - protocol schematic, not a measured waveform</title>
+  <desc id="desc">The first 32 of 256 accepted AXIS128 beats supply 128 prefix samples. Prefix selection enables a fixed four-beat header, followed by sequential ring reads with a fixed two-clock request-to-response contract and variable payload TVALID bursts. On the normal non-fatal path, TLAST ends the packet and TREADY backpressure holds all output fields stable.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
+    <style>
+      .title{font:700 48px Arial,sans-serif;fill:#0f172a}.sub{font:400 34px Arial,sans-serif;fill:#475569}.head{font:700 34px Arial,sans-serif;fill:#0f172a}.body{font:400 36px Arial,sans-serif;fill:#334155}.note{font:400 34px Arial,sans-serif;fill:#475569}.lane{stroke:#334155;stroke-width:3}.guide{stroke:#94a3b8;stroke-width:2;stroke-dasharray:9 8}.time{stroke:#334155;stroke-width:4;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="1360" fill="#f8fafc"/>
+  <text x="55" y="62" class="title">RDTC stream timing</text>
+  <text x="55" y="112" class="title">Protocol schematic, not a measured waveform</text>
+  <text x="55" y="160" class="sub">Horizontal spacing is illustrative.</text>
+  <text x="55" y="200" class="sub">Only labeled counts and ordering are contractual.</text>
+
+  <text x="55" y="250" class="head">phase</text>
+  <path d="M230 238 H1140" class="time"/>
+  <text x="1115" y="226" text-anchor="end" class="note">time</text>
+
+  <text x="55" y="335" class="head">Input</text>
+  <rect x="230" y="285" width="300" height="105" fill="#dbeafe" class="lane"/>
+  <text x="380" y="330" text-anchor="middle" class="body">first 32 beats</text>
+  <text x="380" y="372" text-anchor="middle" class="note">128 prefix samples</text>
+  <rect x="530" y="285" width="610" height="105" fill="#bfdbfe" class="lane"/>
+  <text x="835" y="330" text-anchor="middle" class="body">remaining 224 beats</text>
+  <text x="835" y="372" text-anchor="middle" class="note">total input block = 256 accepted beats</text>
+  <line x1="530" y1="265" x2="530" y2="1125" class="guide"/>
+  <text x="550" y="276" class="note">prefix k selection</text>
+
+  <text x="55" y="485" class="head">Ring write</text>
+  <rect x="230" y="425" width="910" height="110" rx="6" fill="#dcfce7" class="lane"/>
+  <text x="685" y="470" text-anchor="middle" class="body">Legal capture writes accepted beats to mapped slots.</text>
+  <text x="685" y="514" text-anchor="middle" class="note">Physical ways wrap after beat 127.</text>
+
+  <text x="55" y="640" class="head">Header</text>
+  <rect x="300" y="575" width="110" height="105" fill="#ede9fe" class="lane"/><rect x="410" y="575" width="110" height="105" fill="#ede9fe" class="lane"/><rect x="520" y="575" width="110" height="105" fill="#ede9fe" class="lane"/><rect x="630" y="575" width="110" height="105" fill="#ede9fe" class="lane"/>
+  <text x="355" y="640" text-anchor="middle" class="body">H0</text><text x="465" y="640" text-anchor="middle" class="body">H1</text><text x="575" y="640" text-anchor="middle" class="body">H2</text><text x="685" y="640" text-anchor="middle" class="body">H3</text>
+  <text x="780" y="606" class="body">fixed four-beat header</text>
+  <text x="780" y="648" class="note">each beat is held until</text>
+  <text x="780" y="684" class="note">TVALID &amp;&amp; TREADY</text>
+
+  <text x="55" y="790" class="head">Read req</text>
+  <rect x="650" y="730" width="110" height="100" fill="#fef3c7" class="lane"/><rect x="760" y="730" width="110" height="100" fill="#fef3c7" class="lane"/><rect x="870" y="730" width="110" height="100" fill="#fef3c7" class="lane"/>
+  <text x="705" y="793" text-anchor="middle" class="body">0</text><text x="815" y="793" text-anchor="middle" class="body">1</text><text x="925" y="793" text-anchor="middle" class="body">2</text>
+  <text x="1000" y="770" class="body">... 255</text>
+  <text x="1000" y="812" class="note">ordered, II=1</text>
+
+  <text x="55" y="940" class="head">Read rsp</text>
+  <path d="M705 830 V875" class="guide"/><path d="M815 830 V875" class="guide"/>
+  <rect x="760" y="875" width="110" height="100" fill="#fff7ed" class="lane"/><rect x="870" y="875" width="110" height="100" fill="#fff7ed" class="lane"/><rect x="980" y="875" width="110" height="100" fill="#fff7ed" class="lane"/>
+  <text x="815" y="938" text-anchor="middle" class="body">0</text><text x="925" y="938" text-anchor="middle" class="body">1</text><text x="1035" y="938" text-anchor="middle" class="body">2</text>
+  <text x="260" y="920" class="body">fixed two-clock</text>
+  <text x="260" y="962" class="note">request-to-response contract</text>
+
+  <text x="55" y="1075" class="head">Payload</text>
+  <rect x="230" y="1020" width="190" height="110" rx="6" fill="#cffafe" class="lane"/>
+  <rect x="520" y="1020" width="190" height="110" rx="6" fill="#cffafe" class="lane"/>
+  <rect x="830" y="1020" width="180" height="110" rx="6" fill="#cffafe" class="lane"/>
+  <text x="325" y="1062" text-anchor="middle" class="note">TVALID</text><text x="325" y="1102" text-anchor="middle" class="note">burst</text>
+  <text x="615" y="1062" text-anchor="middle" class="note">TVALID</text><text x="615" y="1102" text-anchor="middle" class="note">burst</text>
+  <text x="920" y="1085" text-anchor="middle" class="note">final burst</text>
+  <text x="470" y="1085" text-anchor="middle" class="note">bubble</text><text x="770" y="1085" text-anchor="middle" class="note">bubble</text>
+  <line x1="1010" y1="1000" x2="1010" y2="1150" stroke="#dc2626" stroke-width="5"/>
+  <text x="1030" y="1050" class="note">TLAST</text>
+  <text x="830" y="1184" text-anchor="middle" class="note">TUSER[3:0]</text>
+  <text x="830" y="1222" text-anchor="middle" class="note">= final valid bytes - 1</text>
+
+  <rect x="60" y="1255" width="1080" height="85" rx="6" fill="#ffffff" stroke="#cbd5e1" stroke-width="3"/>
+  <text x="600" y="1293" text-anchor="middle" class="body">Normal: low TREADY holds TVALID / data / TLAST / TUSER stable.</text>
+  <text x="600" y="1330" text-anchor="middle" class="note">Source II=1 does not imply continuous output TVALID.</text>
+</svg>

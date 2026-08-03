@@ -18,7 +18,10 @@ GENERATED_ASSETS = (
 
 AUTHORED_ASSETS = (
     "bounded_direct_dual_engine.svg",
+    "rdtc_data_contract.svg",
     "rdtc_overview.svg",
+    "rdtc_stream_timing.svg",
+    "rdtc_way_ring.svg",
     "system_context.svg",
     "single_engine_pipeline.svg",
     "multi_engine_wrapper.svg",
@@ -61,13 +64,60 @@ AUTHORED_ASSET_RULES = {
         ),
         "forbidden": (),
     },
+    "rdtc_data_contract.svg": {
+        "required": (
+            "RDTC encoder-centric data contract",
+            "Range-Doppler-Beam",
+            "256 AXIS128 input beats",
+            "4 header beats +",
+            "variable payload beats",
+            "Hardware RDTC",
+            "PC/C decoder",
+            "RTL decoder",
+            "verification path",
+            "bit-exact recovered I/Q",
+            "does not implement FFT",
+        ),
+        "forbidden": ("TKEEP", "measured duty"),
+    },
+    "rdtc_stream_timing.svg": {
+        "required": (
+            "protocol schematic, not a measured waveform",
+            "first 32 beats",
+            "total input block = 256 accepted beats",
+            "fixed four-beat header",
+            "fixed two-clock request-to-response contract",
+            "Legal capture",
+            "TVALID burst",
+            "TLAST",
+            "TREADY",
+            "Normal:",
+            "Source II=1 does not imply continuous output TVALID.",
+        ),
+        "forbidden": ("277", "measured duty", "Every accepted beat"),
+    },
+    "rdtc_way_ring.svg": {
+        "required": (
+            "4 x 32 x 128-bit true-1RW = 2048 B",
+            "beat 127 -&gt; 128 wraps W3 -&gt; W0",
+            "response arrives two clocks later",
+            "read Way 0 + write Way 1",
+            "read Way 0 + write Way 0",
+            "Not an output FIFO",
+            "not the historical full-block ping-pong buffer",
+        ),
+        "forbidden": ("continuous compressed-output",),
+    },
     "single_engine_pipeline.svg": {
         "required": (
+            "Historical full-block Single-Engine pipeline",
+            "not the bounded Direct-AXIS shallow ring",
             "configured ZERO / DELTA",
             "Internal k-select",
             "RAW fallback only on supporting encoder paths",
+            "tuser / tlast",
         ),
-        "forbidden": ("RAW / ZERO / DELTA",),
+        "forbidden": ("RAW / ZERO / DELTA", "tkeep / tlast"),
     },
     "system_context.svg": {
         "required": (
@@ -527,7 +577,11 @@ def main():
             print("showcase-assets: dimensions mismatch {}".format(path), file=sys.stderr)
             return 1
 
-    print("showcase-assets: PASS generated=3 authored=6 binary=1")
+    print(
+        "showcase-assets: PASS generated={} authored={} binary={}".format(
+            len(GENERATED_ASSETS), len(AUTHORED_ASSETS), len(BINARY_ASSETS)
+        )
+    )
     return 0
 
 

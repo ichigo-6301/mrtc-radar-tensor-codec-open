@@ -80,7 +80,7 @@ The register-profile ModelSim regression sends two complete 1024-sample blocks t
 
 Negative tests cover illegal codec/Rice mode, data before descriptor, early/late `tlast`, a 129-bit Rice word, way conflict, output-credit exhaustion, sticky fatal behavior, and reset recovery. The 64 RTL paths in the Direct filelist are independently checked byte for byte against the fixed evidence source by `make bounded-direct-rtl-identity-check`.
 
-Long zero-gap testing intentionally records the scheduler boundary: ordered packet service is approximately 277 cycles, above the 256-cycle block arrival interval. The resulting legal way conflict is an expected architecture limitation, not a passing sustained-throughput test.
+Long zero-gap testing intentionally records the scheduler boundary: ordered packet service is approximately 277 cycles, above the 256-cycle block arrival interval. The resulting `MRTC_ERR_SRAM_WAY_CONFLICT` is an expected architecture-limit failure, not a passing sustained-throughput test.
 
 ## FPGA Emulation
 

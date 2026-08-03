@@ -177,6 +177,77 @@ DIRECT_EVIDENCE = (
     "evidence/data/rdtc_v1_bounded_direct_rtl_identity.csv",
 )
 
+DATA_CONTRACT_MARKERS = {
+    "README.md": (
+        '<a id="data-contract"></a>',
+        "docs/assets/rdtc_data_contract.svg",
+        "4096B 原始 Block 如何变成变长 Packet",
+        "docs/zh-CN/bitstream_format.md",
+        "docs/zh-CN/architecture.md#four-way-shallow-input-ring",
+    ),
+    "README.en.md": (
+        '<a id="data-contract"></a>',
+        "docs/assets/rdtc_data_contract.svg",
+        "From A 4096-Byte Raw Block To A Variable-Length Packet",
+        "docs/en/bitstream_format.md",
+        "docs/en/architecture.md#four-way-shallow-input-ring",
+    ),
+    "docs/zh-CN/bitstream_format.md": (
+        '<a id="header-layout"></a>',
+        '<a id="payload-order"></a>',
+        '<a id="packet-length-contracts"></a>',
+        "MRTC_FLAG_STREAM_LENGTH_BY_TLAST",
+        "physical packet beats = 4 + ceil(observed_payload_bytes / 16)",
+        "C decoder | 支持 | **不支持**",
+        "260/256 = 101.5625%",
+        "不是测得的 duty cycle",
+    ),
+    "docs/en/bitstream_format.md": (
+        '<a id="header-layout"></a>',
+        '<a id="payload-order"></a>',
+        '<a id="packet-length-contracts"></a>',
+        "MRTC_FLAG_STREAM_LENGTH_BY_TLAST",
+        "physical packet beats = 4 + ceil(observed_payload_bytes / 16)",
+        "C decoder | supported | **not supported**",
+        "260/256 = 101.5625%",
+        "not a measured duty cycle",
+    ),
+    "docs/zh-CN/architecture.md": (
+        '<a id="four-way-shallow-input-ring"></a>',
+        '<a id="stream-timing-contract"></a>',
+        "rdtc_way_ring.svg",
+        "rdtc_stream_timing.svg",
+        "prefix-128",
+        "不是 measured waveform",
+        "正常非 fatal 路径",
+        "MRTC_ERR_SRAM_WAY_CONFLICT",
+    ),
+    "docs/en/architecture.md": (
+        '<a id="four-way-shallow-input-ring"></a>',
+        '<a id="stream-timing-contract"></a>',
+        "rdtc_way_ring.svg",
+        "rdtc_stream_timing.svg",
+        "prefix-128",
+        "not a measured waveform",
+        "normal non-fatal path",
+        "MRTC_ERR_SRAM_WAY_CONFLICT",
+    ),
+    "docs/zh-CN/interfaces.md": (
+        "beat 255（第 256 拍）",
+        "不导出 TKEEP",
+        "低有效异步 datapath reset",
+        "不清 sticky fatal status",
+        "MRTC_ERR_BLOCK_NOT_READY",
+    ),
+    "docs/en/interfaces.md": (
+        "beat 255, the 256th AXIS128 beat",
+        "has no TKEEP",
+        "active-low asynchronous datapath reset",
+        "does not clear sticky fatal status",
+        "MRTC_ERR_BLOCK_NOT_READY",
+    ),
+}
+
 
 def tracked_markdown(root):
     output = subprocess.check_output(["git", "-C", str(root), "ls-files", "-z", "--", "*.md"])
@@ -217,6 +288,11 @@ def check(root):
         for marker in markers:
             if marker not in text:
                 errors.append("{} missing bounded Direct boundary {}".format(name, marker))
+    for name, markers in DATA_CONTRACT_MARKERS.items():
+        text = (root / name).read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                errors.append("{} missing data-contract marker {}".format(name, marker))
     for name in DIRECT_EVIDENCE:
         if not (root / name).is_file():
             errors.append("missing bounded Direct evidence: {}".format(name))

@@ -33,6 +33,22 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
   <a href="evidence/rdtc_v1_multiengine_rtl.yaml"><img src="docs/assets/engine_scaling.svg" width="760" alt="Historical buffered Multi-Engine average block-interval scaling"></a>
 </p>
 
+<a id="data-contract"></a>
+
+## 数据合同：4096B 原始 Block 如何变成变长 Packet
+
+<p align="center">
+  <a href="docs/zh-CN/bitstream_format.md"><img src="docs/assets/rdtc_data_contract.svg" width="1000" alt="RDTC encoder-centric raw-block to variable-packet data contract"></a>
+</p>
+
+- Producer 按 `S[spatial/beam, doppler, range]` 扁平化，Range 最快变化；RTL 接收扁平序列，不实现上游 FFT。
+- 每个 sample 是 `{Q[15:0], I[15:0]}`，一个 AXIS128 beat 按 lane 顺序携带 4 个 sample。
+- 默认 block 为 `1024 sample = 4096 B = 256 beats`，输入 TLAST 位于零起始 beat 255。
+
+`packet = 4 个 128-bit header beat + 变长 payload beat`，物理尾拍由 TLAST/TUSER 描述。固定 `delta_smooth` C demo 把 `4096 B` 原始 block 编成 `360 B` packet（2365 payload bit、23 AXIS128 beat），再 bit-exact 恢复 I/Q。
+
+[查看 64-byte header、payload 与两种长度合同](docs/zh-CN/bitstream_format.md) · [查看 Direct 四路浅输入 ring](docs/zh-CN/architecture.md#four-way-shallow-input-ring)
+
 <a id="rtl-reading-path"></a>
 
 ## 10 分钟代码阅读路径

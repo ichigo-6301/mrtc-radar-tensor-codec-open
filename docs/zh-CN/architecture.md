@@ -79,6 +79,8 @@ opt-in Direct profile 面向受约束信号域，以更少存储完成双 Engine
 
 ### 四路浅输入 Ring
 
+![Bounded Direct-AXIS four-way shallow input ring](../assets/rdtc_way_ring.svg)
+
 该 ring 只属于 bounded Direct-AXIS Encoder。它位于 AXIS input capture 与 Bitpacker 之间，不是 output FIFO，也不是历史 full-block ping-pong buffer。每个 Engine 的物理容量为 `4 ways x 32 words x 128 bits = 2048 bytes`，即 4096-byte block 的一半。Prefix estimator 直接观察已握手输入；`prefix-128` 指前 128 个 complex sample，也就是前 32 个 AXIS128 beat，并不等于 128-beat ring 容量。
 
 对 zero-based global AXIS word index：
@@ -99,15 +101,17 @@ offset = global_word_index mod 32
 | `192-223` | 2 | 复用已释放 slot |
 | `224-255` | 3 | 复用已释放 slot |
 
-每个已接收输入 word 写入映射 slot 并设置 valid；已接受 ring read 清除该 slot 的 valid，使后续 wrap 可以复用。Read request 到对外 response 是固定两拍。不同 way 的 read/write 可以同周期重叠；true-1RW way 上同周期读写即使 offset 不同也非法，并产生 way conflict。写入仍 valid 的 slot 或读取 invalid slot 会产生 ring error，并由 bounded Encoder 上升为 sticky fatal。
+在合法、非 fatal capture 中，每个已接收输入 word 写入映射 slot 并设置 valid；已接受 ring read 清除该 slot 的 valid，使后续 wrap 可以复用。Read request 到对外 response 是固定两拍。不同 way 的 read/write 可以同周期重叠；true-1RW way 上同周期读写即使 offset 不同也非法，并产生 way conflict。写入仍 valid 的 slot 或读取 invalid slot 会产生 ring error，并由 bounded Encoder 上升为 sticky fatal。
 
 <a id="stream-timing-contract"></a>
 
 ### Stream Timing 合同
 
+![RDTC protocol stream timing schematic](../assets/rdtc_stream_timing.svg)
+
 时序图是 protocol schematic，不是 measured waveform。前 32 个已接收 beat 提供 128 个 prefix sample；prefix `k` 选定后可开始四拍 header，同时后续输入仍可写 ring。Header 完成后 Bitpacker 按原始顺序发起 ring read，连续合法请求的 source cadence 为 `II=1`，response 固定延迟两拍。
 
-四个 header beat 各自在 `TVALID && TREADY` 时提交。Rice token 累加只有形成完整输出 word 时才产生 payload beat，因此 header 与 payload 之间以及 payload 内都允许 `TVALID` bubble。下游拉低 `TREADY` 时，当前 `TVALID`、`TDATA`、`TLAST` 与 `TUSER` 必须保持到握手；TLAST 只出现在物理 packet 末尾。Ring-read source `II=1` 不代表 compressed-output `TVALID` 每拍连续。
+四个 header beat 各自在 `TVALID && TREADY` 时提交。Rice token 累加只有形成完整输出 word 时才产生 payload beat，因此 header 与 payload 之间以及 payload 内都允许 `TVALID` bubble。在正常非 fatal 路径，下游拉低 `TREADY` 时，当前 `TVALID`、`TDATA`、`TLAST` 与 `TUSER` 必须保持到握手；fail-stop halt 是下文明确说明的例外。TLAST 只出现在物理 packet 末尾。Ring-read source `II=1` 不代表 compressed-output `TVALID` 每拍连续。
 
 该简化结构采用明确的 fail-stop 语义：
 
@@ -117,7 +121,7 @@ offset = global_word_index mod 32
 - 同 way 读写冲突、cadence 中断、block 格式错误或 output credit 耗尽均产生 sticky fatal；
 - 因为没有 speculative payload storage，fatal 可能让外部看到半包，producer 与 receiver 必须一起 reset。
 
-固定回归测得有序 packet service 约 `277 cycles`，而连续 block 每 `256 cycles` 到达；该差额会累计并最终触发合法 way conflict。这是 workload evidence，不是协议保证周期，也不画入时序 schematic。该 profile 验证 bounded datapath 与实现闭合，但不验证持续零间隔调度。
+固定回归测得有序 packet service 约 `277 cycles`，而连续 block 每 `256 cycles` 到达；该差额会累计并最终触发非法 same-way 条件，报告为 `MRTC_ERR_SRAM_WAY_CONFLICT`。这是 workload evidence，不是协议保证周期，也不画入时序 schematic。该 profile 验证 bounded datapath 与实现闭合，但不验证持续零间隔调度。
 
 ## 历史 Buffered 吞吐扩展
 

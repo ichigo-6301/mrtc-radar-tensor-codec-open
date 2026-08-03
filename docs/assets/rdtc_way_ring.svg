@@ -1,0 +1,62 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1490" viewBox="0 0 1200 1490" role="img" aria-labelledby="title desc">
+  <title id="title">RDTC bounded Direct-AXIS four-way shallow input ring</title>
+  <desc id="desc">Each Engine uses four 32 by 128-bit true-1RW ways. Global words map in 32-word segments and wrap from word 127 to 128. Accepted writes set validity, accepted reads clear it, and response latency is two clocks. Different-way read and write overlap is legal; same-way overlap is a conflict.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
+    <style>
+      .title{font:700 48px Arial,sans-serif;fill:#0f172a}.sub{font:400 34px Arial,sans-serif;fill:#475569}.head{font:700 38px Arial,sans-serif;fill:#0f172a}.body{font:400 36px Arial,sans-serif;fill:#334155}.note{font:400 34px Arial,sans-serif;fill:#475569}.box{stroke:#334155;stroke-width:3}.flow{stroke:#334155;stroke-width:5;fill:none;marker-end:url(#arrow)}
+    </style>
+  </defs>
+  <rect width="1200" height="1490" fill="#f8fafc"/>
+  <text x="55" y="62" class="title">Four-way shallow input ring - one Direct Engine</text>
+  <text x="55" y="108" class="sub">4 x 32 x 128-bit true-1RW = 2048 B</text>
+  <text x="55" y="148" class="sub">Half of one 4096-byte block; input storage, not packet storage</text>
+
+  <rect x="60" y="190" width="500" height="220" rx="6" class="box" fill="#dbeafe"/>
+  <text x="310" y="246" text-anchor="middle" class="head">AXIS input write</text>
+  <text x="310" y="294" text-anchor="middle" class="body">accepted input word</text>
+  <text x="310" y="336" text-anchor="middle" class="note">global index 0..255</text>
+  <text x="310" y="378" text-anchor="middle" class="note">write selects one mapped way</text>
+
+  <rect x="640" y="190" width="500" height="220" rx="6" class="box" fill="#fff7ed"/>
+  <text x="890" y="246" text-anchor="middle" class="head">Bitpacker read path</text>
+  <text x="890" y="294" text-anchor="middle" class="body">requests source words</text>
+  <text x="890" y="336" text-anchor="middle" class="note">in original order</text>
+  <text x="890" y="378" text-anchor="middle" class="note">response arrives two clocks later</text>
+
+  <path d="M310 410 V450 H510" class="flow"/>
+  <path d="M890 410 V450 H690" class="flow"/>
+  <rect x="250" y="455" width="700" height="210" rx="6" class="box" fill="#dcfce7"/>
+  <text x="600" y="508" text-anchor="middle" class="head">Global-index mapper</text>
+  <text x="600" y="554" text-anchor="middle" class="body">way = floor(i/32) mod 4</text>
+  <text x="600" y="596" text-anchor="middle" class="body">offset = i mod 32</text>
+  <text x="600" y="638" text-anchor="middle" class="note">beat 127 -&gt; 128 wraps W3 -&gt; W0</text>
+
+  <path d="M600 665 V700" class="flow"/>
+  <g>
+    <rect x="60" y="705" width="240" height="250" rx="6" class="box" fill="#fef3c7"/>
+    <text x="180" y="760" text-anchor="middle" class="head">Way 0</text><text x="180" y="807" text-anchor="middle" class="body">32 x 128</text><text x="180" y="857" text-anchor="middle" class="note">words 0-31</text><text x="180" y="899" text-anchor="middle" class="note">reuse 128-159</text><text x="180" y="940" text-anchor="middle" class="note">true 1RW</text>
+    <rect x="340" y="705" width="240" height="250" rx="6" class="box" fill="#ede9fe"/>
+    <text x="460" y="760" text-anchor="middle" class="head">Way 1</text><text x="460" y="807" text-anchor="middle" class="body">32 x 128</text><text x="460" y="857" text-anchor="middle" class="note">words 32-63</text><text x="460" y="899" text-anchor="middle" class="note">reuse 160-191</text><text x="460" y="940" text-anchor="middle" class="note">true 1RW</text>
+    <rect x="620" y="705" width="240" height="250" rx="6" class="box" fill="#cffafe"/>
+    <text x="740" y="760" text-anchor="middle" class="head">Way 2</text><text x="740" y="807" text-anchor="middle" class="body">32 x 128</text><text x="740" y="857" text-anchor="middle" class="note">words 64-95</text><text x="740" y="899" text-anchor="middle" class="note">reuse 192-223</text><text x="740" y="940" text-anchor="middle" class="note">true 1RW</text>
+    <rect x="900" y="705" width="240" height="250" rx="6" class="box" fill="#fee2e2"/>
+    <text x="1020" y="760" text-anchor="middle" class="head">Way 3</text><text x="1020" y="807" text-anchor="middle" class="body">32 x 128</text><text x="1020" y="857" text-anchor="middle" class="note">words 96-127</text><text x="1020" y="899" text-anchor="middle" class="note">reuse 224-255</text><text x="1020" y="940" text-anchor="middle" class="note">true 1RW</text>
+  </g>
+
+  <rect x="60" y="995" width="1080" height="165" rx="6" class="box" fill="#ffffff"/>
+  <text x="600" y="1045" text-anchor="middle" class="head">Valid-bit lifecycle</text>
+  <text x="600" y="1092" text-anchor="middle" class="body">reset or abort clears -&gt; accepted write sets valid</text>
+  <text x="600" y="1134" text-anchor="middle" class="body">accepted read clears -&gt; physical slot may be reused</text>
+
+  <rect x="60" y="1200" width="520" height="135" rx="6" fill="#ecfdf5" stroke="#16a34a" stroke-width="3"/>
+  <text x="320" y="1252" text-anchor="middle" class="head">Legal overlap</text>
+  <text x="320" y="1302" text-anchor="middle" class="body">read Way 0 + write Way 1</text>
+
+  <rect x="620" y="1200" width="520" height="135" rx="6" fill="#fef2f2" stroke="#dc2626" stroke-width="3"/>
+  <text x="880" y="1252" text-anchor="middle" class="head">Illegal conflict</text>
+  <text x="880" y="1302" text-anchor="middle" class="body">read Way 0 + write Way 0</text>
+
+  <text x="600" y="1392" text-anchor="middle" class="sub">Different ways may overlap; the same true-1RW way conflicts.</text>
+  <text x="600" y="1434" text-anchor="middle" class="sub">Not an output FIFO and not the historical full-block ping-pong buffer.</text>
+</svg>
