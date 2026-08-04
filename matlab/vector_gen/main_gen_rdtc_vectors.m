@@ -1,16 +1,43 @@
-function main_gen_rdtc_vectors(mode)
+function main_gen_rdtc_vectors(mode, output_root)
 if nargin < 1
     mode = "quick";
 end
 mode = string(mode);
 root = mrtc_repo_root();
-out_root = fullfile(root, 'vectors', 'rdtc_v1');
+if nargin < 2 || isempty(output_root)
+    out_root = fullfile(root, 'build', 'matlab_vectors', char(mode), 'rdtc_v1');
+    output_policy = 'ignored local build output';
+else
+    out_root = char(output_root);
+    output_policy = 'explicit output root';
+end
 if ~exist(out_root, 'dir')
     mkdir(out_root);
 end
 
+log_dir = fullfile(root, 'build', 'matlab_vectors', 'logs');
+if ~exist(log_dir, 'dir')
+    mkdir(log_dir);
+end
+log_path = fullfile(log_dir, sprintf('rdtc_vector_gen_%s.log', datestr(now, 'yyyymmdd_HHMMSS')));
+log_fid = fopen(log_path, 'w');
+if log_fid < 0
+    warning('Unable to open generator log: %s', log_path);
+end
+log_cleanup = onCleanup(@() close_log(log_fid)); %#ok<NASGU>
+
+log_line(log_fid, 'START main_gen_rdtc_vectors mode=%s', char(mode));
+log_line(log_fid, 'output_root=%s (%s)', out_root, output_policy);
+log_line(log_fid, 'log_file=%s', log_path);
+if mode == "quick"
+    log_line(log_fid, 'quick profile uses deterministic zero_sparse and single_peak inputs; RNG is not used');
+else
+    log_line(log_fid, 'smoke profile includes seeded noise inputs (seeds 17, 77, 99, 123)');
+end
+
 cases = build_cases(mode);
 summary = table();
+log_line(log_fid, 'prepared %d case(s)', numel(cases));
 
 for ci = 1:numel(cases)
     c = cases(ci);
@@ -18,6 +45,8 @@ for ci = 1:numel(cases)
     if ~exist(case_dir, 'dir')
         mkdir(case_dir);
     end
+    log_line(log_fid, 'CASE %d/%d name=%s shape=%s blocks=%d', ci, numel(cases), ...
+        char(c.name), mat2str(c.tensor_shape), numel(c.blocks));
 
     all_comp = zeros(0, 1, 'uint8');
     all_raw = zeros(0, 1, 'uint8');
@@ -31,6 +60,11 @@ for ci = 1:numel(cases)
 
     for bi = 1:numel(c.blocks)
         b = c.blocks(bi);
+        log_line(log_fid, ['BLOCK %d/%d name=%s codec=%s rice_mode=%d fixed_k=%d ' ...
+            'frame=%d block=%d start=[%d %d %d] last=%d samples=%d encode-start'], ...
+            bi, numel(c.blocks), char(b.name), codec_mode_name(b.codec_mode), ...
+            b.rice_mode, b.fixed_k, b.frame_id, b.block_id, b.spatial_start, ...
+            b.doppler_start, b.range_start, double(b.last_block), numel(b.i));
         [bytes, header, decoded_i, decoded_q] = encode_block(b, c.tensor_shape);
         if ~(isequal(decoded_i, b.i(:)) && isequal(decoded_q, b.q(:)))
             ii = find(decoded_i ~= b.i(:), 1, 'first');
@@ -46,9 +80,20 @@ for ci = 1:numel(cases)
                 exp_q = double(b.q(iq));
                 got_q = double(decoded_q(iq));
             end
+            log_line(log_fid, ['BLOCK %d/%d name=%s decode=FAIL I_idx=%d exp_i=%d got_i=%d ' ...
+                'Q_idx=%d exp_q=%d got_q=%d'], bi, numel(c.blocks), char(b.name), ...
+                ii, exp_i, got_i, iq, exp_q, got_q);
             error('Decode mismatch for case %s block %s | I idx=%d exp=%d got=%d | Q idx=%d exp=%d got=%d', ...
                 char(c.name), char(b.name), ii, exp_i, got_i, iq, exp_q, got_q);
         end
+        raw_bypass = bitand(header.flags, uint16(1)) ~= 0;
+        log_line(log_fid, ['BLOCK %d/%d name=%s codec=%s selected_k=%d flags=0x%04X ' ...
+            'raw_bytes=%d payload_bits=%d payload_bytes=%d packet_bytes=%d ' ...
+            'raw_bypass=%d decode=PASS'], ...
+            bi, numel(c.blocks), char(b.name), codec_mode_name(header.codec_mode), ...
+            double(header.rice_k), double(header.flags), double(header.raw_bytes), ...
+            double(header.payload_bits), double(header.payload_bytes), numel(bytes), ...
+            double(raw_bypass));
 
         block_prefix = sprintf('block_%03d', bi - 1);
         input_name = sprintf('%s_input_samples.csv', block_prefix);
@@ -86,7 +131,6 @@ for ci = 1:numel(cases)
         header_tbl.block_name = string(b.name);
         all_headers = [all_headers; movevars(header_tbl, {'block_idx','block_name'}, 'Before', 1)]; %#ok<AGROW>
 
-        raw_bypass = bitand(header.flags, uint16(1)) ~= 0;
         raw_bypass_blocks = raw_bypass_blocks + double(raw_bypass);
         summary_row = table(uint32(bi - 1), string(b.name), uint8(b.codec_mode), uint16(b.frame_id), uint16(b.block_id), ...
             uint32(numel(b.i)), uint32(numel(raw_bytes)), uint32(numel(bytes)), raw_bypass, uint8(header.rice_k), logical(b.last_block), ...
@@ -106,6 +150,8 @@ for ci = 1:numel(cases)
     writetable(raw_ctrl, fullfile(case_dir, 'axis_raw_in_ctrl.csv'));
     write_manifest(case_dir, c, block_summary, all_comp);
     write_case_readme(case_dir, c, block_summary, all_comp, raw_bypass_blocks);
+    log_line(log_fid, 'CASE %s complete: raw_bytes=%d compressed_bytes=%d artifacts=%s', ...
+        char(c.name), numel(all_raw), numel(all_comp), case_dir);
 
     row = table(c.name, uint32(numel(c.blocks)), uint32(numel(all_raw)), uint32(numel(all_comp)), ...
         uint32(raw_bypass_blocks), true, ...
@@ -113,11 +159,9 @@ for ci = 1:numel(cases)
     summary = [summary; row]; %#ok<AGROW>
 end
 
-res_dir = fullfile(root, 'ref_model', 'results');
-if ~exist(res_dir, 'dir')
-    mkdir(res_dir);
-end
-writetable(summary, fullfile(res_dir, 'summary_matlab_vector_gen.csv'));
+summary_path = fullfile(out_root, 'summary_matlab_vector_gen.csv');
+writetable(summary, summary_path);
+log_line(log_fid, 'DONE cases=%d summary=%s', height(summary), summary_path);
 end
 
 function root = mrtc_repo_root()
@@ -600,4 +644,31 @@ for i = 1:numel(bytes)
     fprintf(fid, '%02X\n', bytes(i));
 end
 fclose(fid);
+end
+
+function name = codec_mode_name(codec_mode)
+switch double(codec_mode)
+    case 0
+        name = 'RAW_BYPASS';
+    case 1
+        name = 'ZERO_RICE';
+    case 2
+        name = 'DELTA_RICE';
+    otherwise
+        name = sprintf('UNKNOWN_%d', double(codec_mode));
+end
+end
+
+function log_line(fid, fmt, varargin)
+line = sprintf('[RDTC][%s] %s\n', datestr(now, 'HH:MM:SS'), sprintf(fmt, varargin{:}));
+fprintf('%s', line);
+if fid > 0
+    fprintf(fid, '%s', line);
+end
+end
+
+function close_log(fid)
+if fid > 0
+    fclose(fid);
+end
 end
