@@ -4,11 +4,30 @@
 
 An RDTC packet contains a 64-byte little-endian header followed by a payload. This page defines the public RDTC v1 byte, bit, and length contracts. See [Algorithm](algorithm.md) for the Rice derivation, [Interfaces](interfaces.md) for port handshakes, and [Stream Timing](stream_timing.md#protocol-timing-contract) for composed timing.
 
+<a id="raw-axis-layout"></a>
+
 ## Raw Input Block
 
 The public producer-side tensor contract is `S[spatial, doppler, range]`, with `spatial_idx` currently interpreted as `beam_id`. Flattening proceeds spatial/beam -> Doppler -> Range, with Range changing fastest. RTL consumes the resulting flat sample sequence; it does not derive tensor coordinates.
 
 The default block is `1 beam x 64 Doppler x 16 Range = 1024` complex samples. I and Q are signed 16-bit components. Each 32-bit sample word is `{Q[15:0], I[15:0]}`, and its memory bytes are `I[7:0]`, `I[15:8]`, `Q[7:0]`, and `Q[15:8]`.
+
+```text
+Tensor order (default block; Range changes fastest)
+  sample    0 = S[beam0, Doppler 0,  Range 0]
+  sample   15 = S[beam0, Doppler 0,  Range 15]
+  sample   16 = S[beam0, Doppler 1,  Range 0]
+  ...
+  sample 1023 = S[beam0, Doppler 63, Range 15]
+
+AXIS128 beat n (bit numbers decrease from left to right)
++-------------+-------------+-------------+-------------+
+| [127:96]    | [95:64]     | [63:32]     | [31:0]      |
+| sample 4n+3 | sample 4n+2 | sample 4n+1 | sample 4n+0 |
++-------------+-------------+-------------+-------------+
+sample[31:0] = {Q[15:0], I[15:0]}
+sample bytes = I low, I high, Q low, Q high
+```
 
 | AXIS128 lane | `tdata` bits | Sample |
 |---|---|---|
@@ -19,12 +38,24 @@ The default block is `1 beam x 64 Doppler x 16 Range = 1024` complex samples. I 
 
 One block is therefore `4096` raw bytes and `256` fully populated AXIS128 beats. With zero-based indexing, input `s_axis_raw_tlast` is asserted on beat 255.
 
+<a id="packet-wire-layout"></a>
+
 ## Packet Composition
 
 ```text
 packet = 64-byte header + variable-length payload
 header-length packet beats = 4 + ceil(header.payload_bytes / 16)
 physical packet beats = 4 + ceil(observed_payload_bytes / 16)
+```
+
+```text
+AXIS beat   0       1       2       3       4 ... N
+          +-------+-------+-------+-------+-------------+
+wire      | H0-15 |H16-31|H32-47|H48-63| payload ... |
+          +-------+-------+-------+-------+-------------+
+          <------ 64-byte header ------->< variable >
+TLAST                                              1
+TUSER                                 valid_bytes - 1
 ```
 
 For a header-length packet, `header.payload_bytes` is the physical payload length. For a TLAST-length packet, the observed physical length must be counted from the stream because the header field may be zero. The Encoder emits the fixed four-beat header before the payload. `m_axis_comp_tlast` marks the physical packet's final beat. On that beat, `m_axis_comp_tuser[3:0]` equals `valid_byte_count - 1`; a full 16-byte final beat carries `15`. TUSER is interpreted for the byte count on TLAST. The main AXIS128 contract does not export TKEEP.
@@ -80,14 +111,20 @@ The CRC32 field and enable flag are defined, but the recorded public profiles le
 
 ## Payload Order
 
+```text
+sample-major symbol order
+  sample 0       sample 1          ... sample 1023
+  I0 -> Q0   |   I1 -> Q1          ... I1023 -> Q1023
+
+RAW:  LE16(I0), LE16(Q0), LE16(I1), LE16(Q1), ...
+Rice: Rice(map(rI0)), Rice(map(rQ0)), ...
+word: 1 repeated q times -> 0 -> remainder[k]
+byte: bit 7 -> bit 0 (MSB first)
+```
+
 ### RAW_BYPASS
 
-An interoperable RAW packet sets both `codec_mode=RAW` and `MRTC_FLAG_RAW_BYPASS`. Its payload is a sample-major byte stream:
-
-```text
-I0 little-endian, Q0 little-endian,
-I1 little-endian, Q1 little-endian, ...
-```
+An interoperable RAW packet sets both `codec_mode=RAW` and `MRTC_FLAG_RAW_BYPASS`. Its payload is the first sample-major byte stream shown above.
 
 ### ZERO_RICE And DELTA_RICE
 

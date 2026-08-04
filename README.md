@@ -69,7 +69,7 @@ Predict / Map / Rice
 | 尾拍 | `m_axis_comp_tuser[3:0] = valid_byte_count - 1`；主 AXIS128 不使用 TKEEP |
 | Backpressure | 正常非 fatal 路径中 `TVALID=1, TREADY=0` 时，`TDATA/TUSER/TLAST` 保持稳定 |
 
-[查看 64-byte header、payload 与两种长度合同](docs/zh-CN/bitstream_format.md) · [查看 Direct 四路浅输入 ring](docs/zh-CN/architecture.md#four-way-shallow-input-ring) · [查看真实流时序与握手](docs/zh-CN/stream_timing.md#direct-engine0-trace)
+[查看 raw lane 与 packet wire layout](docs/zh-CN/bitstream_format.md#raw-axis-layout) · [查看 64-byte header、payload 与长度合同](docs/zh-CN/bitstream_format.md#header-layout) · [查看 Direct 四路浅输入 ring](docs/zh-CN/architecture.md#four-way-shallow-input-ring) · [查看真实流时序与握手](docs/zh-CN/stream_timing.md#direct-engine0-trace)
 
 ### 选择集成入口
 

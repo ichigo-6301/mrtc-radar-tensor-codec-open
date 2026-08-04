@@ -69,7 +69,7 @@ Predict / Map / Rice
 | Tail beat | `m_axis_comp_tuser[3:0] = valid_byte_count - 1`; the main AXIS128 path does not use TKEEP |
 | Backpressure | On the normal non-fatal path, `TVALID=1, TREADY=0` holds `TDATA/TUSER/TLAST` stable |
 
-[See the 64-byte header, payload, and two length contracts](docs/en/bitstream_format.md) · [See the Direct four-way shallow input ring](docs/en/architecture.md#four-way-shallow-input-ring) · [See the observed stream timing and handshake](docs/en/stream_timing.md#direct-engine0-trace)
+[See the raw lane and packet wire layout](docs/en/bitstream_format.md#raw-axis-layout) · [See the 64-byte header, payload, and length contracts](docs/en/bitstream_format.md#header-layout) · [See the Direct four-way shallow input ring](docs/en/architecture.md#four-way-shallow-input-ring) · [See the observed stream timing and handshake](docs/en/stream_timing.md#direct-engine0-trace)
 
 ### Choose an integration entrypoint
 

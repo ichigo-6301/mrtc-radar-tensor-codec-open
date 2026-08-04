@@ -49,7 +49,7 @@ The decoder accepts the same physical packet boundary on `s_axis_comp_*` and rec
 | `mrtc_top` | `AXIS_DATA_W=128` | Published datapath width; the current RDTC v1 contract fixes it at 128 bits |
 | `mrtc_top` | `AXIL_ADDR_W=12`, `AXIL_DATA_W=32` | Control-plane address and data widths |
 | codec/engine | `MRTC_K_POLICY_ARCH` | Full-adaptive or prefix-fast `k` selection architecture |
-| codec/engine | `PREFIX_SAMPLES=256` | Published prefix-fast observation length |
+| Conventional codec/top and historical full-block profile | `PREFIX_SAMPLES=256` | Published prefix-fast observation length for that path; not the Direct profile |
 | DDR wrapper | `NUM_ENGINES=2` | Engine count; public evidence covers the historical 2/4-Engine matrix and a 2-Engine adaptation smoke |
 | DDR wrapper | `OUTPUT_IN_ORDER=0` | The only supported value; setting it to `1` fails fast |
 | Direct wrapper | `NUM_ENGINES=2`, `ENGINE_BOUNDED_WAY_COUNT=4` | Fixed public dual-Engine, eight-way organization |
@@ -79,7 +79,7 @@ The `mrtc_top` AXI4-Lite interface exposes enable, soft reset, status clear, cod
 
 - Keep configuration stable for a complete block transaction.
 - Align input `tlast` with the 1024-sample block boundary.
-- Support arbitrary output `tready` backpressure and the TLAST/TUSER final-byte rule.
+- Support output `tready` backpressure and the TLAST/TUSER final-byte rule on the normal non-fatal path; exhausted Direct output credit is fail-stop, not indefinite backpressure.
 - Treat `tlast` as the packet-atomic boundary; do not assume Block IDs naturally emerge in order.
 - For the Direct profile, submit a legal descriptor before data, enforce its bounded codec domain, avoid presenting input valid while ready is low, and reset both ends after any nonzero `stat_error`.
 - Compile the tracked filelist for the selected top rather than manually omitting packages or helper modules.

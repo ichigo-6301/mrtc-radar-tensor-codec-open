@@ -4,11 +4,30 @@
 
 RDTC packet 由 64-byte little-endian header 和 payload 组成。本页给出公开 RDTC v1 的字节、bit 与长度合同；Rice 算法推导见[算法](algorithm.md)，端口握手见[接口](interfaces.md)，组合时序见[流时序](stream_timing.md#protocol-timing-contract)。
 
+<a id="raw-axis-layout"></a>
+
 ## 原始输入 Block
 
 公开 producer-side tensor 合同为 `S[spatial, doppler, range]`，当前 `spatial_idx` 解释为 `beam_id`。扁平化次序为 spatial/beam -> Doppler -> Range，Range 是最快变化维。RTL 接收扁平 sample 序列，不自行计算 tensor 坐标。
 
 默认 block 为 `1 beam x 64 Doppler x 16 Range = 1024` 个 complex sample。I 与 Q 都是 signed 16-bit；每个 32-bit sample word 为 `{Q[15:0], I[15:0]}`，内存字节顺序依次为 `I[7:0]`、`I[15:8]`、`Q[7:0]`、`Q[15:8]`。
+
+```text
+Tensor 顺序（默认 block；Range 最快变化）
+  sample    0 = S[beam0, Doppler 0,  Range 0]
+  sample   15 = S[beam0, Doppler 0,  Range 15]
+  sample   16 = S[beam0, Doppler 1,  Range 0]
+  ...
+  sample 1023 = S[beam0, Doppler 63, Range 15]
+
+AXIS128 beat n（bit 编号从左向右递减）
++-------------+-------------+-------------+-------------+
+| [127:96]    | [95:64]     | [63:32]     | [31:0]      |
+| sample 4n+3 | sample 4n+2 | sample 4n+1 | sample 4n+0 |
++-------------+-------------+-------------+-------------+
+sample[31:0] = {Q[15:0], I[15:0]}
+sample bytes = I low, I high, Q low, Q high
+```
 
 | AXIS128 lane | `tdata` bits | Sample |
 |---|---|---|
@@ -19,12 +38,24 @@ RDTC packet 由 64-byte little-endian header 和 payload 组成。本页给出�
 
 因此一个 block 是 `4096` raw byte、`256` 个完全填充的 AXIS128 beat。按零起始编号，输入 `s_axis_raw_tlast` 在 beat 255 置位。
 
+<a id="packet-wire-layout"></a>
+
 ## Packet 组成
 
 ```text
 packet = 64-byte header + variable-length payload
 header-length packet beats = 4 + ceil(header.payload_bytes / 16)
 physical packet beats = 4 + ceil(observed_payload_bytes / 16)
+```
+
+```text
+AXIS beat   0       1       2       3       4 ... N
+          +-------+-------+-------+-------+-------------+
+wire      | H0-15 |H16-31|H32-47|H48-63| payload ... |
+          +-------+-------+-------+-------+-------------+
+          <------ 64-byte header ------->< variable >
+TLAST                                              1
+TUSER                                 valid_bytes - 1
 ```
 
 对 header-length packet，`header.payload_bytes` 就是物理 payload 长度；对 TLAST-length packet，header 字段可以为零，必须从 stream 统计 observed physical length。Encoder 先输出固定四拍 header，再输出 payload。`m_axis_comp_tlast` 标记物理 packet 的最后一拍；该拍的 `m_axis_comp_tuser[3:0]` 等于 `valid_byte_count - 1`，完整 16-byte 尾拍取值为 `15`。TUSER 只在 TLAST 拍用于解释尾拍字节数；主 AXIS128 合同没有导出 TKEEP。
@@ -80,14 +111,20 @@ CRC32 field 与 enable flag 已定义，但当前记录的公开 profile 均未�
 
 ## Payload 顺序
 
+```text
+sample-major symbol order
+  sample 0       sample 1          ... sample 1023
+  I0 -> Q0   |   I1 -> Q1          ... I1023 -> Q1023
+
+RAW:  LE16(I0), LE16(Q0), LE16(I1), LE16(Q1), ...
+Rice: Rice(map(rI0)), Rice(map(rQ0)), ...
+word: 1 repeated q times -> 0 -> remainder[k]
+byte: bit 7 -> bit 0 (MSB first)
+```
+
 ### RAW_BYPASS
 
-互操作 RAW packet 同时设置 `codec_mode=RAW` 与 `MRTC_FLAG_RAW_BYPASS`。Payload 是 sample-major 字节流：
-
-```text
-I0 little-endian, Q0 little-endian,
-I1 little-endian, Q1 little-endian, ...
-```
+互操作 RAW packet 同时设置 `codec_mode=RAW` 与 `MRTC_FLAG_RAW_BYPASS`。Payload 是上图第一种 sample-major 字节流。
 
 ### ZERO_RICE 与 DELTA_RICE
 

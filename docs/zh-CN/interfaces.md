@@ -49,7 +49,7 @@ Decoder 在 `s_axis_comp_*` 接收同一物理 packet 边界，并在 `m_axis_ra
 | `mrtc_top` | `AXIS_DATA_W=128` | 公开主数据宽度；当前 RDTC v1 合同固定为 128 bit |
 | `mrtc_top` | `AXIL_ADDR_W=12`, `AXIL_DATA_W=32` | 控制面地址与数据宽度 |
 | codec/engine | `MRTC_K_POLICY_ARCH` | full-adaptive 或 prefix-fast `k` 选择架构 |
-| codec/engine | `PREFIX_SAMPLES=256` | prefix-fast 的公开默认观察长度 |
+| 常规 codec/top 与历史 full-block profile | `PREFIX_SAMPLES=256` | 该路径的公开默认 prefix-fast 观察长度；不适用于 Direct profile |
 | DDR wrapper | `NUM_ENGINES=2` | Engine 数量；公开回归覆盖 2/4 Engine 历史矩阵与 2 Engine adaptation smoke |
 | DDR wrapper | `OUTPUT_IN_ORDER=0` | 唯一支持值；设为 `1` 会 fail-fast |
 | Direct wrapper | `NUM_ENGINES=2`, `ENGINE_BOUNDED_WAY_COUNT=4` | 公开配置固定为双 Engine、共 8 个 way |
@@ -79,7 +79,7 @@ Direct 输入面是 bounded fail-stop 合同：当已预约 Engine 尚未 ready 
 
 - 固定配置在一个 block transaction 内保持不变。
 - 输入 `tlast` 与 1024-sample block 边界一致。
-- 下游完整支持 `tready` backpressure 和 TLAST/TUSER 尾拍有效字节规则。
+- 正常非 fatal 输出路径支持 `tready` backpressure 与 TLAST/TUSER 尾拍规则；Direct output-credit 耗尽属于 fail-stop，不是无限 backpressure。
 - Packet 以 `tlast` 为原子边界，不按 block ID 假设天然有序。
 - Direct profile 必须先提交合法 descriptor、满足 bounded codec 域、避免在低 ready 时呈现 input valid，并在任意非零 `stat_error` 后复位两端。
 - 使用所选 top 对应的 tracked filelist，不手工遗漏 package 或 helper module。
