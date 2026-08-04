@@ -68,6 +68,43 @@ FFT backend output: S[beam][doppler][range]  (range fastest)
        restores the original I/Q samples
 ```
 
+### 一拍 AXIS128 如何变成变长 Rice Fragment
+
+```text
+Bounded Direct: one AXIS128 beat -> one variable-length fragment
+
+AXIS128 = 4 x I16Q16 = 8 x signed 16-bit components
+                 | first 32 accepted beats        | every source beat
+                 v                                v
+       cost for k=0..15 -> selected k*   ZERO predict -> residual r
+                              |                    |
+                              |          signed map -> m
+                              +---------+----------+
+                                        v
+                                q = m >> k*
+                                rem = m[k*-1:0]
+                                Rice = 1^q | 0 | rem
+                                        |
+                                        v
+                         concatenate I0,Q0,...,I3,Q3
+                                        |
+                         word_bits = sum(q+1+k*) <= 128 ?
+                                  |                         |
+                                 yes                       no
+                                  |                         |
+                                  v                         v
+                    variable-length fragment            fail-stop
+                                  |
+                                  v
+                    bit reservoir -> AXIS128 payload
+```
+
+- `1^q` 表示连续 `q` 个 `1`；quotient 以 unary count 编码，不输出固定 18-bit 二进制字段。终止 `0` 让 Decoder 无需额外 quotient-width metadata 就能恢复 `q`；`rem` 是 mapped value 的低 `k*` bit。
+- `word_bits <= 128` 是每个 128-bit source word 的局部 bounded guard，不是整个 Payload 或 Packet 的长度限制；违反时报告 `MRTC_ERR_BOUNDED_RICE_WORD` 并 fail-stop，不自动 fallback 到 RAW。
+- 前 32 个已接收 beat 包含 128-sample prefix，estimator 用每个 I/Q component 的 `q+1+k` 代价在 `k=0..15` 中选择累计代价最小的 `k*`。这些 beat 仍保存在 ring 中；`k*` 有效后，Bitpacker 仍按原序读取并编码全部 256 个 source word，包括前 32 拍。
+- 八个 component code 按 `I0,Q0,...,I3,Q3` 直接连接；fragment 之间不做 byte alignment，width-packer reservoir 连续拼接 bit。source read `II=1` 不等于 compressed AXIS `TVALID` 每周期有效。
+- 若 256 个 source word 都满足该 guard，coded payload 的数学上界为 `256 x 128 bit = 4096 B`；packet 还要加固定 64-byte header。这不是 packet 必然压缩或输出带宽必然更低的声明。
+
 - Producer 按 `S[spatial/beam, doppler, range]` 扁平化，Range 最快变化；RTL 接收扁平序列，不实现上游 FFT。
 - 每个 sample 是 `{Q[15:0], I[15:0]}`，一个 AXIS128 beat 按 lane 顺序携带 4 个 sample。
 - 默认 block 为 `1024 sample = 4096 B = 256 beats`，输入 TLAST 位于零起始 beat 255。
@@ -85,7 +122,7 @@ FFT backend output: S[beam][doppler][range]  (range fastest)
 
 当前 C Decoder 直接支持常规 header-length packet；bounded Direct 的 `STREAM_LENGTH_BY_TLAST` packet 仍需接收侧长度适配，详细边界见码流格式页。
 
-[查看 raw lane 与 packet wire layout](docs/zh-CN/bitstream_format.md#raw-axis-layout) · [查看 64-byte header、payload 与长度合同](docs/zh-CN/bitstream_format.md#header-layout) · [查看 Direct 四路浅输入 ring](docs/zh-CN/architecture.md#four-way-shallow-input-ring) · [查看真实流时序与握手](docs/zh-CN/stream_timing.md#direct-engine0-trace)
+[查看 raw lane 与 packet wire layout](docs/zh-CN/bitstream_format.md#raw-axis-layout) · [查看 64-byte header、payload 与长度合同](docs/zh-CN/bitstream_format.md#header-layout) · [查看 Direct 四路浅输入 ring](docs/zh-CN/architecture.md#four-way-shallow-input-ring) · [查看 beat-to-fragment 流水](docs/zh-CN/architecture.md#beat-to-rice-fragment) · [查看真实流时序与握手](docs/zh-CN/stream_timing.md#direct-engine0-trace)
 
 ### 选择集成入口
 

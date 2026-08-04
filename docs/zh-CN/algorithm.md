@@ -62,6 +62,29 @@ RTL 中分别以右移 `m >> k` 和掩码 `m & (2^k - 1)` 实现这两个运算�
 
 $$L_k(m) = q + 1 + k$$
 
+例如：
+
+```text
+residual r = -3
+mapped   m = -2*(-3)-1 = 5
+selected k = 2
+
+q   = 5 >> 2 = 1
+rem = 5 & 0b11 = 1 = 0b01
+
+Rice code:
+  1^q | 0 | rem
+  1   | 0 | 01
+  = 1001
+
+length:
+  q + 1 + k
+  = 1 + 1 + 2
+  = 4 bits
+```
+
+该 `1001` 紧接下一个 I/Q component 的 Rice code，不在 component 边界做 byte alignment。
+
 block-adaptive 模式对公开实现支持的 $k \in [0,15]$ 统计 I/Q 全部 mapped value 的总代价，并选择：
 
 $$

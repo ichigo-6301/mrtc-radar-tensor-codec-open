@@ -295,6 +295,59 @@ DATA_CONTRACT_MARKERS = {
     ),
 }
 
+RICE_DATAPATH_MARKERS = {
+    "README.md": (
+        "one AXIS128 beat -> one variable-length fragment",
+        "8 x signed 16-bit components",
+        "cost for k=0..15",
+        "selected k*",
+        "q = m >> k*",
+        "Rice = 1^q | 0 | rem",
+        "word_bits = sum(q+1+k*) <= 128",
+        "bit reservoir -> AXIS128 payload",
+        "MRTC_ERR_BOUNDED_RICE_WORD",
+    ),
+    "README.en.md": (
+        "one AXIS128 beat -> one variable-length fragment",
+        "8 x signed 16-bit components",
+        "cost for k=0..15",
+        "selected k*",
+        "q = m >> k*",
+        "Rice = 1^q | 0 | rem",
+        "word_bits = sum(q+1+k*) <= 128",
+        "bit reservoir -> AXIS128 payload",
+        "MRTC_ERR_BOUNDED_RICE_WORD",
+    ),
+    "docs/zh-CN/architecture.md": (
+        '<a id="beat-to-rice-fragment"></a>',
+        "P1R",
+        "P2S",
+        "P3A/P3P/P3B",
+        "balanced OR",
+        "width packer bit reservoir",
+    ),
+    "docs/en/architecture.md": (
+        '<a id="beat-to-rice-fragment"></a>',
+        "P1R",
+        "P2S",
+        "P3A/P3P/P3B",
+        "balanced OR",
+        "width packer bit reservoir",
+    ),
+    "docs/zh-CN/algorithm.md": (
+        "residual r = -3",
+        "mapped",
+        "1001",
+        "4 bits",
+    ),
+    "docs/en/algorithm.md": (
+        "residual r = -3",
+        "mapped",
+        "1001",
+        "4 bits",
+    ),
+}
+
 STREAM_TIMING_MARKERS = {
     "docs/zh-CN/stream_timing.md": (
         '<a id="protocol-timing-contract"></a>',
@@ -387,6 +440,11 @@ def check(root):
         for marker in markers:
             if marker not in text:
                 errors.append("{} missing data-contract marker {}".format(name, marker))
+    for name, markers in RICE_DATAPATH_MARKERS.items():
+        text = (root / name).read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                errors.append("{} missing Rice-datapath marker {}".format(name, marker))
     for name, markers in STREAM_TIMING_MARKERS.items():
         text = (root / name).read_text(encoding="utf-8")
         for marker in markers:

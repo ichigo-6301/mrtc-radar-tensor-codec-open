@@ -68,6 +68,43 @@ FFT backend output: S[beam][doppler][range]  (range fastest)
        restores the original I/Q samples
 ```
 
+### How One AXIS128 Beat Becomes A Variable-Length Rice Fragment
+
+```text
+Bounded Direct: one AXIS128 beat -> one variable-length fragment
+
+AXIS128 = 4 x I16Q16 = 8 x signed 16-bit components
+                 | first 32 accepted beats        | every source beat
+                 v                                v
+       cost for k=0..15 -> selected k*   ZERO predict -> residual r
+                              |                    |
+                              |          signed map -> m
+                              +---------+----------+
+                                        v
+                                q = m >> k*
+                                rem = m[k*-1:0]
+                                Rice = 1^q | 0 | rem
+                                        |
+                                        v
+                         concatenate I0,Q0,...,I3,Q3
+                                        |
+                         word_bits = sum(q+1+k*) <= 128 ?
+                                  |                         |
+                                 yes                       no
+                                  |                         |
+                                  v                         v
+                    variable-length fragment            fail-stop
+                                  |
+                                  v
+                    bit reservoir -> AXIS128 payload
+```
+
+- `1^q` means `q` consecutive one-bits. The quotient is a unary count, not a fixed 18-bit binary field. Its zero terminator lets the Decoder recover `q` without separate quotient-width metadata; `rem` is the low `k*` bits of the mapped value.
+- `word_bits <= 128` is a local bounded guard for each 128-bit source word, not a limit on the complete Payload or Packet. A violation reports `MRTC_ERR_BOUNDED_RICE_WORD` and fail-stops; this path does not fall back to RAW automatically.
+- The first 32 accepted beats contain the 128-sample prefix. The estimator evaluates `q+1+k` for every I/Q component at `k=0..15` and selects the minimum accumulated prefix cost as `k*`. Those beats remain buffered in the ring; after `k*` is valid, the Bitpacker still reads and encodes all 256 source words in order, including the first 32 beats.
+- The eight component codes concatenate as `I0,Q0,...,I3,Q3`. Fragments have no byte alignment; the width-packer reservoir appends their bits directly. Source-read `II=1` does not mean compressed AXIS `TVALID` is asserted every cycle.
+- If all 256 source words satisfy the guard, the coded payload has the mathematical upper bound `256 x 128 bits = 4096 B`; the packet additionally includes its fixed 64-byte header. This is not a claim that every packet compresses or that output bandwidth is always lower.
+
 - The producer flattens `S[spatial/beam, doppler, range]` with Range changing fastest. RTL consumes the flat sequence; it does not implement the upstream FFT.
 - Each sample is `{Q[15:0], I[15:0]}`, and one AXIS128 beat carries four samples in ascending lane order.
 - The default block is `1024 samples = 4096 B = 256 beats`, with input TLAST on zero-based beat 255.
@@ -85,7 +122,7 @@ FFT backend output: S[beam][doppler][range]  (range fastest)
 
 The current C decoder directly supports conventional header-length packets. Bounded Direct `STREAM_LENGTH_BY_TLAST` packets still require receive-side length adaptation; see the bitstream-format page.
 
-[See the raw lane and packet wire layout](docs/en/bitstream_format.md#raw-axis-layout) · [See the 64-byte header, payload, and length contracts](docs/en/bitstream_format.md#header-layout) · [See the Direct four-way shallow input ring](docs/en/architecture.md#four-way-shallow-input-ring) · [See the observed stream timing and handshake](docs/en/stream_timing.md#direct-engine0-trace)
+[See the raw lane and packet wire layout](docs/en/bitstream_format.md#raw-axis-layout) · [See the 64-byte header, payload, and length contracts](docs/en/bitstream_format.md#header-layout) · [See the Direct four-way shallow input ring](docs/en/architecture.md#four-way-shallow-input-ring) · [See the beat-to-fragment pipeline](docs/en/architecture.md#beat-to-rice-fragment) · [See the observed stream timing and handshake](docs/en/stream_timing.md#direct-engine0-trace)
 
 ### Choose an integration entrypoint
 

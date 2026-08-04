@@ -135,6 +135,8 @@ For ZERO_RICE, the residual equals the current sample component. DELTA_RICE keep
 
 Rice symbols are ordered `Rice(I0), Rice(Q0), Rice(I1), Rice(Q1), ...`. A signed residual `r` maps to `2*r` when `r >= 0` and `-2*r-1` otherwise. One Rice word contains `q` one-bits, one zero terminator, and a `k`-bit remainder. Remainders and bits within each byte are written MSB first. See [Algorithm](algorithm.md#signed-mapping-and-rice-coding) for the derivation.
 
+See [From An AXIS128 Source Word To A Variable Fragment](architecture.md#beat-to-rice-fragment) for the detailed eight-component parallel token generation, placement pipeline, and per-source-word `<=128-bit` bounded guard.
+
 <a id="packet-length-contracts"></a>
 
 ## Two Length Contracts

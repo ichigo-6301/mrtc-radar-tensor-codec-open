@@ -135,6 +135,8 @@ ZERO_RICE 的 residual 等于当前 sample 分量。DELTA_RICE 为 I 与 Q 维�
 
 Rice symbol 顺序固定为 `Rice(I0), Rice(Q0), Rice(I1), Rice(Q1), ...`。Signed residual `r` 映射为非负整数：`r >= 0` 时为 `2*r`，`r < 0` 时为 `-2*r-1`。一个 Rice word 由 `q` 个 `1`、一个 `0` terminator 和 `k`-bit remainder 组成；remainder 与 byte 内 bit 都按 MSB-first 写入。完整推导见[算法](algorithm.md#signed-mapping-与-rice-code)。
 
+详细的 8-component 并行 token 生成、placement pipeline 和 per-source-word `<=128-bit` bounded guard 见架构页[“从 AXIS128 Source Word 到变长 Fragment”](architecture.md#beat-to-rice-fragment)。
+
 <a id="packet-length-contracts"></a>
 
 ## 两种长度合同

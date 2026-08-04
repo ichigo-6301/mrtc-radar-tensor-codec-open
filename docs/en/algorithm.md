@@ -62,6 +62,29 @@ The codeword contains $q$ one bits, one terminating zero, and a $k$-bit MSB-firs
 
 $$L_k(m) = q + 1 + k$$
 
+For example:
+
+```text
+residual r = -3
+mapped   m = -2*(-3)-1 = 5
+selected k = 2
+
+q   = 5 >> 2 = 1
+rem = 5 & 0b11 = 1 = 0b01
+
+Rice code:
+  1^q | 0 | rem
+  1   | 0 | 01
+  = 1001
+
+length:
+  q + 1 + k
+  = 1 + 1 + 2
+  = 4 bits
+```
+
+The `1001` bits concatenate immediately with the next I/Q component code; component boundaries are not byte aligned.
+
 Block-adaptive mode evaluates the supported $k \in [0,15]$ values over all mapped I/Q values and selects:
 
 $$

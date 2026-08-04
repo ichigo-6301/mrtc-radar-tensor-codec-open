@@ -103,6 +103,47 @@ offset = global_word_index mod 32
 
 在合法、非 fatal capture 中，每个已接收输入 word 写入映射 slot 并设置 valid；已接受 ring read 清除该 slot 的 valid，使后续 wrap 可以复用。Read request 到对外 response 是固定两拍。不同 way 的 read/write 可以同周期重叠；true-1RW way 上同周期读写即使 offset 不同也非法，并产生 way conflict。写入仍 valid 的 slot 或读取 invalid slot 会产生 ring error，并由 bounded Encoder 上升为 sticky fatal。
 
+<a id="beat-to-rice-fragment"></a>
+
+### 从 AXIS128 Source Word 到变长 Fragment
+
+```text
+ring response
+    |
+    v
+P0   : accept one AXIS128 word / 4 complex samples
+    |
+P1R  : predictor selection and 8 signed residuals
+    |
+P1   : 8 residuals -> unsigned mapped symbols
+    |
+P2   : quotient, remainder and 8 component lengths
+    |
+P2S  : total length + parallel suffix-sum placement offsets
+    |
+P3A/P3P/P3B
+     : unary/terminator/remainder generation
+     : dynamic placement
+     : balanced OR-tree token assembly
+    |
+    v
+128-bit variable fragment + fragment length
+    |
+    v
+width packer bit reservoir
+    |
+    v
+bit-contiguous AXIS128 payload stream
+```
+
+当前 bounded Direct profile 固定使用 ZERO predictor。每个 16-bit signed component 在 P1R 中经过 predictor 选择与减法，进入 signed 18-bit residual 容器，再由 P1 映射到 unsigned 18-bit symbol。P2 并行计算 8 个 component 的 quotient、remainder 与 `q+1+k*` 长度。P2S 使用 logarithmic-depth suffix-sum 结构计算总 token 长度和各 component 的 placement offset。P3A/P3P/P3B 将 unary/terminator/remainder 生成、dynamic shift 与 wide balanced OR reduction 拆分到多个寄存级，最终输出带显式 bit length 的 128-bit fragment。
+
+Width packer 把相邻 fragment 直接 append 到 bit reservoir；累计至少 128 bit 时发出完整 AXIS128 payload word，packet 结束时发出带 padding 的部分尾拍。fragment 边界不做 byte alignment，因此 source ring read request 达到 `II=1` 时，compressed output 仍可合法出现 `TVALID` bubble。
+
+Per-source-word guard 保证 bounded domain 内一个 source word 不会需要超过一个 128-bit fragment，从而允许 one-word-per-cycle 的 source cadence；若总长度超过 128 bit，Encoder 报告 `MRTC_ERR_BOUNDED_RICE_WORD` 并 fail-stop，不自动切换到 RAW。
+
+前 32 个已接受 AXIS128 beat 包含 128-sample prefix。Capture 期间 estimator 对每个 I/Q component、每个候选 `k=0..15` 累加 `q+1+k`，选择 prefix 累计代价最小的 `k*`；前 32 拍仍留在 ring 中。`k*` 有效后，Bitpacker 按原顺序读取全部 256 个 source word，包括前 32 拍，并在整个 block 上持续检查 per-word `<=128-bit` guard。
+
 <a id="stream-timing-contract"></a>
 
 ### Stream Timing 合同
@@ -112,7 +153,7 @@ offset = global_word_index mod 32
 该简化结构采用明确的 fail-stop 语义：
 
 - 只接受 `ZERO_RICE` 与 block-adaptive prefix `k`；
-- 每个 8-sample Rice word 必须不超过 `128 bit`；
+- 每个含 8 个 I/Q component 的 source-word fragment 必须不超过 `128 bit`；
 - `k` 可用后，一个 Engine 以 `II=1` 连续发出 256 个 ring read；
 - 同 way 读写冲突、cadence 中断、block 格式错误或 output credit 耗尽均产生 sticky fatal；
 - 因为没有 speculative payload storage，fatal 可能让外部看到半包，producer 与 receiver 必须一起 reset。

@@ -103,6 +103,47 @@ offset = global_word_index mod 32
 
 On a legal, non-fatal capture, each accepted input word writes its mapped slot and sets valid. An accepted ring read clears that slot's valid state so a later wrap can reuse it. The external response arrives at a fixed two-clock delay from the read request. Reads and writes may overlap on different ways. A true-1RW way cannot read and write in the same cycle even at different offsets; that condition raises a way conflict. Writing a still-valid slot or reading an invalid slot raises a ring error, promoted by the bounded Encoder to sticky fatal status.
 
+<a id="beat-to-rice-fragment"></a>
+
+### From An AXIS128 Source Word To A Variable Fragment
+
+```text
+ring response
+    |
+    v
+P0   : accept one AXIS128 word / 4 complex samples
+    |
+P1R  : predictor selection and 8 signed residuals
+    |
+P1   : 8 residuals -> unsigned mapped symbols
+    |
+P2   : quotient, remainder and 8 component lengths
+    |
+P2S  : total length + parallel suffix-sum placement offsets
+    |
+P3A/P3P/P3B
+     : unary/terminator/remainder generation
+     : dynamic placement
+     : balanced OR-tree token assembly
+    |
+    v
+128-bit variable fragment + fragment length
+    |
+    v
+width packer bit reservoir
+    |
+    v
+bit-contiguous AXIS128 payload stream
+```
+
+The current bounded Direct profile fixes the ZERO predictor. Each signed 16-bit component passes through predictor selection and subtraction in P1R into a signed 18-bit residual container, then P1 maps it to an unsigned 18-bit symbol. P2 calculates all eight components' quotients, remainders, and `q+1+k*` lengths in parallel. P2S uses a logarithmic-depth suffix-sum structure to calculate total token length and each component's placement offset. P3A/P3P/P3B divide unary/terminator/remainder generation, dynamic shifts, and the wide balanced OR reduction across registered stages. The final 128-bit fragment carries an explicit bit length.
+
+The width packer appends adjacent fragments to its bit reservoir. It emits a full AXIS128 payload word whenever at least 128 bits are available and emits a padded partial tail word at packet end. Fragment boundaries have no byte alignment. Source ring-read requests can therefore run at `II=1` while the compressed output still contains legal `TVALID` bubbles.
+
+The per-source-word guard ensures that one source word never requires more than one 128-bit fragment in the bounded domain, allowing a one-word-per-cycle source cadence. If the total exceeds 128 bits, the Encoder reports `MRTC_ERR_BOUNDED_RICE_WORD` and fail-stops; it does not switch to RAW automatically.
+
+The first 32 accepted AXIS128 beats contain the 128-sample prefix. During capture, the estimator accumulates `q+1+k` for every I/Q component and every candidate `k=0..15`, then selects the minimum accumulated prefix cost as `k*`; those first 32 beats remain in the ring. After `k*` becomes valid, the Bitpacker reads all 256 source words in original order, including the first 32 beats, and continues checking the per-word `<=128-bit` guard across the full block.
+
 <a id="stream-timing-contract"></a>
 
 ### Stream Timing Contract
@@ -112,7 +153,7 @@ See [Stream Timing](stream_timing.md#protocol-timing-contract) for the complete 
 This simplification is deliberately fail-stop:
 
 - only `ZERO_RICE` with block-adaptive prefix `k` is accepted;
-- every eight-sample Rice word must fit in `128` bits;
+- every source-word fragment containing eight I/Q components must fit in `128` bits;
 - one Engine issues all 256 ring reads at `II=1` after `k` becomes available;
 - a same-way read/write collision, cadence failure, malformed block, or exhausted output credit raises sticky fatal status;
 - without speculative payload storage, a fatal event can leave a partial packet externally visible, so producer and receiver state must be reset together.
