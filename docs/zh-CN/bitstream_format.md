@@ -46,10 +46,13 @@ sample bytes = I low, I high, Q low, Q high
 packet = 64-byte header + variable-length payload
 header-length packet beats = 4 + ceil(header.payload_bytes / 16)
 physical packet beats = 4 + ceil(observed_payload_bytes / 16)
+P = total physical packet beats
+P = 4 + ceil(payload_bytes / 16)          (header-length packet)
+P = 4 + ceil(observed_payload_bytes / 16) (TLAST-length packet)
 ```
 
 ```text
-AXIS beat   0       1       2       3       4 ... N
+AXIS beat   0       1       2       3       4 ... P-1
           +-------+-------+-------+-------+-------------+
 wire      | H0-15 |H16-31|H32-47|H48-63| payload ... |
           +-------+-------+-------+-------+-------------+
