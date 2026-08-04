@@ -36,31 +36,45 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 ## Data Contract: From A 4096-Byte Raw Block To A Variable-Length Packet
 
 ```text
-Raw Tensor Block
-1 beam x 64 Doppler
-x 16 Range
-       | range fastest
-       v
-256 x AXIS128
-       |
-       v
-Predict / Map / Rice
-       |
-      Pack
-       |
-       v
-+----------+------------+
-|64B Header|Var. Payload|
-|4 beats   |N beats     |
-+----------+------------+
-                    TLAST
+FFT backend output: S[beam][doppler][range]  (range fastest)
+                              |
+                              v
++----------------------------------------------------------------+
+| 1 block = 1 beam x 64 Doppler x 16 Range                      |
+|         = 1024 I16Q16 complex samples = 4096 B                |
++----------------------------------------------------------------+
+                              |
+                              | 256 AXIS128 beats
+                              | 4 complex samples / beat
+                              v
++-------------+------------+------------+-------------------------+
+| Predictor   | Signed map | Adaptive k | Rice bitpacker          |
++-------------+------------+------------+-------------------------+
+                              |
+                              v
++----------------------+-----------------------------------------+
+| 64 B header          | Variable-length payload                 |
+| 4 AXIS128 beats      | N AXIS128 beats                         |
++----------------------+-----------------------------------------+
+                                                 final TLAST/TUSER
+                              |
+                  +-----------+-----------+
+                  |                       |
+                  v                       v
+       DDR / interconnect / 10G     RTL decoder
+                  |                 loopback / reference
+                  v
+       PC/C decoder (header-length packet)
+       restores the original I/Q samples
 ```
 
 - The producer flattens `S[spatial/beam, doppler, range]` with Range changing fastest. RTL consumes the flat sequence; it does not implement the upstream FFT.
 - Each sample is `{Q[15:0], I[15:0]}`, and one AXIS128 beat carries four samples in ascending lane order.
 - The default block is `1024 samples = 4096 B = 256 beats`, with input TLAST on zero-based beat 255.
 
-`packet = four 128-bit header beats + variable payload beats`; TLAST/TUSER describe the physical tail. The fixed `delta_smooth` C demo encodes a `4096 B` raw block as a `360 B` packet (2365 payload bits and 23 AXIS128 beats), then reconstructs I/Q bit-exactly.
+`packet = four 128-bit header beats + variable payload beats`; TLAST/TUSER describe the physical tail.
+
+**Fixed `delta_smooth` example:** `4096 B raw -> 64 B header + 296 B payload (2365 payload bits) = 360 B / 23 AXIS128 beats`, with bit-exact I/Q recovery by the C decoder.
 
 | Handshake / framing | Contract |
 |---|---|
@@ -68,6 +82,8 @@ Predict / Map / Rice
 | Output | Four header beats, then variable payload; `m_axis_comp_tlast` is asserted only on packet end |
 | Tail beat | `m_axis_comp_tuser[3:0] = valid_byte_count - 1`; the main AXIS128 path does not use TKEEP |
 | Backpressure | On the normal non-fatal path, `TVALID=1, TREADY=0` holds `TDATA/TUSER/TLAST` stable |
+
+The current C decoder directly supports conventional header-length packets. Bounded Direct `STREAM_LENGTH_BY_TLAST` packets still require receive-side length adaptation; see the bitstream-format page.
 
 [See the raw lane and packet wire layout](docs/en/bitstream_format.md#raw-axis-layout) · [See the 64-byte header, payload, and length contracts](docs/en/bitstream_format.md#header-layout) · [See the Direct four-way shallow input ring](docs/en/architecture.md#four-way-shallow-input-ring) · [See the observed stream timing and handshake](docs/en/stream_timing.md#direct-engine0-trace)
 

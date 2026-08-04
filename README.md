@@ -36,31 +36,45 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 ## 数据合同：4096B 原始 Block 如何变成变长 Packet
 
 ```text
-Raw Tensor Block
-1 beam x 64 Doppler
-x 16 Range
-       | range fastest
-       v
-256 x AXIS128
-       |
-       v
-Predict / Map / Rice
-       |
-      Pack
-       |
-       v
-+----------+------------+
-|64B Header|Var. Payload|
-|4 beats   |N beats     |
-+----------+------------+
-                    TLAST
+FFT backend output: S[beam][doppler][range]  (range fastest)
+                              |
+                              v
++----------------------------------------------------------------+
+| 1 block = 1 beam x 64 Doppler x 16 Range                      |
+|         = 1024 I16Q16 complex samples = 4096 B                |
++----------------------------------------------------------------+
+                              |
+                              | 256 AXIS128 beats
+                              | 4 complex samples / beat
+                              v
++-------------+------------+------------+-------------------------+
+| Predictor   | Signed map | Adaptive k | Rice bitpacker          |
++-------------+------------+------------+-------------------------+
+                              |
+                              v
++----------------------+-----------------------------------------+
+| 64 B header          | Variable-length payload                 |
+| 4 AXIS128 beats      | N AXIS128 beats                         |
++----------------------+-----------------------------------------+
+                                                 final TLAST/TUSER
+                              |
+                  +-----------+-----------+
+                  |                       |
+                  v                       v
+       DDR / interconnect / 10G     RTL decoder
+                  |                 loopback / reference
+                  v
+       PC/C decoder (header-length packet)
+       restores the original I/Q samples
 ```
 
 - Producer 按 `S[spatial/beam, doppler, range]` 扁平化，Range 最快变化；RTL 接收扁平序列，不实现上游 FFT。
 - 每个 sample 是 `{Q[15:0], I[15:0]}`，一个 AXIS128 beat 按 lane 顺序携带 4 个 sample。
 - 默认 block 为 `1024 sample = 4096 B = 256 beats`，输入 TLAST 位于零起始 beat 255。
 
-`packet = 4 个 128-bit header beat + 变长 payload beat`，物理尾拍由 TLAST/TUSER 描述。固定 `delta_smooth` C demo 把 `4096 B` 原始 block 编成 `360 B` packet（2365 payload bit、23 AXIS128 beat），再 bit-exact 恢复 I/Q。
+`packet = 4 个 128-bit header beat + 变长 payload beat`，物理尾拍由 TLAST/TUSER 描述。
+
+**固定 `delta_smooth` 示例：** `4096 B raw -> 64 B Header + 296 B Payload（2365 payload bit）= 360 B / 23 AXIS128 beat`，C Decoder 恢复后 I/Q 与输入逐比特一致。
 
 | 握手 / framing | 合同 |
 |---|---|
@@ -68,6 +82,8 @@ Predict / Map / Rice
 | 输出 | 固定 `4` 个 header beat，后接变长 payload；`m_axis_comp_tlast` 只在 packet 末拍置位 |
 | 尾拍 | `m_axis_comp_tuser[3:0] = valid_byte_count - 1`；主 AXIS128 不使用 TKEEP |
 | Backpressure | 正常非 fatal 路径中 `TVALID=1, TREADY=0` 时，`TDATA/TUSER/TLAST` 保持稳定 |
+
+当前 C Decoder 直接支持常规 header-length packet；bounded Direct 的 `STREAM_LENGTH_BY_TLAST` packet 仍需接收侧长度适配，详细边界见码流格式页。
 
 [查看 raw lane 与 packet wire layout](docs/zh-CN/bitstream_format.md#raw-axis-layout) · [查看 64-byte header、payload 与长度合同](docs/zh-CN/bitstream_format.md#header-layout) · [查看 Direct 四路浅输入 ring](docs/zh-CN/architecture.md#four-way-shallow-input-ring) · [查看真实流时序与握手](docs/zh-CN/stream_timing.md#direct-engine0-trace)
 

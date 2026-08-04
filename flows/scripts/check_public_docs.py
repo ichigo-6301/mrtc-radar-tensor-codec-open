@@ -188,6 +188,22 @@ DATA_CONTRACT_MARKERS = {
     "README.md": (
         '<a id="data-contract"></a>',
         "4096B 原始 Block 如何变成变长 Packet",
+        "FFT backend output: S[beam][doppler][range]  (range fastest)",
+        "1 block = 1 beam x 64 Doppler x 16 Range",
+        "1024 I16Q16 complex samples = 4096 B",
+        "256 AXIS128 beats",
+        "4 complex samples / beat",
+        "Predictor",
+        "Signed map",
+        "Adaptive k",
+        "Rice bitpacker",
+        "64 B header",
+        "Variable-length payload",
+        "final TLAST/TUSER",
+        "PC/C decoder (header-length packet)",
+        "RTL decoder",
+        "STREAM_LENGTH_BY_TLAST",
+        "仍需接收侧长度适配",
         "docs/zh-CN/bitstream_format.md#raw-axis-layout",
         "docs/zh-CN/bitstream_format.md#header-layout",
         "docs/zh-CN/architecture.md#four-way-shallow-input-ring",
@@ -196,6 +212,22 @@ DATA_CONTRACT_MARKERS = {
     "README.en.md": (
         '<a id="data-contract"></a>',
         "From A 4096-Byte Raw Block To A Variable-Length Packet",
+        "FFT backend output: S[beam][doppler][range]  (range fastest)",
+        "1 block = 1 beam x 64 Doppler x 16 Range",
+        "1024 I16Q16 complex samples = 4096 B",
+        "256 AXIS128 beats",
+        "4 complex samples / beat",
+        "Predictor",
+        "Signed map",
+        "Adaptive k",
+        "Rice bitpacker",
+        "64 B header",
+        "Variable-length payload",
+        "final TLAST/TUSER",
+        "PC/C decoder (header-length packet)",
+        "RTL decoder",
+        "STREAM_LENGTH_BY_TLAST",
+        "require receive-side length adaptation",
         "docs/en/bitstream_format.md#raw-axis-layout",
         "docs/en/bitstream_format.md#header-layout",
         "docs/en/architecture.md#four-way-shallow-input-ring",
@@ -364,8 +396,11 @@ def check(root):
     if legacy_data_contract.exists():
         errors.append("obsolete README data-contract SVG is still present")
     for name in ("README.md", "README.en.md"):
-        if "rdtc_data_contract.svg" in (root / name).read_text(encoding="utf-8"):
+        readme_text = (root / name).read_text(encoding="utf-8")
+        if "rdtc_data_contract.svg" in readme_text:
             errors.append("{} still references the obsolete data-contract SVG".format(name))
+        if "Raw Tensor Block\n1 beam x 64 Doppler" in readme_text:
+            errors.append("{} still contains the obsolete minimal data-contract diagram".format(name))
     for name in DIRECT_EVIDENCE:
         if not (root / name).is_file():
             errors.append("missing bounded Direct evidence: {}".format(name))
