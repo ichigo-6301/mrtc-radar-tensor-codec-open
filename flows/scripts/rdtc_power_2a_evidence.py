@@ -26,12 +26,7 @@ SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 STATUS = ("PASS", "BLOCKED", "NOT_STARTED", "NA")
 YES_NO = ("YES", "NO")
-PRIVATE_TEXT = re.compile(
-    r"(?:[A-Za-z]:[\\/]|\\\\|/(?:home|mnt|Users|work|tmp|root|opt)/|"
-    r"(?:LM_LICENSE_FILE|SNPSLMD_LICENSE_FILE|MGLS_LICENSE_FILE|"
-    r"license|licserver|password|token)\\s*[:=])",
-    re.IGNORECASE,
-)
+PRIVATE_TEXT = re.compile(r"(?:[A-Za-z]:[\\/]|\\\\|/(?:home|mnt|Users|work|tmp|root|opt)/|(?:LM_LICENSE_FILE|SNPSLMD_LICENSE_FILE|MGLS_LICENSE_FILE|license|licserver|password|token)\\s*[:=])", re.IGNORECASE)
 
 MANIFEST_FIELDS = (
     "schema", "points_csv", "comparisons_csv", "verification_csv", "gates_csv",
