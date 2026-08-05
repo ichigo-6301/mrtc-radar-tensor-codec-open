@@ -22,6 +22,7 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 | prefix-128 + Lane-parallel Bitpacker | 固定 `smoke_zero_sparse` RTL workload 的 payload interval 为 `7693 -> 721 cycles`，提升 `10.67×`；packet 逐字节一致 | 历史固定 workload；这是 payload interval，不是 whole-block latency、持续吞吐或 Fmax | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
 | Multi-Engine wrapper | 历史 buffered profile 为 `785 / 397.52 / 197.41 cycles/block`，2/4 Engine 扩展效率 `98.7368% / 99.4115%` | `785` 是 Stage16D2 导入 reference，不是 wrapper `NUM_ENGINES=1` 重跑；历史平均 spacing 为 `8220 -> 785 cycles/block`、`10.47×`，见详细文档 | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
 | Direct-AXIS 低缓存重构 | 删除 DDR feeder 与 per-Engine payload commit；同库同约束 315 MHz DC A/B 的 cell area/count 减少 `72.53% / 71.98%` | 双 Engine、全寄存器、DC-only 架构 A/B；Direct RTL 约 `~277 > 256 cycles/block`，不声明持续零间隔调度 | [Direct RTL](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [真实流时序](evidence/rdtc_v1_direct_stream_timing_trace.yaml) · [DC A/B](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
+| Direct-AXIS 架构功耗 A/B | 315 MHz BURST_IDLE dynamic `436.4352 -> 109.8717 mW`（`-74.83%`），energy/block `674.82 -> 167.59 nJ`（`-75.17%`）；ACTIVE_LEGAL dynamic `-74.99%` | 同逻辑 workload、同库同频率、独立 RTL-SAIF-to-mapped activity；mapped-netlist estimate，不是 post-route/CTS/silicon 功耗 | [Evidence package](evidence/rdtc_v1_power_architecture_ab/README.md) · [方法与边界](docs/zh-CN/asic_power_experiment.md) |
 | FPGA / ASIC 落地边界 | Direct FPGA OOC 200 MHz；Direct register-expanded / 8-macro OpenRAM 分别在 `600/300 MHz` 完成 fixed academic post-route PrimeTime setup/hold 闭合 | FPGA 不声明 bitstream/板级吞吐；ASIC 频率不是 Fmax 或 foundry signoff | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [结果矩阵](docs/zh-CN/results.md) |
 
 <p align="center">
@@ -165,9 +166,10 @@ make multiengine-smoke
 make bitpacker-pipeline-ab-validate
 make bounded-dc-ab-validate
 make direct-stream-timing-validate
+make power-architecture-ab-validate
 ```
 
-首项生成 public-safe 配置，随后四项编译或运行公开 C/RTL 入口；末三项只校验脱敏的公开 Evidence、身份和计算合同，不会重新执行 ModelSim、Design Compiler、P&R 或 PrimeTime。
+首项生成 public-safe 配置，随后四项编译或运行公开 C/RTL 入口；末四项只校验脱敏的公开 Evidence、身份和计算合同，不会重新执行 ModelSim、Design Compiler、P&R 或 PrimeTime。
 
 <a id="public-scope-provenance"></a>
 
@@ -221,6 +223,12 @@ MATLAB synthetic study
 ### 同约束架构 A/B（DC-only）
 
 在同一 Nangate45 typical library、315 MHz 同步边界 SDC、双 Engine、全寄存器存储、`compile_ultra` 且禁止 retime 的条件下，buffered wrapper 为 `1,529,495.20 um2 / 786,342 cells`，Direct-AXIS 为 `420,208.44 um2 / 220,298 cells`。移除 DDR feeder 与 per-Engine payload commit 后，DC cell area 减少 `72.53%`、cell count 减少 `71.98%`。这是架构级综合对比，不代表 SRAM 宏面积、post-route 面积、功耗或 Fmax。
+
+### 同 workload 的 mapped 功耗 A/B
+
+在相同 315 MHz、相同 Nangate45 TT 库与相同逻辑 block/packet/selected-k/descriptor/ready 序列下，每个 mapped design 使用自己的 RTL SAIF。BURST_IDLE dynamic power 为 `436.4352 -> 109.8717 mW`（`-74.83%`），energy/block 为 `674.82 -> 167.59 nJ`（`-75.17%`）；ACTIVE_LEGAL dynamic power 变化为 `-74.99%`。保守 promotion gate 计入两端 report quantization 后仍通过。该结果只声明 activity-driven mapped-netlist power estimate，不声明 post-route、CTS clock-tree、silicon 或 foundry-signoff 功耗；两端 `clock_mw = 0` 保留为工具报告值，不解释成物理时钟树功耗。
+
+[功耗方法与边界](docs/zh-CN/asic_power_experiment.md) · [机器可读 Evidence](evidence/rdtc_v1_power_architecture_ab/README.md)
 
 ### 布局布线后闭合点
 

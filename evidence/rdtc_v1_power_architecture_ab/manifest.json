@@ -1,0 +1,14 @@
+{
+  "classifications_csv": "classifications.csv",
+  "comparisons_csv": "comparisons.csv",
+  "eligibility_csv": "eligibility.csv",
+  "gates_csv": "gates.csv",
+  "hierarchy_power_csv": "hierarchy_power.csv",
+  "points_csv": "points.csv",
+  "raw_reports_csv": "raw_reports.csv",
+  "schema": "rdtc_power_2a_evidence_v3",
+  "source_contract_json": "source_contract.json",
+  "source_contract_schema": "rdtc-power-2a-source-contract-v1",
+  "source_contract_sha256": "1db4a2209cde6c14a2e593ec5f4f26f4f34dec7d8bce6afc95f6a3e63ae936cd",
+  "verification_csv": "verification.csv"
+}

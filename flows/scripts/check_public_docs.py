@@ -76,6 +76,8 @@ REVIEW_README_MARKERS = {
         "make bitpacker-pipeline-ab-validate",
         "make bounded-dc-ab-validate",
         "make direct-stream-timing-validate",
+        "make power-architecture-ab-validate",
+        "436.4352 -> 109.8717 mW",
         "不会重新执行 ModelSim、Design Compiler、P&R 或 PrimeTime",
         "docs/assets/bitpacker_pipeline_ab.svg",
         "docs/assets/engine_scaling.svg",
@@ -101,6 +103,8 @@ REVIEW_README_MARKERS = {
         "make bitpacker-pipeline-ab-validate",
         "make bounded-dc-ab-validate",
         "make direct-stream-timing-validate",
+        "make power-architecture-ab-validate",
+        "436.4352 -> 109.8717 mW",
         "do not rerun ModelSim, Design Compiler, P&R, or PrimeTime",
         "docs/assets/bitpacker_pipeline_ab.svg",
         "docs/assets/engine_scaling.svg",
@@ -123,6 +127,8 @@ REVIEW_EVIDENCE_LINKS = {
         "evidence/rdtc_v1_direct_stream_timing_trace.yaml",
         "evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml",
         "evidence/rdtc_v1_bounded_direct_asic.yaml",
+        "evidence/rdtc_v1_power_architecture_ab/README.md",
+        "docs/zh-CN/asic_power_experiment.md",
         "docs/zh-CN/results.md",
         "evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml",
     ),
@@ -136,8 +142,29 @@ REVIEW_EVIDENCE_LINKS = {
         "evidence/rdtc_v1_direct_stream_timing_trace.yaml",
         "evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml",
         "evidence/rdtc_v1_bounded_direct_asic.yaml",
+        "evidence/rdtc_v1_power_architecture_ab/README.md",
+        "docs/en/asic_power_experiment.md",
         "docs/en/results.md",
         "evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml",
+    ),
+}
+
+POWER_DOC_MARKERS = {
+    "docs/en/asic_power_experiment.md": (
+        "ARCH_POWER_POSITIVE",
+        "436.4352 mW",
+        "109.8717 mW",
+        "74.819%",
+        "clock_mw = 0",
+        "../../evidence/rdtc_v1_power_architecture_ab/README.md",
+    ),
+    "docs/zh-CN/asic_power_experiment.md": (
+        "ARCH_POWER_POSITIVE",
+        "436.4352 mW",
+        "109.8717 mW",
+        "74.819%",
+        "clock_mw = 0",
+        "../../evidence/rdtc_v1_power_architecture_ab/README.md",
     ),
 }
 
@@ -435,6 +462,11 @@ def check(root):
         for marker in markers:
             if marker not in text:
                 errors.append("{} missing bounded Direct boundary {}".format(name, marker))
+    for name, markers in POWER_DOC_MARKERS.items():
+        text = (root / name).read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                errors.append("{} missing architecture-power marker {}".format(name, marker))
     for name, markers in DATA_CONTRACT_MARKERS.items():
         text = (root / name).read_text(encoding="utf-8")
         for marker in markers:

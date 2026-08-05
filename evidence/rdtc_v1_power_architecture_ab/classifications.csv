@@ -1,0 +1,2 @@
+classification_id,experiment,comparison_group,classification,branch_only,promotion_eligible,merge_recommended,production_rtl_changed,postroute_pair_completed,lec_status,reason
+architecture:architecture-315mhz,architecture,architecture-315mhz,ARCH_POWER_POSITIVE,NO,YES,YES,NO,NO,NA,all_promotion_gates_pass

@@ -1,0 +1,113 @@
+{
+  "schema": "rdtc-power-2a-source-contract-v1",
+  "architecture_ab": {
+    "authority_repository": "ichigo-6301/mrtc-radar-tensor-codec-open",
+    "authority_commit": "fbd1fdf7965b6dcc0f0a7ad6498436ddba74fbfa",
+    "authority_path": "evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml",
+    "authority_blob": "4eb2f6114f80efcf07d8a86d60ce2383742c3240",
+    "authority_sha256": "aa6f4a52d56f482c6aa3938ef2549c61a8edba4e3a789ca04f656d2b90b4a4f6",
+    "as_run_flow_commit": "db2660c60795182b647bd3c31010b0be6aef6374",
+    "fixed_public_rtl_commit": "4bb56f543d75bb91c9ddeb26cdeef5201560c669",
+    "source_set_sha256": "c32e780aad70dd3414e13c0509e8cdc2969e6c4afb6ef24fc2ef1d47c3f24a8d",
+    "source_count": 69,
+    "filelist_path": "flows/manifests/rdtc_v1_bounded_ab.f",
+    "filelist_sha256": "b91c3c803b3a1617b7eacda31c08d4813c80d1f00e869a966c5718a58b8dcd83",
+    "filelist_blob": "da22ef1a22e04c4840823f05fef40ada09bddd3b",
+    "configs": {
+      "buffered315": {
+        "path": "configs/rdtc_v1_bounded_ab_buffered_dc315_defconfig",
+        "sha256": "d0ff5e619f28c1fd3bfe9ed354c6e4e4ae368bc84f000e6a0b9c176960cb0899",
+        "blob": "b9b18358aa79e28adbf0d3b00c9ce06463217dc8",
+        "top": "mrtc_rdtc_ddr_multiengine_wrapper",
+        "profile": "bounded-register-expanded"
+      },
+      "direct315": {
+        "path": "configs/rdtc_v1_bounded_ab_direct_dc315_defconfig",
+        "sha256": "796b636b63f9f307524d8805ed99ac83f079e9e03deb0fbaac4bfabf91ac3a60",
+        "blob": "c39356d9137f06dc42283aa1a2fa3143a08ccf06",
+        "top": "mrtc_rdtc_bounded_axis_multiengine_wrapper",
+        "profile": "bounded-direct-register-expanded"
+      }
+    },
+    "frequency_mhz": 315,
+    "constraint_policy": {
+      "sdc_path": "flows/constraints/rdtc_v1_bounded_sync_boundary_10pct.sdc",
+      "sdc_sha256": "d49d2eeb1727ff8bc682783e14db317d8616938242b8bba98b76629341f96b25",
+      "sdc_blob": "6cabf72a913a07f2e1996c5b4b74e8443fd0ef0a",
+      "period_ns": 3.174603,
+      "dc_period_ns": 3.174603,
+      "pnr_period_ns": 3.174603,
+      "sta_period_ns": 3.174603,
+      "sdc_time_scale": 1.0,
+      "setup_uncertainty_ns": 0.1,
+      "hold_uncertainty_ns": 0.0,
+      "input_output_max_delay_fraction": 0.1,
+      "input_output_min_delay_ns": 0.0
+    },
+    "sdc_sha256": "d49d2eeb1727ff8bc682783e14db317d8616938242b8bba98b76629341f96b25",
+    "compile_policy": {
+      "as_run_library_setup": "local_rdtc_dc_setup_with_hash_verified_target_db",
+      "current_public_runner_library_setup": "inline_hash_bound_register",
+      "current_public_runner_rerun_status": "not_run",
+      "compile": "compile_ultra",
+      "design_rule_repair": "compile_ultra -incremental -only_design_rule",
+      "design_rule_repair_passes": 1,
+      "retiming": "disabled",
+      "dc_max_cores": 4
+    },
+    "dc_run_tcl_path": "flows/synthesis/dc/baseline/run.tcl",
+    "dc_run_tcl_sha256": "d16e3b0155df37bc28db7edf5a8cdf839414cee427fa377079c38ac976b7eb38",
+    "dc_run_tcl_blob": "54c22b4273e045a732d3e2646ec22d2d04761fbb",
+    "flowctl_path": "flows/scripts/flowctl.py",
+    "flowctl_sha256": "b678c99ba10269e65c027447a33fa0d2fc8dbf10128ffd7b930a175467132bc5",
+    "flowctl_blob": "7dd11e783e082c80214b5ec0ecce5ebeb26e8708",
+    "paired_runner_path": "flows/scripts/bounded_buffered_direct_dc_ab.py",
+    "paired_runner_sha256": "89b32e9846ad8df8b46a306fc96cd776363dfcfdc0f0765d0a100d82babd81ca",
+    "paired_runner_blob": "045c2b28691230e5b53bbc6d33c7100e361e1edb",
+    "engines": 2,
+    "memory_binding": "register_expanded",
+    "memory_macro_count": 0,
+    "retiming": false,
+    "dc_max_cores": 4
+  },
+  "direct_clock_gating": {
+    "candidate_name": "direct_routed_600_candidate",
+    "scope": "non_ab_physical_candidate",
+    "candidate_only": true,
+    "isolated_from_architecture_ab": true,
+    "private_authority_path": "delivery/runs/rdtc_bounded_direct_register_600m_rc1.yaml",
+    "private_authority_sha256": "26985c6f7b244488deb95bdb09aee93331d950eff16c1bf29c1ebad4d9ff585d",
+    "public_authority_path": "evidence/rdtc_v1_bounded_direct_asic.yaml",
+    "public_authority_sha256": "9c57f86246ba0894d5a2a268c9b7c7784ffdfdaa97cac7239342a506e20ded1d",
+    "fixed_rtl_commit": "7fa7f554246f34cc474a123cfed68d070688412d",
+    "fixed_rtl_tree_sha1": "a7444796929d61278521583bbb09b38b9756c524",
+    "execution_source_commit": "80702d3756ce5d3d382c96f1954f4d9404e6f059",
+    "execution_rtl_tree_sha1": "a7444796929d61278521583bbb09b38b9756c524",
+    "execution_source_set_sha256": "f1bfe03b10328e68e76629c9b54c3774923aca5a8563346185e20a85cdf17f30",
+    "execution_source_count": 68,
+    "execution_rtl_matches_fixed_rtl": true,
+    "top": "mrtc_rdtc_bounded_axis_multiengine_wrapper",
+    "engines": 2,
+    "memory_binding": "register_expanded",
+    "dc_compile_frequency_mhz": 630,
+    "power_and_physical_frequency_mhz": 600,
+    "single_fallback_frequency_mhz": 550,
+    "mapped_netlist_sha256": "8bf8a29fdf737c426462eee3cc976d35d861b2d45fa507505ef6745eb3a30a1f",
+    "routed_netlist_sha256": "cc0598195df6ed27ab6fb49b2305b8a23a50d9ed058b2415f441b327c0425fdc",
+    "postroute_sdc_sha256": "ee83e95204fa25aaad604013a9375c91aedd388e2362c2646ed518483a9886c6",
+    "postroute_spef_sha256": "e002af99163250942e1f697eda4d6487f3d8a94ad859092b148dffc5ebfd451d"
+  },
+  "library": {
+    "technology": "Nangate45",
+    "corner": "TT_1p1V_25C",
+    "as_run_library_setup": "local_rdtc_dc_setup_with_hash_verified_target_db",
+    "stdcell_db_sha256": "c6da1f0e7a7f445c0476d1e6bf6860c9815fe4f50c9ce138264a581af59e4cb5",
+    "required_icg_cell": "CLKGATETST_X1"
+  },
+  "tool_contract": {
+    "design_compiler": "O-2018.06-SP1",
+    "primetime": "O-2018.06-SP1",
+    "formality_status": "not_installed_at_preflight",
+    "mapped_equivalence_method": "gate_level_regression"
+  }
+}

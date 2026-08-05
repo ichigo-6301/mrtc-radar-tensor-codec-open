@@ -226,3 +226,16 @@ evidence:
     sha256: 69ad1e27a9d6037d726c0f5f729214f4e23acba8ee027d6238e0a4c4f9648231
     public: true
     maturity: verified
+  - id: rdtc_v1_power_architecture_ab_public
+    path: evidence/rdtc_v1_power_architecture_ab/manifest.json
+    type: activity_driven_mapped_architecture_power_ab
+    source_ref: db2660c60795182b647bd3c31010b0be6aef6374
+    tool: Design Compiler O-2018.06-SP1
+    claims:
+      - rdtc_v1_bounded_direct_dc315_burst_dynamic_power_reduction
+      - rdtc_v1_bounded_direct_dc315_burst_energy_per_block_reduction
+    sha256: 82ce1a84c6a0e36a2d16c7591458af523eb8b0151e7daaeef9ada3775974d7b0
+    public: true
+    maturity: verified
+    evidence_result_status: verified
+    comparison_scope: register_expanded_mapped_netlist_power_only

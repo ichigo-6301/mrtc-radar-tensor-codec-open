@@ -316,3 +316,33 @@ claims:
     status: verified
     caveat: "Finite protocol regression only; not universal latency or duty, isolated single-Engine throughput, Multi-Engine scaling, sustained zero-gap throughput, FPGA/ASIC timing, or Fmax."
     public: true
+  - id: rdtc_v1_bounded_direct_dc315_burst_dynamic_power_reduction
+    profile: rdtc_v1_bounded_architecture_power_ab
+    statement: "Under one 315 MHz Nangate45 mapped-netlist contract and matched BURST_IDLE logical workload, the Direct-AXIS architecture reduced dynamic power from 436.4352 mW to 109.8717 mW, a 74.8251974% reduction versus the Buffered architecture."
+    metric: burst_idle_dynamic_power_reduction_percent
+    value: 74.82519741762351
+    unit: percent
+    benchmark: fixed 32-block BURST_IDLE mapped architecture-power workload
+    configuration: "two Engines, register-expanded storage, Nangate45 TT/1.1 V/25 C, 315 MHz, retiming disabled, per-architecture RTL SAIF applied to its mapped netlist"
+    source_ref: db2660c60795182b647bd3c31010b0be6aef6374
+    tool: Design Compiler O-2018.06-SP1
+    evidence:
+      - rdtc_v1_power_architecture_ab_public
+    status: verified
+    caveat: "Activity-driven mapped-netlist estimate for the fixed BURST_IDLE workload only; not post-route or PrimeTime-PX power, CTS clock-tree power, silicon measurement, foundry signoff, a universal workload result, or Fmax."
+    public: true
+  - id: rdtc_v1_bounded_direct_dc315_burst_energy_per_block_reduction
+    profile: rdtc_v1_bounded_architecture_power_ab
+    statement: "For the same 315 MHz BURST_IDLE comparison, the Direct-AXIS architecture reduced energy per completed block from 674.8167361 nJ to 167.5851875 nJ, a 75.1658223% reduction versus the Buffered architecture."
+    metric: burst_idle_energy_per_block_reduction_percent
+    value: 75.16582228446592
+    unit: percent
+    benchmark: fixed 32-block BURST_IDLE mapped architecture-power workload
+    configuration: "energy derived from each point's unrounded mapped total power, exact measured cycle window, 315 MHz frequency, and 32 completed blocks"
+    source_ref: db2660c60795182b647bd3c31010b0be6aef6374
+    tool: Design Compiler O-2018.06-SP1
+    evidence:
+      - rdtc_v1_power_architecture_ab_public
+    status: verified
+    caveat: "Activity-driven mapped-netlist estimate for the fixed BURST_IDLE workload only; not post-route or PrimeTime-PX energy, CTS clock-tree power, silicon measurement, foundry signoff, a universal workload result, or Fmax."
+    public: true

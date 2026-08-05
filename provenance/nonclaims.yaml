@@ -73,3 +73,9 @@ nonclaims:
     reason: "It is a finite two-block functional protocol regression with deterministic short backpressure; absolute simulation cycles only make event ordering auditable."
     status: not_claimed
     public: true
+  - id: rdtc_v1_power_architecture_ab_no_postroute_or_clocktree
+    profile: rdtc_v1_bounded_architecture_power_ab
+    statement: "The 315 MHz architecture-power A/B does not claim post-route or PrimeTime-PX power, CTS clock-tree power, silicon-measured or foundry-signoff power, Fmax, or a universal saving across untested workloads."
+    reason: "Each point is an activity-driven Design Compiler mapped-netlist estimate from its own RTL SAIF; no routed parasitics or implemented clock tree were analyzed."
+    status: not_claimed
+    public: true

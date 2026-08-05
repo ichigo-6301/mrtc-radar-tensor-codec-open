@@ -1,0 +1,1 @@
+point_id,hierarchy_id,status,sequential_bits,eligible_bits,gated_bits,potential_icg_count,inserted_icg_count,max_icg_fanout,max_enable_fanout,uncovered_reason,enable_expr_sha256

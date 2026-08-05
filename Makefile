@@ -10,6 +10,7 @@ PROFILE_VALIDATOR := $(PYTHON) flows/scripts/validate_profile.py --root "$(ROOT)
 DIRECT_RTL_IDENTITY := $(PYTHON) flows/scripts/bounded_direct_rtl_identity.py --root "$(ROOT)"
 BITPACKER_AB_VALIDATOR := $(PYTHON) flows/scripts/validate_bitpacker_pipeline_ab.py --root "$(ROOT)"
 DIRECT_STREAM_TIMING_VALIDATOR := $(PYTHON) flows/scripts/validate_direct_stream_timing.py --root "$(ROOT)"
+POWER_ARCH_AB_VALIDATOR := $(PYTHON) flows/scripts/validate_rdtc_power_2a.py evidence/rdtc_v1_power_architecture_ab --require-promotion
 CHECKSUM_GENERATOR := $(PYTHON) provenance/generate_checksums.py --root "$(ROOT)"
 RELEASE_VERIFIER := $(PYTHON) provenance/verify_release.py --root "$(ROOT)"
 SHOWCASE_SMOKE = $(PYTHON) flows/scripts/iverilog_run.py --root "$(ROOT)" \
@@ -175,7 +176,7 @@ endif
         icc2-libs icc2-libs-dry-run \
         rtl-smoke integration-smoke codec-demo multiengine-smoke fpga-wrapper-smoke showcase-assets-check verify-current-checksums sim sim-dry-run sim-full selected selected-dry-run \
         bounded-direct-register-modelsim-regression bounded-direct-modelsim-regression bounded-direct-modelsim-regression-dry-run \
-        bounded-dc-ab-validate bounded-dc-ab-run bounded-dc-ab-collect bitpacker-pipeline-ab-validate \
+        bounded-dc-ab-validate bounded-dc-ab-run bounded-dc-ab-collect bitpacker-pipeline-ab-validate power-architecture-ab-validate \
         direct-stream-timing-modelsim direct-stream-timing-validate \
         bounded-direct-rtl-smoke bounded-direct-rtl-identity-check bounded-direct-vivado-route200 bounded-direct-vivado-route200-check \
         lint lint-dry-run cdc cdc-dry-run \
@@ -226,6 +227,7 @@ help:
 	  '  make bounded-dc-ab-run           Run the four serial register-expanded DC points' \
 	  '  make bounded-dc-ab-collect       Re-audit completed local DC reports' \
 	  '  make bitpacker-pipeline-ab-validate  Verify the historical fixed-workload Bitpacker A/B evidence' \
+	  '  make power-architecture-ab-validate  Verify the 315 MHz mapped architecture-power evidence' \
 	  '  make direct-stream-timing-modelsim  Capture nominal and fixed-backpressure Direct traces with ModelSim' \
 	  '  make direct-stream-timing-validate  Verify the committed Direct stream-timing evidence' \
 	  '  make bounded-direct-rtl-smoke  Elaborate the Direct-AXIS top with Icarus' \
@@ -348,6 +350,7 @@ public-preflight:
 	@$(MAKE) bounded-direct-rtl-identity-check
 	@$(MAKE) bitpacker-pipeline-ab-validate
 	@$(MAKE) direct-stream-timing-validate
+	@$(MAKE) power-architecture-ab-validate
 	@$(MAKE) showcase-assets-check
 	@$(PROFILE_VALIDATOR)
 	@$(CHECKSUM_GENERATOR) --ref HEAD --check
@@ -490,6 +493,9 @@ bounded-dc-ab-collect:
 
 bitpacker-pipeline-ab-validate:
 	@$(BITPACKER_AB_VALIDATOR)
+
+power-architecture-ab-validate:
+	@$(POWER_ARCH_AB_VALIDATOR)
 
 direct-stream-timing-modelsim:
 	@$(RDTC_TOOL_PYTHON) flows/scripts/bounded_direct_modelsim_regression.py \

@@ -1,0 +1,31 @@
+schema: rdtc-experimental-power-branch-v1
+branch: research/mrtc-power-architecture-clock-gating-2026-08
+public_base_commit: 06ce0a748793cbead317eb750ca8841611a26c26
+private_evidence_flow:
+  repository: ichigo-6301/mrtc-radar-tensor-codec
+  branch: experiment/mrtc-power-architecture-clock-gating-v2
+  commit: c803374c581f7e8e1beb1f735d7176fcd6dbaab4
+evidence:
+  path: evidence/rdtc_v1_power_architecture_ab
+  schema: rdtc_power_2a_evidence_v3
+  registered_evidence: rdtc_v1_power_architecture_ab_public
+  registered_claims:
+    - rdtc_v1_bounded_direct_dc315_burst_dynamic_power_reduction
+    - rdtc_v1_bounded_direct_dc315_burst_energy_per_block_reduction
+  classification: ARCH_POWER_POSITIVE
+  promotion_eligible: true
+  merge_recommended: true
+  production_rtl_changed: false
+  postroute_pair_completed: false
+  clock_gating_executed: false
+publication:
+  review_branch_only_until_human_merge: true
+  public_main_modified_by_task: false
+  release_or_tag_changed: false
+nonclaims:
+  - post-route power
+  - CTS clock-tree power
+  - silicon-measured power
+  - foundry-signoff power
+  - Fmax
+  - automatic clock-gating benefit

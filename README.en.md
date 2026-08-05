@@ -22,6 +22,7 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 | prefix-128 + lane-parallel Bitpacker | On the fixed `smoke_zero_sparse` RTL workload, the payload interval is `7693 -> 721 cycles`, a `10.67×` improvement; packet bytes match exactly | Historical fixed workload; this is a payload interval, not whole-block latency, sustained throughput, or Fmax | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
 | Multi-Engine wrapper | Historical buffered profile reaches `785 / 397.52 / 197.41 cycles/block`, with `98.7368% / 99.4115%` 2/4-Engine scaling efficiency | `785` is the imported Stage16D2 reference, not a wrapper `NUM_ENGINES=1` rerun; historical average spacing is `8220 -> 785 cycles/block`, a `10.47×` change, detailed below | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
 | Direct-AXIS low-storage refactor | Removes the DDR feeder and per-Engine payload commit; same-library, same-315 MHz DC A/B reduces cell area/count by `72.53% / 71.98%` | Dual Engine, register-expanded, DC-only architectural A/B; Direct RTL is `~277 > 256 cycles/block`, so sustained zero-gap scheduling is not claimed | [Direct RTL](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [observed stream timing](evidence/rdtc_v1_direct_stream_timing_trace.yaml) · [DC A/B](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
+| Direct-AXIS architecture-power A/B | At 315 MHz, BURST_IDLE dynamic power is `436.4352 -> 109.8717 mW` (`-74.83%`) and energy/block is `674.82 -> 167.59 nJ` (`-75.17%`); ACTIVE_LEGAL dynamic power changes by `-74.99%` | Same logical workload, library, and frequency with independent RTL-SAIF-to-mapped activity; a mapped-netlist estimate, not post-route/CTS/silicon power | [evidence package](evidence/rdtc_v1_power_architecture_ab/README.md) · [method and boundary](docs/en/asic_power_experiment.md) |
 | FPGA / ASIC implementation boundary | Direct FPGA OOC at 200 MHz; Direct register-expanded / eight-macro OpenRAM profiles complete fixed academic post-route PrimeTime setup/hold closure at `600/300 MHz` | FPGA result is not a bitstream/board claim; ASIC frequencies are not Fmax or foundry signoff | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [result matrix](docs/en/results.md) |
 
 <p align="center">
@@ -165,9 +166,10 @@ make multiengine-smoke
 make bitpacker-pipeline-ab-validate
 make bounded-dc-ab-validate
 make direct-stream-timing-validate
+make power-architecture-ab-validate
 ```
 
-The first command creates the public-safe configuration; the next four compile or run published C/RTL entrypoints. The final three only validate sanitized public evidence, identities, and metric contracts; they do not rerun ModelSim, Design Compiler, P&R, or PrimeTime.
+The first command creates the public-safe configuration; the next four compile or run published C/RTL entrypoints. The final four only validate sanitized public evidence, identities, and metric contracts; they do not rerun ModelSim, Design Compiler, P&R, or PrimeTime.
 
 <a id="public-scope-provenance"></a>
 
@@ -221,6 +223,12 @@ A fixed visible demo invokes the published C encoder and decoder: a 1024-sample 
 ### Same-Constraint Architecture A/B (DC-only)
 
 Under one Nangate45 typical library, one 315 MHz synchronous-boundary SDC, two Engines, register-expanded storage, `compile_ultra`, and disabled retiming, the buffered wrapper reports `1,529,495.20 um2 / 786,342 cells`; Direct-AXIS reports `420,208.44 um2 / 220,298 cells`. Removing the DDR feeder and per-Engine payload commit stores therefore reduces DC cell area by `72.53%` and cell count by `71.98%`. This is an architecture-level synthesis comparison, not SRAM-macro area, post-route area, power, or Fmax.
+
+### Same-Workload Mapped Power A/B
+
+At the same 315 MHz, with the same Nangate45 TT library and the same logical block, packet, selected-k, descriptor, and ready sequences, each mapped design uses its own RTL SAIF. BURST_IDLE dynamic power is `436.4352 -> 109.8717 mW` (`-74.83%`) and energy/block is `674.82 -> 167.59 nJ` (`-75.17%`); ACTIVE_LEGAL dynamic power changes by `-74.99%`. The conservative promotion gate still passes after accounting for both reports' quantization. This result claims only an activity-driven mapped-netlist power estimate, not post-route, CTS clock-tree, silicon, or foundry-signoff power. Both `clock_mw = 0` values remain tool-reported data and are not interpreted as physical clock-tree power.
+
+[Power method and boundary](docs/en/asic_power_experiment.md) · [machine-readable evidence](evidence/rdtc_v1_power_architecture_ab/README.md)
 
 ### Post-Route Closure Points
 
