@@ -1,10 +1,10 @@
 schema: rdtc-experimental-power-branch-v1
 branch: research/mrtc-power-architecture-clock-gating-2026-08
 public_base_commit: 06ce0a748793cbead317eb750ca8841611a26c26
-private_evidence_flow:
-  repository: ichigo-6301/mrtc-radar-tensor-codec
-  branch: experiment/mrtc-power-architecture-clock-gating-v2
+evidence_source:
+  scope: private_authoritative_package
   commit: c803374c581f7e8e1beb1f735d7176fcd6dbaab4
+  publication: sanitized_machine_evidence
 evidence:
   path: evidence/rdtc_v1_power_architecture_ab
   schema: rdtc_power_2a_evidence_v3

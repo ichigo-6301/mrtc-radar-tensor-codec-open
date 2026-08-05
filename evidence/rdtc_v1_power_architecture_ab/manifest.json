@@ -4,11 +4,14 @@
   "eligibility_csv": "eligibility.csv",
   "gates_csv": "gates.csv",
   "hierarchy_power_csv": "hierarchy_power.csv",
+  "input_hashes_file": "input_hashes.sha256",
+  "input_hashes_sha256": "6ef96fd69e671e77ee8e9ed71c9528c020c437a390d7e7f80006ecc2de1ee3b3",
+  "output_hashes_file": "output_hashes.sha256",
   "points_csv": "points.csv",
   "raw_reports_csv": "raw_reports.csv",
   "schema": "rdtc_power_2a_evidence_v3",
   "source_contract_json": "source_contract.json",
   "source_contract_schema": "rdtc-power-2a-source-contract-v1",
-  "source_contract_sha256": "1db4a2209cde6c14a2e593ec5f4f26f4f34dec7d8bce6afc95f6a3e63ae936cd",
+  "source_contract_sha256": "52c6dec59536695af4acde46ad3845d61e49f7396ac1edbec942b6c1d5ee801f",
   "verification_csv": "verification.csv"
 }

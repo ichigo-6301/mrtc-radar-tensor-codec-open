@@ -20,7 +20,7 @@ CONTENT_PATTERNS = {
     "unix_home_path": re.compile(r"/(?:home|mnt)/[^\s`'\"]+"),
     "synopsys_install_path": re.compile(r"/opt/synopsys/[^\s`'\"]*"),
     "license_variable": re.compile(r"\b(?:LM_LICENSE_FILE|SNPSLMD_LICENSE_FILE)\b"),
-    "private_repository": re.compile(r"(?:github\.com[/:]ichigo-6301/mrtc-radar-tensor-codec(?:\.git)?)(?!-open)"),
+    "private_repository": re.compile(r"(?:github\.com[/:])?ichigo-6301/mrtc-radar-tensor-codec(?:\.git)?(?!-open)"),
 }
 
 

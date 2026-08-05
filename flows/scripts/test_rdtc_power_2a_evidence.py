@@ -22,6 +22,24 @@ def digest(text):
     return hashlib.sha256(text.encode("ascii")).hexdigest()
 
 
+def write_hash_entries(path, entries):
+    path.write_text(
+        "".join("{}  {}\n".format(entries[name], name) for name in sorted(entries)),
+        encoding="ascii",
+    )
+
+
+def write_output_hashes(root):
+    names = (
+        "classifications.csv", "comparisons.csv", "eligibility.csv", "gates.csv",
+        "hierarchy_power.csv", "input_hashes.sha256", "manifest.json", "points.csv",
+        "raw_reports.csv", "source_contract.json", "verification.csv",
+    )
+    write_hash_entries(root / "output_hashes.sha256", {
+        name: evidence.sha256_file(root / name) for name in names
+    })
+
+
 def contract_data():
     return {
         "schema": evidence.SOURCE_CONTRACT_SCHEMA,
@@ -191,12 +209,18 @@ def write_package(root, points):
         verification_map.setdefault(row["point_id"], {})[row["kind"]] = row
     gates = evidence.derive_gates(point_map, comparisons, verification_map)
     classifications = evidence.derive_classifications(point_map, comparisons, gates, verification_map)
+    write_hash_entries(root / "input_hashes.sha256", {
+        "activity:fixture:bundle": digest("fixture-input"),
+    })
     manifest = {
         "schema": evidence.SCHEMA, "points_csv": "points.csv", "comparisons_csv": "comparisons.csv",
         "verification_csv": "verification.csv", "gates_csv": "gates.csv", "classifications_csv": "classifications.csv",
         "eligibility_csv": "eligibility.csv", "hierarchy_power_csv": "hierarchy_power.csv", "raw_reports_csv": "raw_reports.csv",
         "source_contract_json": "source_contract.json", "source_contract_sha256": contract_sha,
         "source_contract_schema": evidence.SOURCE_CONTRACT_SCHEMA,
+        "input_hashes_file": "input_hashes.sha256",
+        "input_hashes_sha256": evidence.sha256_file(root / "input_hashes.sha256"),
+        "output_hashes_file": "output_hashes.sha256",
     }
     (root / "manifest.json").write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     evidence.write_csv(root / "points.csv", evidence.POINT_FIELDS, points)
@@ -207,6 +231,7 @@ def write_package(root, points):
     evidence.write_csv(root / "eligibility.csv", evidence.ELIGIBILITY_FIELDS, eligibility)
     evidence.write_csv(root / "hierarchy_power.csv", evidence.HIERARCHY_POWER_FIELDS, hierarchy)
     evidence.write_csv(root / "raw_reports.csv", evidence.RAW_REPORT_FIELDS, raw_reports)
+    write_output_hashes(root)
     return root
 
 
@@ -235,6 +260,29 @@ class EvidenceContractTests(unittest.TestCase):
             root = write_package(Path(temp), gating_points())
             (root / "source_contract.json").write_text("{}\n", encoding="utf-8")
             with self.assertRaisesRegex(evidence.ValidationError, "SHA-256"):
+                evidence.validate(root)
+
+    def test_input_hashes_tamper_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = write_package(Path(temp), gating_points())
+            (root / "input_hashes.sha256").write_text(
+                "{}  activity:fixture:bundle\n".format(digest("tampered-input")), encoding="ascii"
+            )
+            with self.assertRaisesRegex(evidence.ValidationError, "input_hashes.sha256 SHA-256"):
+                evidence.validate(root)
+
+    def test_output_hashes_are_required_and_verified(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = write_package(Path(temp), gating_points())
+            (root / "output_hashes.sha256").unlink()
+            with self.assertRaisesRegex(evidence.ValidationError, "missing output_hashes.sha256"):
+                evidence.validate(root)
+        with tempfile.TemporaryDirectory() as temp:
+            root = write_package(Path(temp), gating_points())
+            entries = evidence._read_hash_entries(root / "output_hashes.sha256")
+            entries["points.csv"] = digest("tampered-points")
+            write_hash_entries(root / "output_hashes.sha256", entries)
+            with self.assertRaisesRegex(evidence.ValidationError, "mismatch for points.csv"):
                 evidence.validate(root)
 
     def test_missing_raw_report_or_set_hash_is_rejected(self):
@@ -325,6 +373,7 @@ class EvidenceContractTests(unittest.TestCase):
             rows[0]["internal_mw"] = "6.0015"
             rows[0]["total_mw"] = "12.0015"
             evidence.write_csv(root / "hierarchy_power.csv", evidence.HIERARCHY_POWER_FIELDS, rows)
+            write_output_hashes(root)
             evidence.validate(root)
 
     def test_hierarchy_root_rejects_value_beyond_combined_quantization(self):

@@ -40,8 +40,8 @@ regression of `+3%`.
 - `hierarchy_power.csv`: display-quantized hierarchy observations.
 - `verification.csv` and `raw_reports.csv`: verification and raw-report hashes.
 - `source_contract.json`: source, library, constraint, and tool identities.
-- `input_hashes.sha256`: private collection/activity archive identities without
-  raw artifacts.
+- `input_hashes.sha256`: sanitized collection/activity archive identities
+  without raw artifacts or internal run names.
 - `output_hashes.sha256`: hashes for the canonical package files.
 
 Validate from the repository root:

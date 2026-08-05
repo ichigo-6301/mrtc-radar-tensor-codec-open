@@ -27,11 +27,13 @@ COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 STATUS = ("PASS", "BLOCKED", "NOT_STARTED", "NA")
 YES_NO = ("YES", "NO")
 PRIVATE_TEXT = re.compile(r"(?:[A-Za-z]:[\\/]|\\\\|/(?:home|mnt|Users|work|tmp|root|opt)/|(?:LM_LICENSE_FILE|SNPSLMD_LICENSE_FILE|MGLS_LICENSE_FILE|license|licserver|password|token)\\s*[:=])", re.IGNORECASE)
+HASH_ENTRY_RE = re.compile(r"^([0-9a-f]{64})  ([A-Za-z0-9][A-Za-z0-9_.:/-]*)$")
 
 MANIFEST_FIELDS = (
     "schema", "points_csv", "comparisons_csv", "verification_csv", "gates_csv",
     "classifications_csv", "eligibility_csv", "hierarchy_power_csv", "raw_reports_csv",
     "source_contract_json", "source_contract_sha256", "source_contract_schema",
+    "input_hashes_file", "input_hashes_sha256", "output_hashes_file",
 )
 
 POINT_FIELDS = [
@@ -283,6 +285,47 @@ def _private_leak_scan(directory):
             raise ValidationError("absolute private path or credential-like text in {}".format(path.name))
 
 
+def _read_hash_entries(path):
+    path = Path(path)
+    if not path.is_file():
+        raise ValidationError("missing {}".format(path.name))
+    entries = {}
+    previous = None
+    for number, line in enumerate(path.read_text(encoding="ascii").splitlines(), start=1):
+        match = HASH_ENTRY_RE.match(line)
+        if not match:
+            raise ValidationError("{} line {} is not a canonical SHA-256 entry".format(path.name, number))
+        digest, name = match.groups()
+        if name in entries:
+            raise ValidationError("{} contains duplicate entry {}".format(path.name, name))
+        if previous is not None and name <= previous:
+            raise ValidationError("{} entries must be strictly sorted".format(path.name))
+        entries[name] = digest
+        previous = name
+    if not entries:
+        raise ValidationError("{} is empty".format(path.name))
+    return entries
+
+
+def _validate_output_hashes(directory, manifest):
+    output_path = directory / manifest["output_hashes_file"]
+    entries = _read_hash_entries(output_path)
+    expected_names = {
+        manifest[key] for key in (
+            "points_csv", "comparisons_csv", "verification_csv", "gates_csv",
+            "classifications_csv", "eligibility_csv", "hierarchy_power_csv",
+            "raw_reports_csv", "source_contract_json", "input_hashes_file",
+        )
+    }
+    expected_names.add("manifest.json")
+    if set(entries) != expected_names:
+        raise ValidationError("output_hashes.sha256 file set mismatch")
+    for name, expected_digest in entries.items():
+        path = directory / name
+        if not path.is_file() or sha256_file(path) != expected_digest:
+            raise ValidationError("output_hashes.sha256 mismatch for {}".format(name))
+
+
 def _validate_source_contract(path, expected_sha256, expected_schema):
     if expected_schema != SOURCE_CONTRACT_SCHEMA:
         raise ValidationError("unsupported source-contract schema")
@@ -336,7 +379,8 @@ def read_package(directory):
         "verification_csv": "verification.csv", "gates_csv": "gates.csv",
         "classifications_csv": "classifications.csv", "eligibility_csv": "eligibility.csv",
         "hierarchy_power_csv": "hierarchy_power.csv", "raw_reports_csv": "raw_reports.csv",
-        "source_contract_json": "source_contract.json",
+        "source_contract_json": "source_contract.json", "input_hashes_file": "input_hashes.sha256",
+        "output_hashes_file": "output_hashes.sha256",
     }
     for key, expected in expected_names.items():
         if manifest[key] != expected:
@@ -345,6 +389,11 @@ def read_package(directory):
         directory / manifest["source_contract_json"], manifest["source_contract_sha256"],
         manifest["source_contract_schema"],
     )
+    _require_hash(manifest["input_hashes_sha256"], "manifest input_hashes_sha256")
+    input_hashes_path = directory / manifest["input_hashes_file"]
+    _read_hash_entries(input_hashes_path)
+    if sha256_file(input_hashes_path) != manifest["input_hashes_sha256"]:
+        raise ValidationError("input_hashes.sha256 SHA-256 does not match manifest")
     return manifest, contract, {
         "points": _read_csv(directory / "points.csv", POINT_FIELDS),
         "comparisons": _read_csv(directory / "comparisons.csv", COMPARISON_FIELDS, allow_empty=True),
@@ -1094,6 +1143,7 @@ def validate(directory, require_promotion=False):
     classifications = derive_classifications(points, comparisons, gates, verification)
     _compare_classifications(package["classifications"], classifications)
     blocked = [row["gate_id"] for row in gates if row["status"] != "PASS"]
+    _validate_output_hashes(directory, manifest)
     if require_promotion and blocked:
         raise ValidationError("fail-closed promotion gate: {}".format(blocked[0]))
     return {"manifest": manifest, "source_contract": contract, "points": points, "comparisons": comparisons,

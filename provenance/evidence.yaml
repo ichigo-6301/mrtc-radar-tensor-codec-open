@@ -234,7 +234,7 @@ evidence:
     claims:
       - rdtc_v1_bounded_direct_dc315_burst_dynamic_power_reduction
       - rdtc_v1_bounded_direct_dc315_burst_energy_per_block_reduction
-    sha256: 82ce1a84c6a0e36a2d16c7591458af523eb8b0151e7daaeef9ada3775974d7b0
+    sha256: 301296796d8ce69666174306c061adf86521c1541b562679aa91b612a88d2ed6
     public: true
     maturity: verified
     evidence_result_status: verified
