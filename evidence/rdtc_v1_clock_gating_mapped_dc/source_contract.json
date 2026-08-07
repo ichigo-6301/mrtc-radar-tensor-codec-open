@@ -1,0 +1,42 @@
+{
+  "common_checkpoint_sha256": "4eae020f6c4f27b69e3da9c6adddaa6e98b0f607121ec722f2f4fdb3ec972b99",
+  "corner": "TT / 1.1 V / 25 C",
+  "design_source_authority": "c803374c581f7e8e1beb1f735d7176fcd6dbaab4",
+  "engines": 2,
+  "equivalence_method": "gate-level regression equivalence evidence",
+  "filelist_sha256": "b91c3c803b3a1617b7eacda31c08d4813c80d1f00e869a966c5718a58b8dcd83",
+  "formality_status": "NOT_RUN_NO_REVIEWED_SETUP",
+  "frequency_mhz": "315",
+  "functional_test_enable": 0,
+  "icg_model_sha256": "2241df05c6a73a05e9630864f48962e6eb35e2d766ec391dbf8c77d2f45ae2d6",
+  "library_db_sha256": "c6da1f0e7a7f445c0476d1e6bf6860c9815fe4f50c9ce138264a581af59e4cb5",
+  "library_lef_sha256": "840b01e500826096d1edcc752350834da647fdbf360798f243f8122b52b357c3",
+  "library_liberty_sha256": "8d540a4d4cf6d09d27c87ad067857a9c0c2eeb023ab7a56e058cd3113db4e9b1",
+  "mapped_source_bundle": "db2660c60795182b647bd3c31010b0be6aef6374",
+  "period_ns": "3.174603",
+  "power_maturity": "activity-driven mapped-netlist estimate",
+  "private_flow_head": "6a3b178dc9d9a075e93efeab59980ffb2ad89cb0",
+  "profile": "Direct-AXIS register-expanded",
+  "r1_flow_authority": "a6424534c11e8d57f366c9768234239f682d4f64",
+  "retiming": "disabled",
+  "schema": "rdtc-clock-gating-mapped-dc-public-v1",
+  "sdc_replay": {
+    "accepted_checks": [
+      "DDC constraints retained",
+      "mapped SDC hash matched",
+      "clock count and period matched",
+      "operating condition matched",
+      "setup WNS and TNS passed",
+      "electrical violations zero",
+      "check_timing passed"
+    ],
+    "classification": "MAPPED_SDC_VECTOR_REPLAY_ERRORS_DDC_CONSTRAINTS_PRESERVED",
+    "fatal_errors": 0,
+    "portable_handoff_claim": false,
+    "uid95_cmd036_pairs": 8136
+  },
+  "sdc_sha256": "d49d2eeb1727ff8bc682783e14db317d8616938242b8bba98b76629341f96b25",
+  "source_set_sha256": "c32e780aad70dd3414e13c0509e8cdc2969e6c4afb6ef24fc2ef1d47c3f24a8d",
+  "technology": "Nangate45 academic standard-cell library",
+  "top": "mrtc_rdtc_bounded_axis_multiengine_wrapper"
+}

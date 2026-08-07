@@ -1,0 +1,15 @@
+variant,metric,value,unit,denominator,denominator_kind,status
+G0,icg_count,0,cells,NA,NA,PASS
+G1,icg_count,272,cells,NA,NA,PASS
+G1,gated_bits,34816,bits,NA,NA,PASS
+G1,postmap_sequential_bits,50988,bits,NA,all_registers_postmap,PASS
+G1,gated_pct_of_postmap_sequential_bits,68.28273319212363693418059151,percent,50988,all_registers_postmap,PASS
+G1,precompile_register_bits,55929,bits,NA,all_registers_precompile,PASS
+G1,gated_pct_of_precompile_register_bits,62.2503531262851114806272238,percent,55929,all_registers_precompile,PASS
+G0,mapped_sequential_cells,50999,cells,NA,report_area_sequential_cells,PASS
+G1,mapped_sequential_cells,51271,cells,NA,report_area_sequential_cells,PASS
+G1,ring_gated_bits,32768,bits,32768,ring_data_bits,PASS
+G1,ring_total_bits,32768,bits,NA,ring_data_bits,PASS
+G1,ring_coverage_pct,100,percent,32768,ring_data_bits,PASS
+G1,gating_setup_wns,1.4645,ns,NA,liberty_static_timing,PASS
+G1,gating_hold_wns,0.18546,ns,NA,liberty_static_timing,PASS

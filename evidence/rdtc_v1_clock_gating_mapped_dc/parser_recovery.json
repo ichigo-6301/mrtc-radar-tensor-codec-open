@@ -1,0 +1,22 @@
+{
+  "classification": "PARSER_FALSE_POSITIVE_RECOVERED_FROM_IMMUTABLE_REPORTS",
+  "corrected_rule": "exact_runtime_marker_lines_only",
+  "eda_rerun": false,
+  "false_positive_cause": "echoed_tcl_source_literal_matched_legacy_blocked_marker",
+  "immutable_reports_reused": true,
+  "outer_exit_code": 2,
+  "ownership_residuals": 0,
+  "point_count": 6,
+  "point_order": [
+    "G0_IDLE",
+    "G0_BURST_IDLE",
+    "G0_ACTIVE_LEGAL",
+    "G1_IDLE",
+    "G1_BURST_IDLE",
+    "G1_ACTIVE_LEGAL"
+  ],
+  "release_status": "FULL_RELEASED",
+  "schema": "rdtc-clock-gating-mapped-dc-public-v1",
+  "status": "PASS_WITH_PARSER_RECOVERY",
+  "tool_exit_code": 0
+}

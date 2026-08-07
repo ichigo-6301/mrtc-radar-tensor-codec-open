@@ -1,0 +1,31 @@
+{
+  "canary_cases": {
+    "A": "PASS",
+    "B": "PASS",
+    "C": "PASS",
+    "D": "PASS",
+    "E": "PASS",
+    "F": "PASS"
+  },
+  "canary_sha256": "73b3869b7c2a690fbc67ab7d02682397546b309b095be3bc2333198c544f6d9c",
+  "canary_status": "PASS",
+  "cell": "CLKGATETST_X1",
+  "classification": "EXACT_EXPECTED_MODEL",
+  "diagnostic_test_enable": 1,
+  "diagnostic_test_enable_result": "ONE_OUTPUT_MISMATCH_NON_PRODUCTION_DIAGNOSTIC",
+  "duplicate_or_shadow_count": 0,
+  "effective_definition_count": 1,
+  "functional_model_sha256": "2241df05c6a73a05e9630864f48962e6eb35e2d766ec391dbf8c77d2f45ae2d6",
+  "functional_test_enable": 0,
+  "latch_semantics": "latch_posedge_precontrol",
+  "model_resolution_sha256": "492b3f6331ab26c71d48e01623aac695f1e0d506d952f030d219a93206d63159",
+  "pins": [
+    "CK",
+    "E",
+    "SE",
+    "GCK"
+  ],
+  "polarity": "active_high_enable_active_high_test_enable",
+  "schema": "rdtc-clock-gating-mapped-dc-public-v1",
+  "timing_check_capability": "NOT_SUPPORTED_BY_MODEL"
+}

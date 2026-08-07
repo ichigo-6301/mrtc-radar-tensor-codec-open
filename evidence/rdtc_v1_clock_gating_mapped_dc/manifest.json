@@ -1,0 +1,31 @@
+{
+  "activity_coverage": "activity_coverage.csv",
+  "classifications": "classifications.csv",
+  "clock_gating": "clock_gating.csv",
+  "comparisons": "comparisons.csv",
+  "equivalence": "equivalence.csv",
+  "gates": "gates.csv",
+  "hierarchy_power": "hierarchy_power.csv",
+  "input_hashes": "input_hashes.sha256",
+  "mapped_power_classification": "CG_MAPPED_POWER_POSITIVE",
+  "model_audit": "model_audit.json",
+  "output_hashes": "output_hashes.sha256",
+  "package_id": "rdtc_v1_clock_gating_mapped_dc",
+  "parser_recovery": "parser_recovery.json",
+  "point_order": [
+    "G0_IDLE",
+    "G0_BURST_IDLE",
+    "G0_ACTIVE_LEGAL",
+    "G1_IDLE",
+    "G1_BURST_IDLE",
+    "G1_ACTIVE_LEGAL"
+  ],
+  "points": "points.csv",
+  "promotion_classification": "MRTC_CLOCK_GATING_MAPPED_POSITIVE_PRIVATE",
+  "report_hashes": "report_hashes.csv",
+  "schema": "rdtc-clock-gating-mapped-dc-public-v1",
+  "source_contract": "source_contract.json",
+  "stage": "Direct G0 ungated to Direct G1 clock-gated",
+  "two_c_decision": "CG_EQUIVALENCE_RECOVERED_MAPPED_POWER_COMPLETE",
+  "verification": "verification.csv"
+}
