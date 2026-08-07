@@ -839,7 +839,7 @@ def check(root):
         ],
         stdout=subprocess.PIPE,
         stderr=subprocess.STDOUT,
-        text=True,
+        universal_newlines=True,
     )
     if clock_gating_doc_check.returncode != 0:
         errors.append("clock-gating metric/value binding failed: {}".format(clock_gating_doc_check.stdout.strip()))
