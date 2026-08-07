@@ -3,9 +3,12 @@ from decimal import Decimal
 import importlib.util
 from pathlib import Path
 import re
+import shutil
 import tempfile
 import unittest
 import xml.etree.ElementTree as ET
+
+import yaml
 
 
 SCRIPT = Path(__file__).with_name("generate_showcase_assets.py")
@@ -135,6 +138,122 @@ class ClockGatingPowerAssetTests(unittest.TestCase):
                 writer.writerows(rows)
             with self.assertRaisesRegex(ValueError, "canonical six-point order"):
                 ASSETS.load_clock_gating_power_data(broken)
+
+
+class CoordinatedReportAssetTests(unittest.TestCase):
+    def setUp(self):
+        self.performance = ASSETS.load_performance_report_data(ROOT)
+        self.stage1 = ASSETS.load_architecture_power_report_data(ROOT)
+        self.stage2 = ASSETS.load_clock_gating_report_data(ROOT)
+
+    def test_loaders_bind_exact_public_evidence(self):
+        self.assertEqual(
+            Decimal(self.performance["bitpacker"]["baseline"]["steady_state_cycles_per_block"]),
+            Decimal("8220"),
+        )
+        self.assertEqual(
+            Decimal(self.performance["scaling"][4]["effective_cycles_per_block"]),
+            Decimal("197.41"),
+        )
+        self.assertEqual(self.stage1["total_mw"]["baseline"], Decimal("462.7"))
+        self.assertEqual(
+            self.stage1["total_mw"]["percent"],
+            Decimal("-74.599092284417549167927382753403933434190620272314674735249621785173978819969743"),
+        )
+        self.assertEqual(self.stage2["clock"][("G1", "icg_count")], Decimal("272"))
+        self.assertEqual(self.stage2["clock"][("G1", "ring_coverage_pct")], Decimal("100"))
+
+    def test_coordinated_assets_are_deterministic_and_pure_svg(self):
+        generated = {
+            "rdtc_performance_evolution.svg": ASSETS.performance_evolution_svg(self.performance),
+            "rdtc_stage1_architecture_ppa_power.svg": ASSETS.stage1_architecture_power_svg(self.stage1),
+            "rdtc_stage2_clock_gating_power.svg": ASSETS.stage2_clock_gating_power_svg(self.stage2),
+        }
+        for name, content in generated.items():
+            self.assertEqual(
+                content,
+                {
+                    "rdtc_performance_evolution.svg": ASSETS.performance_evolution_svg(self.performance),
+                    "rdtc_stage1_architecture_ppa_power.svg": ASSETS.stage1_architecture_power_svg(self.stage1),
+                    "rdtc_stage2_clock_gating_power.svg": ASSETS.stage2_clock_gating_power_svg(self.stage2),
+                }[name],
+            )
+            ASSETS.validate_xml(name, content)
+            ASSETS.validate_generated_asset_semantics(name, content)
+            self.assertIn('width="1600" height="1000" viewBox="0 0 1600 1000"', content)
+            self.assertNotIn("<image", content)
+            self.assertNotIn("data:image", content)
+            self.assertNotIn("@font-face", content)
+            self.assertNotIn("linearGradient", content)
+
+        self.assertIn("10.47&#215;", generated["rdtc_performance_evolution.svg"])
+        self.assertIn("98.74%", generated["rdtc_performance_evolution.svg"])
+        self.assertIn("-74.60%", generated["rdtc_stage1_architecture_ppa_power.svg"])
+        self.assertIn("-61.67%", generated["rdtc_stage2_clock_gating_power.svg"])
+
+    def test_performance_loader_rejects_yaml_hash_drift(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "evidence" / "data").mkdir(parents=True)
+            for relative in (
+                "evidence/rdtc_v1_bitpacker_pipeline_ab.yaml",
+                "evidence/rdtc_v1_multiengine_rtl.yaml",
+                "evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv",
+                "evidence/data/rdtc_v1_multiengine_scaling.csv",
+            ):
+                source = ROOT / relative
+                target = root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+            path = root / "evidence" / "rdtc_v1_bitpacker_pipeline_ab.yaml"
+            document = yaml.safe_load(path.read_text(encoding="utf-8"))
+            document["curated_data_sha256"] = "0" * 64
+            path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "curated-data hash mismatch"):
+                ASSETS.load_performance_report_data(root)
+
+    def test_stage1_loader_rejects_comparison_mutation(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = root / "evidence" / "rdtc_v1_power_architecture_ab"
+            shutil.copytree(ROOT / "evidence" / "rdtc_v1_power_architecture_ab", package)
+            path = package / "comparisons.csv"
+            with path.open("r", encoding="utf-8", newline="") as stream:
+                rows = list(csv.DictReader(stream))
+            for row in rows:
+                if row["comparison_id"] == "architecture-315mhz:bursty:total_mw":
+                    row["candidate"] = "118.53"
+            with path.open("w", encoding="utf-8", newline="") as stream:
+                writer = csv.DictWriter(stream, fieldnames=rows[0].keys(), lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(rows)
+            with self.assertRaisesRegex(ValueError, "percentage mismatch"):
+                ASSETS.load_architecture_power_report_data(root)
+
+    def test_stage2_loader_rejects_wrong_activity_method(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = root / "evidence" / "rdtc_v1_clock_gating_mapped_dc"
+            shutil.copytree(ROOT / "evidence" / "rdtc_v1_clock_gating_mapped_dc", package)
+            path = package / "points.csv"
+            with path.open("r", encoding="utf-8", newline="") as stream:
+                rows = list(csv.DictReader(stream))
+            rows[0]["activity_method"] = "rtl_saif_mapped"
+            with path.open("w", encoding="utf-8", newline="") as stream:
+                writer = csv.DictWriter(stream, fieldnames=rows[0].keys(), lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(rows)
+            with self.assertRaisesRegex(ValueError, "activity contract mismatch"):
+                ASSETS.load_clock_gating_report_data(root)
+
+    def test_semantic_checks_reject_embedded_raster_and_positive_overclaim(self):
+        content = ASSETS.stage2_clock_gating_power_svg(self.stage2)
+        raster = content.replace("</svg>", '<image href="data:image/png;base64,AA=="/></svg>')
+        with self.assertRaisesRegex(ValueError, "raster image"):
+            ASSETS.validate_xml("rdtc_stage2_clock_gating_power.svg", raster)
+        overclaim = content.replace("not maximum throughput", "is maximum throughput")
+        with self.assertRaisesRegex(ValueError, "maximum throughput"):
+            ASSETS.validate_generated_asset_semantics("rdtc_stage2_clock_gating_power.svg", overclaim)
 
 
 if __name__ == "__main__":

@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc" preserveAspectRatio="xMidYMid meet">
+  <title id="title">Stage 2 &#8212; Automatic Clock Gating on the Direct Profile</title>
+  <desc id="desc">Direct G0 ungated and Direct G1 clock-gated mapped-netlist dynamic power are compared for IDLE, BURST_IDLE, and ACTIVE_LEGAL at 315 MHz in functional mode.</desc>
+  <style>
+    .title{font:700 38px Arial,Helvetica,sans-serif;fill:#111827}
+    .subtitle{font:400 22px Arial,Helvetica,sans-serif;fill:#4b5563}
+    .panel-title{font:700 25px Arial,Helvetica,sans-serif;fill:#102f5e}
+    .section{font:700 22px Arial,Helvetica,sans-serif;fill:#111827}
+    .body{font:400 19px Arial,Helvetica,sans-serif;fill:#1f2937}
+    .body-bold{font:700 19px Arial,Helvetica,sans-serif;fill:#111827}
+    .metric{font:700 23px Arial,Helvetica,sans-serif;fill:#0f4c9a}
+    .small{font:400 16px Arial,Helvetica,sans-serif;fill:#4b5563}
+    .foot{font:400 17px Arial,Helvetica,sans-serif;fill:#374151}
+    .table-head{font:700 17px Arial,Helvetica,sans-serif;fill:#ffffff}
+    .table-header{font:700 16px Arial,Helvetica,sans-serif;fill:#111827}
+    .table{font:400 17px Arial,Helvetica,sans-serif;fill:#1f2937}
+    .table-strong{font:700 17px Arial,Helvetica,sans-serif;fill:#0f4c9a}
+    .axis{font:400 16px Arial,Helvetica,sans-serif;fill:#374151}
+    .grid{stroke:#d1d5db;stroke-width:1;stroke-dasharray:5 5}
+    .rule{stroke:#102f5e;stroke-width:1.5}
+    .thin{stroke:#9ca3af;stroke-width:1}
+    .box{fill:#ffffff;stroke:#6b7280;stroke-width:1.2}
+    .box-blue{fill:#ffffff;stroke:#1456a0;stroke-width:1.4}
+</style>
+  <rect width="1600" height="1000" fill="#ffffff"/>
+  <text x="48" y="58" class="title">Stage 2 &#8212; Automatic Clock Gating on the Direct Profile</text>
+  <text x="48" y="92" class="subtitle">Direct Register-Expanded Profile, Nangate45 TT / 1.1 V / 25 C, 315 MHz, Activity-Driven Mapped-Netlist Estimate</text>
+  <line x1="48" y1="116" x2="1552" y2="116" class="rule"/>
+
+  <rect x="48" y="150" width="560" height="430" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
+  <rect x="48" y="150" width="560" height="52" fill="#102f5e"/><text x="328" y="185" text-anchor="middle" class="table-head">Clock-Gating Summary</text>
+  <g class="body"><text x="78" y="245">272 x CLKGATETST_X1 inserted</text><text x="78" y="285">34,816 gated bits</text><text x="78" y="325">Ring: 32,768 / 32,768 bits (100% Ring-data coverage)</text><text x="78" y="365" class="small">Cell area: 420,208.44 -&gt; 354,760.20 um2</text><text x="548" y="365" text-anchor="end" class="metric">-15.58%</text><text x="78" y="405">Setup WNS: +0.093015 -&gt; +0.0151572 ns</text><text x="78" y="445">Electrical violations: 0 -&gt; 0</text><text x="78" y="485">Gating setup / hold WNS: +1.4645 / +0.18546 ns</text><text x="78" y="525" class="small">BURST_IDLE energy/block: 164.55 -&gt; 68.36 nJ</text><text x="548" y="525" text-anchor="end" class="metric">-58.46%</text></g>
+
+  <rect x="48" y="610" width="560" height="245" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
+  <rect x="48" y="610" width="560" height="52" fill="#102f5e"/><text x="328" y="645" text-anchor="middle" class="table-head">Workloads</text>
+  <text x="78" y="703" class="body-bold">IDLE</text><text x="230" y="703" class="body">4096 measured cycles; no traffic</text>
+  <text x="78" y="751" class="body-bold">BURST_IDLE</text><text x="230" y="751" class="body">32 blocks; four groups of eight blocks</text><text x="230" y="777" class="small">drain + 1024 idle cycles after each group</text>
+  <text x="78" y="825" class="body-bold">ACTIVE_LEGAL</text><text x="230" y="825" class="body">64 blocks; 320-cycle block-start interval</text><text x="230" y="848" class="small">no artificial long idle gap</text>
+
+  <rect x="650" y="150" width="902" height="705" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
+  <text x="1101" y="192" text-anchor="middle" class="panel-title">Dynamic Power Across Workloads</text>
+  <g class="grid"><line x1="740" y1="690" x2="1530" y2="690"/><line x1="740" y1="586" x2="1530" y2="586"/><line x1="740" y1="483" x2="1530" y2="483"/><line x1="740" y1="379" x2="1530" y2="379"/><line x1="740" y1="275" x2="1530" y2="275"/></g>
+  <line x1="740" y1="275" x2="740" y2="690" stroke="#374151" stroke-width="1.5"/><line x1="740" y1="690" x2="1530" y2="690" stroke="#374151" stroke-width="1.5"/>
+  <g class="axis" text-anchor="end"><text x="725" y="696">0</text><text x="725" y="592">30</text><text x="725" y="489">60</text><text x="725" y="385">90</text><text x="725" y="281">120</text></g>
+  <text x="680" y="485" text-anchor="middle" class="section" transform="rotate(-90 680 485)">Dynamic power (mW)</text>
+  <rect x="755" y="458" width="62" height="232" fill="#8b9199"/><text x="786" y="446" text-anchor="middle" class="body-bold">66.9676</text><rect x="835" y="594" width="62" height="96" fill="#1456a0"/><text x="866" y="582" text-anchor="middle" class="body-bold">27.7229</text><text x="830" y="225" text-anchor="middle" class="metric">-58.60%</text><rect x="1035" y="319" width="62" height="371" fill="#8b9199"/><text x="1066" y="307" text-anchor="middle" class="body-bold">107.3535</text><rect x="1115" y="548" width="62" height="142" fill="#1456a0"/><text x="1146" y="536" text-anchor="middle" class="body-bold">41.1522</text><text x="1110" y="225" text-anchor="middle" class="metric">-61.67%</text><rect x="1315" y="319" width="62" height="371" fill="#8b9199"/><text x="1346" y="307" text-anchor="middle" class="body-bold">107.2775</text><rect x="1395" y="540" width="62" height="150" fill="#1456a0"/><text x="1426" y="528" text-anchor="middle" class="body-bold">43.4293</text><text x="1390" y="225" text-anchor="middle" class="metric">-59.52%</text>
+  <g class="body-bold" text-anchor="middle"><text x="830" y="730">IDLE</text><text x="1110" y="730">BURST_IDLE</text><text x="1390" y="730">ACTIVE_LEGAL</text></g>
+  <rect x="945" y="775" width="22" height="22" fill="#8b9199"/><text x="978" y="792" class="body">G0 ungated</text><rect x="1165" y="775" width="22" height="22" fill="#1456a0"/><text x="1198" y="792" class="body">G1 clock-gated</text>
+  <text x="1101" y="828" text-anchor="middle" class="small">ACTIVE_LEGAL is a high-duty legal compression workload, not maximum throughput.</text>
+
+  <line x1="48" y1="890" x2="1552" y2="890" class="thin"/>
+  <text x="48" y="927" class="foot">Independent Stage-2 A/B on the Direct Profile; Functional mode SE=0.</text>
+  <text x="48" y="957" class="foot">Gate-level regression equivalence evidence; Formality, DFT signoff, CTS/post-route/PTPX, and silicon results are not claimed.</text>
+</svg>

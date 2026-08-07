@@ -4,10 +4,13 @@
 import argparse
 import csv
 import hashlib
+import re
 import sys
 import xml.etree.ElementTree as ET
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import Decimal, ROUND_HALF_UP, localcontext
 from pathlib import Path
+
+import yaml
 
 
 GENERATED_ASSETS = (
@@ -16,6 +19,9 @@ GENERATED_ASSETS = (
     "compression_vs_snr.svg",
     "engine_scaling.svg",
     "rdtc_multiengine_packet_timing.svg",
+    "rdtc_performance_evolution.svg",
+    "rdtc_stage1_architecture_ppa_power.svg",
+    "rdtc_stage2_clock_gating_power.svg",
     "rdtc_stream_timing.svg",
 )
 
@@ -125,6 +131,61 @@ AUTHORED_ASSET_RULES = {
 }
 
 GENERATED_ASSET_RULES = {
+    "rdtc_performance_evolution.svg": {
+        "required": (
+            "RDTC Performance Evolution",
+            "Single-Engine Datapath Optimization and Multi-Engine Scaling",
+            "Service-rate improvement",
+            "10.47&#215;",
+            "7693 -&gt; 721 cycles",
+            "Packet-level atomic output",
+            "completion order is not guaranteed",
+            "not a wrapper NUM_ENGINES=1 rerun",
+            "separate fixed historical RTL measurements",
+        ),
+        "forbidden": (
+            "mapped GLS",
+            "SE=0",
+            "315 MHz",
+            "identical order across all engine counts",
+            "software reorder PASS",
+        ),
+    },
+    "rdtc_stage1_architecture_ppa_power.svg": {
+        "required": (
+            "Stage 1 &#8212; Buffered to Direct-AXIS",
+            "Measured Impact &#8212; BURST_IDLE Workload",
+            "1,529,495.20",
+            "420,208.44",
+            "-74.60%",
+            "RTL-SAIF-to-mapped",
+            "the Buffered and Direct wrapper architectures differ",
+            "Codec-Engine power remains at a similar level",
+        ),
+        "forbidden": (
+            "Same top-level function",
+            "Lane4 caused 75% power",
+            "mapped GLS",
+        ),
+    },
+    "rdtc_stage2_clock_gating_power.svg": {
+        "required": (
+            "Stage 2 &#8212; Automatic Clock Gating on the Direct Profile",
+            "272 x CLKGATETST_X1 inserted",
+            "34,816 gated bits",
+            "32,768 / 32,768 bits",
+            "G0 ungated",
+            "G1 clock-gated",
+            "Functional mode SE=0",
+            "Gate-level regression equivalence evidence",
+        ),
+        "forbidden": (
+            "Formality PASS",
+            "post-route power result",
+            "silicon power result",
+            "100% output TVALID",
+        ),
+    },
     "clock_gating_power_ab.svg": {
         "required": (
             "Direct G0/G1 mapped dynamic power",
@@ -177,6 +238,17 @@ GENERATED_ASSET_RULES = {
     },
 }
 
+PURE_SVG_FORBIDDEN = (
+    "<image",
+    "data:image",
+    "http://",
+    "https://",
+    "@font-face",
+    "linearGradient",
+    "radialGradient",
+    "filter=",
+)
+
 DIRECT_TRACE_REQUIRED_FIELDS = frozenset(
     (
         "scenario",
@@ -201,6 +273,22 @@ DIRECT_TRACE_REQUIRED_FIELDS = frozenset(
 def read_csv(path):
     with path.open("r", encoding="utf-8", newline="") as stream:
         return list(csv.DictReader(stream))
+
+
+def read_yaml(path):
+    with path.open("r", encoding="utf-8") as stream:
+        return yaml.safe_load(stream)
+
+
+def require(condition, message):
+    if not condition:
+        raise ValueError(message)
+
+
+def decimal_percent_change(baseline, candidate, precision=100):
+    with localcontext() as context:
+        context.prec = precision
+        return (candidate - baseline) * Decimal(100) / baseline
 
 
 def rounded_int(value):
@@ -354,6 +442,201 @@ def load_clock_gating_power_data(path):
     if any(tuple(sorted(points)) != ("G0", "G1") for points in by_workload.values()):
         raise ValueError("clock-gating chart requires paired G0/G1 points")
     return by_workload
+
+
+def load_performance_report_data(root):
+    evidence = root / "evidence"
+    data_dir = evidence / "data"
+    bitpacker_yaml_path = evidence / "rdtc_v1_bitpacker_pipeline_ab.yaml"
+    bitpacker_csv_path = data_dir / "rdtc_v1_bitpacker_pipeline_ab.csv"
+    scaling_yaml_path = evidence / "rdtc_v1_multiengine_rtl.yaml"
+    scaling_csv_path = data_dir / "rdtc_v1_multiengine_scaling.csv"
+
+    bitpacker = load_bitpacker_data(bitpacker_csv_path)
+    scaling = load_scaling_data(scaling_csv_path)
+    bitpacker_yaml = read_yaml(bitpacker_yaml_path)
+    scaling_yaml = read_yaml(scaling_yaml_path)
+
+    require(bitpacker_yaml.get("status") == "verified", "Bitpacker YAML is not verified")
+    require(scaling_yaml.get("status") == "verified", "Multi-Engine YAML is not verified")
+    require(
+        bitpacker_yaml.get("curated_data") == "evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv",
+        "Bitpacker YAML curated-data path mismatch",
+    )
+    require(
+        bitpacker_yaml.get("curated_data_sha256") == _sha256_file(bitpacker_csv_path),
+        "Bitpacker YAML curated-data hash mismatch",
+    )
+    require(
+        scaling_yaml.get("curated_data") == "evidence/data/rdtc_v1_multiengine_scaling.csv",
+        "Multi-Engine YAML curated-data path mismatch",
+    )
+    require(
+        scaling_yaml.get("curated_data_sha256") == _sha256_file(scaling_csv_path),
+        "Multi-Engine YAML curated-data hash mismatch",
+    )
+
+    for role in ("baseline", "optimized"):
+        yaml_point = bitpacker_yaml["points"][role]
+        csv_point = bitpacker[role]
+        for field in ("payload_stream_cycles", "steady_state_blocks", "steady_state_cycles_per_block"):
+            require(
+                Decimal(str(yaml_point[field])) == Decimal(csv_point[field]),
+                "Bitpacker YAML/CSV mismatch for {} {}".format(role, field),
+            )
+
+    scaling_bindings = {
+        1: scaling_yaml["single_engine"],
+        2: scaling_yaml["two_engine"],
+        4: scaling_yaml["four_engine"],
+    }
+    for engine, yaml_point in scaling_bindings.items():
+        require(
+            Decimal(str(yaml_point["effective_cycles_per_block"]))
+            == Decimal(scaling[engine]["effective_cycles_per_block"]),
+            "Multi-Engine YAML/CSV cycles mismatch for {} Engines".format(engine),
+        )
+    require(
+        Decimal(bitpacker["optimized"]["steady_state_cycles_per_block"])
+        == Decimal(scaling[1]["effective_cycles_per_block"]),
+        "Stage16D2 and imported one-Engine reference disagree",
+    )
+    require(
+        scaling_yaml["ordering"]["mode"] == "OUT_OF_ORDER"
+        and scaling_yaml["ordering"]["packet_atomic"] is True
+        and scaling_yaml["ordering"]["software_indexed_reassembly_status"] == "not_claimed",
+        "Multi-Engine ordering contract mismatch",
+    )
+    return {"bitpacker": bitpacker, "scaling": scaling}
+
+
+def load_architecture_power_report_data(root):
+    package = root / "evidence" / "rdtc_v1_power_architecture_ab"
+    points = read_csv(package / "points.csv")
+    comparisons = read_csv(package / "comparisons.csv")
+    hierarchy = read_csv(package / "hierarchy_power.csv")
+
+    by_point = {}
+    for row in points:
+        point_id = row["point_id"]
+        require(point_id not in by_point, "duplicate Stage-1 point: " + point_id)
+        by_point[point_id] = row
+    expected_points = ("arch315-a0-bursty", "arch315-a1-bursty")
+    require(all(point in by_point for point in expected_points), "Stage-1 BURST_IDLE points missing")
+    for point_id, variant in zip(expected_points, ("A0", "A1")):
+        row = by_point[point_id]
+        require(row["variant"] == variant and row["workload_id"] == "bursty", "Stage-1 point identity mismatch")
+        require(row["status"] == "PASS", "Stage-1 point did not pass: " + point_id)
+        require(row["implementation"] == "mapped_dc", "Stage-1 implementation mismatch")
+        require(row["activity_method"] == "rtl_saif_mapped", "Stage-1 activity method mismatch")
+        require(row["frequency_mhz"] == "315", "Stage-1 frequency mismatch")
+        require(row["library_id"] == "Nangate45:TT_1p1V_25C", "Stage-1 library mismatch")
+
+    required_metrics = ("area_total_um2", "cell_count", "dynamic_mw", "total_mw", "energy_per_block_nj")
+    by_metric = {}
+    for row in comparisons:
+        if row["workload_id"] != "bursty" or row["metric"] not in required_metrics:
+            continue
+        metric = row["metric"]
+        require(metric not in by_metric, "duplicate Stage-1 comparison: " + metric)
+        require(row["status"] == "PASS", "Stage-1 comparison did not pass: " + metric)
+        require(
+            row["baseline_point"] == expected_points[0] and row["candidate_point"] == expected_points[1],
+            "Stage-1 comparison endpoints mismatch: " + metric,
+        )
+        baseline = Decimal(row["baseline"])
+        candidate = Decimal(row["candidate"])
+        published = Decimal(row["delta_percent"])
+        require(
+            decimal_percent_change(baseline, candidate, len(published.as_tuple().digits)) == published,
+            "Stage-1 comparison percentage mismatch: " + metric,
+        )
+        by_metric[metric] = {"baseline": baseline, "candidate": candidate, "percent": published}
+    require(tuple(sorted(by_metric)) == tuple(sorted(required_metrics)), "Stage-1 comparison set mismatch")
+
+    point_field = {
+        "area_total_um2": "area_total_um2",
+        "cell_count": "cell_count",
+        "dynamic_mw": "dynamic_mw",
+        "total_mw": "total_mw",
+    }
+    for metric, field in point_field.items():
+        require(
+            Decimal(by_point[expected_points[0]][field]) == by_metric[metric]["baseline"]
+            and Decimal(by_point[expected_points[1]][field]) == by_metric[metric]["candidate"],
+            "Stage-1 point/comparison mismatch: " + metric,
+        )
+
+    engine_totals = {point: [] for point in expected_points}
+    for row in hierarchy:
+        if row["point_id"] in engine_totals and re.fullmatch(r"g_engine\[[01]\]\.u_engine", row["hierarchy_id"]):
+            require(row["status"] == "PASS", "Stage-1 hierarchy row did not pass")
+            engine_totals[row["point_id"]].append(Decimal(row["total_mw"]))
+    require(all(len(values) == 2 for values in engine_totals.values()), "Stage-1 Engine hierarchy rows missing")
+    baseline_engines = sum(engine_totals[expected_points[0]])
+    candidate_engines = sum(engine_totals[expected_points[1]])
+    require(
+        abs(decimal_percent_change(baseline_engines, candidate_engines)) < Decimal(5),
+        "Stage-1 Codec-Engine hierarchy power is not at a similar level",
+    )
+    return by_metric
+
+
+def load_clock_gating_report_data(root):
+    package = root / "evidence" / "rdtc_v1_clock_gating_mapped_dc"
+    dynamic = load_clock_gating_power_data(package / "points.csv")
+    point_rows = read_csv(package / "points.csv")
+    comparison_rows = read_csv(package / "comparisons.csv")
+    clock_rows = read_csv(package / "clock_gating.csv")
+    gate_rows = read_csv(package / "gates.csv")
+
+    points = {row["point_id"]: row for row in point_rows}
+    require(len(points) == len(point_rows), "duplicate Stage-2 point")
+    comparisons = {}
+    for row in comparison_rows:
+        key = (row["workload"], row["metric"])
+        require(key not in comparisons, "duplicate Stage-2 comparison: {} {}".format(*key))
+        require(row["status"] == "PASS", "Stage-2 comparison did not pass: {} {}".format(*key))
+        if row["baseline"] != "NA":
+            baseline = Decimal(row["baseline"])
+            candidate = Decimal(row["candidate"])
+            if row["percent_change"] != "NA":
+                require(
+                    decimal_percent_change(
+                        baseline,
+                        candidate,
+                        len(Decimal(row["percent_change"]).as_tuple().digits),
+                    )
+                    == Decimal(row["percent_change"]),
+                    "Stage-2 comparison percentage mismatch: {} {}".format(*key),
+                )
+        comparisons[key] = row
+
+    clock = {}
+    for row in clock_rows:
+        key = (row["variant"], row["metric"])
+        require(key not in clock, "duplicate clock-gating metric: {} {}".format(*key))
+        require(row["status"] == "PASS", "clock-gating metric did not pass: {} {}".format(*key))
+        clock[key] = Decimal(row["value"])
+    gates = {row["gate_id"]: row for row in gate_rows}
+    require(len(gates) == len(gate_rows), "duplicate Stage-2 promotion gate")
+    for gate_id in (
+        "equivalence", "activity_coverage", "icg_inserted", "gated_bits",
+        "ring_coverage", "g0_setup_wns", "g1_setup_wns", "electrical",
+        "gating_setup_wns", "gating_hold_wns",
+    ):
+        require(gates.get(gate_id, {}).get("status") == "PASS", "Stage-2 promotion gate failed: " + gate_id)
+
+    g0 = points["G0_BURST_IDLE"]
+    g1 = points["G1_BURST_IDLE"]
+    require(Decimal(g0["icg_count"]) == 0 and Decimal(g1["icg_count"]) == clock[("G1", "icg_count")], "ICG count mismatch")
+    require(Decimal(g1["gated_bits"]) == clock[("G1", "gated_bits")], "gated-bit mismatch")
+    require(
+        Decimal(g1["ring_gated_bits"]) == clock[("G1", "ring_gated_bits")]
+        and Decimal(g1["ring_total_bits"]) == clock[("G1", "ring_total_bits")],
+        "Ring coverage identity mismatch",
+    )
+    return {"dynamic": dynamic, "points": points, "comparisons": comparisons, "clock": clock, "gates": gates}
 
 
 def _sha256_file(path):
@@ -886,6 +1169,280 @@ def clock_gating_power_svg(by_workload):
 """.format(bars="\n".join(bars), labels="\n".join(labels), savings="\n".join(savings))
 
 
+REPORT_STYLE = """
+    .title{font:700 38px Arial,Helvetica,sans-serif;fill:#111827}
+    .subtitle{font:400 22px Arial,Helvetica,sans-serif;fill:#4b5563}
+    .panel-title{font:700 25px Arial,Helvetica,sans-serif;fill:#102f5e}
+    .section{font:700 22px Arial,Helvetica,sans-serif;fill:#111827}
+    .body{font:400 19px Arial,Helvetica,sans-serif;fill:#1f2937}
+    .body-bold{font:700 19px Arial,Helvetica,sans-serif;fill:#111827}
+    .metric{font:700 23px Arial,Helvetica,sans-serif;fill:#0f4c9a}
+    .small{font:400 16px Arial,Helvetica,sans-serif;fill:#4b5563}
+    .foot{font:400 17px Arial,Helvetica,sans-serif;fill:#374151}
+    .table-head{font:700 17px Arial,Helvetica,sans-serif;fill:#ffffff}
+    .table-header{font:700 16px Arial,Helvetica,sans-serif;fill:#111827}
+    .table{font:400 17px Arial,Helvetica,sans-serif;fill:#1f2937}
+    .table-strong{font:700 17px Arial,Helvetica,sans-serif;fill:#0f4c9a}
+    .axis{font:400 16px Arial,Helvetica,sans-serif;fill:#374151}
+    .grid{stroke:#d1d5db;stroke-width:1;stroke-dasharray:5 5}
+    .rule{stroke:#102f5e;stroke-width:1.5}
+    .thin{stroke:#9ca3af;stroke-width:1}
+    .box{fill:#ffffff;stroke:#6b7280;stroke-width:1.2}
+    .box-blue{fill:#ffffff;stroke:#1456a0;stroke-width:1.4}
+"""
+
+
+def format_fixed(value, places, comma=False):
+    quantum = Decimal(1).scaleb(-places)
+    rendered = format(value.quantize(quantum, rounding=ROUND_HALF_UP), ".{}f".format(places))
+    if comma:
+        integer, dot, fraction = rendered.partition(".")
+        rendered = "{:,}".format(int(integer)) + (dot + fraction if dot else "")
+    return rendered
+
+
+def format_signed(value, places):
+    rendered = format_fixed(value, places)
+    return rendered if value < 0 else "+" + rendered
+
+
+def performance_evolution_svg(data):
+    bitpacker = data["bitpacker"]
+    scaling = data["scaling"]
+    block_baseline = Decimal(bitpacker["baseline"]["steady_state_cycles_per_block"])
+    block_optimized = Decimal(bitpacker["optimized"]["steady_state_cycles_per_block"])
+    payload_baseline = Decimal(bitpacker["baseline"]["payload_stream_cycles"])
+    payload_optimized = Decimal(bitpacker["optimized"]["payload_stream_cycles"])
+    service_speedup = (block_baseline / block_optimized).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    payload_speedup = (payload_baseline / payload_optimized).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+    normalized = {
+        engine: (block_optimized / Decimal(scaling[engine]["effective_cycles_per_block"])).quantize(
+            Decimal("0.001"), rounding=ROUND_HALF_UP
+        )
+        for engine in (1, 2, 4)
+    }
+    efficiency = {
+        engine: (Decimal(scaling[engine]["scaling_efficiency_vs_single_engine"]) * Decimal(100)).quantize(
+            Decimal("0.01"), rounding=ROUND_HALF_UP
+        )
+        for engine in (2, 4)
+    }
+    plot = {1: (885, 575), 2: (1120, 470), 4: (1420, 253)}
+    actual_points = " ".join("{},{}".format(*plot[engine]) for engine in (1, 2, 4))
+    ideal_points = "885,575 1120,467 1420,250"
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc" preserveAspectRatio="xMidYMid meet">
+  <title id="title">RDTC Performance Evolution</title>
+  <desc id="desc">Historical fixed RTL evidence separates the Stage16C3 to Stage16D2 single-Engine datapath improvement from measured two- and four-Engine scaling.</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#374151"/></marker></defs>
+  <style>{REPORT_STYLE}</style>
+  <rect width="1600" height="1000" fill="#ffffff"/>
+  <text x="48" y="58" class="title">RDTC Performance Evolution</text>
+  <text x="48" y="92" class="subtitle">Single-Engine Datapath Optimization and Multi-Engine Scaling</text>
+  <line x1="48" y1="116" x2="1552" y2="116" class="rule"/>
+  <line x1="770" y1="142" x2="770" y2="900" class="thin"/>
+
+  <text x="55" y="163" class="panel-title">(a) Single-Engine Datapath Optimization</text>
+  <text x="58" y="218" class="section">Stage16C3 baseline</text>
+  <text x="58" y="286" class="body">Input</text><text x="49" y="310" class="body">AXIS128</text>
+  <line x1="122" y1="293" x2="165" y2="293" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="174" y="250" width="155" height="86" class="box"/><text x="252" y="286" text-anchor="middle" class="body">Sample</text><text x="252" y="310" text-anchor="middle" class="body">Serializer</text>
+  <line x1="329" y1="293" x2="373" y2="293" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="382" y="250" width="220" height="86" class="box"/><text x="492" y="283" text-anchor="middle" class="body">Serial Cursor</text><text x="492" y="309" text-anchor="middle" class="body">+ OR Accumulation</text>
+  <line x1="602" y1="293" x2="646" y2="293" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="688" y="286" text-anchor="middle" class="body">Output</text><text x="688" y="310" text-anchor="middle" class="body">Packet</text>
+  <text x="380" y="375" text-anchor="middle" class="metric">{format_fixed(block_baseline, 0)} cycles/block</text>
+
+  <line x1="55" y1="411" x2="735" y2="411" class="grid"/>
+  <text x="58" y="461" class="panel-title">Stage16D2 optimized</text>
+  <text x="58" y="537" class="body">Input</text><text x="49" y="561" class="body">AXIS128</text>
+  <line x1="122" y1="544" x2="165" y2="544" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="174" y="495" width="155" height="98" class="box-blue"/><text x="252" y="531" text-anchor="middle" class="body-bold">Lane4 Word</text><text x="252" y="557" text-anchor="middle" class="body-bold">Bitpacker</text>
+  <line x1="329" y1="544" x2="373" y2="544" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="382" y="495" width="220" height="98" class="box-blue"/><text x="492" y="526" text-anchor="middle" class="body-bold">Suffix-Sum + Pipelined</text><text x="492" y="552" text-anchor="middle" class="body-bold">Shift / OR Tree</text>
+  <line x1="602" y1="544" x2="646" y2="544" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="688" y="537" text-anchor="middle" class="body">Output</text><text x="688" y="561" text-anchor="middle" class="body">Packet</text>
+  <text x="380" y="636" text-anchor="middle" class="metric">{format_fixed(block_optimized, 0)} cycles/block</text>
+  <rect x="55" y="676" width="330" height="120" class="box"/><text x="220" y="713" text-anchor="middle" class="body-bold">Service-rate improvement</text><text x="220" y="758" text-anchor="middle" class="metric">{format_fixed(service_speedup, 2)}&#215;</text>
+  <rect x="405" y="676" width="330" height="120" class="box"/><text x="570" y="713" text-anchor="middle" class="body-bold">Separate payload interval</text><text x="570" y="750" text-anchor="middle" class="metric">{format_fixed(payload_baseline, 0)} -&gt; {format_fixed(payload_optimized, 0)} cycles</text><text x="570" y="777" text-anchor="middle" class="small">{format_fixed(payload_speedup, 2)}&#215;; bit-exact packet bytes</text>
+  <text x="55" y="832" class="small">The 8220-&gt;785 block-spacing result and 7693-&gt;721 payload interval use</text>
+  <text x="55" y="855" class="small">separate fixed historical RTL measurements. Packet bytes are bit-exact within each corresponding A/B.</text>
+
+  <text x="802" y="163" class="panel-title">(b) Multi-Engine Scaling Efficiency</text>
+  <text x="808" y="205" class="section">Normalized throughput (higher is better)</text>
+  <line x1="850" y1="250" x2="850" y2="600" stroke="#374151" stroke-width="1.5"/><line x1="850" y1="600" x2="1510" y2="600" stroke="#374151" stroke-width="1.5"/>
+  <g class="grid"><line x1="850" y1="575" x2="1510" y2="575"/><line x1="850" y1="467" x2="1510" y2="467"/><line x1="850" y1="358" x2="1510" y2="358"/><line x1="850" y1="250" x2="1510" y2="250"/></g>
+  <g class="axis" text-anchor="end"><text x="838" y="581">1.0</text><text x="838" y="473">2.0</text><text x="838" y="364">3.0</text><text x="838" y="256">4.0</text></g>
+  <polyline points="{ideal_points}" fill="none" stroke="#6b7280" stroke-width="2.5" stroke-dasharray="9 7"/>
+  <polyline points="{actual_points}" fill="none" stroke="#1456a0" stroke-width="4"/>
+  <g fill="#1456a0" stroke="#ffffff" stroke-width="2"><circle cx="885" cy="575" r="9"/><circle cx="1120" cy="455" r="9"/><circle cx="1420" cy="205" r="9"/></g>
+  <g class="metric" text-anchor="middle"><text x="885" y="548">{format_fixed(normalized[1], 3)}&#215;</text><text x="1120" y="443">{format_fixed(normalized[2], 3)}&#215;</text><text x="1420" y="226">{format_fixed(normalized[4], 3)}&#215;</text></g>
+  <g class="body-bold" text-anchor="middle"><text x="885" y="630">1 Engine</text><text x="1120" y="630">2 Engines</text><text x="1420" y="630">4 Engines</text></g>
+  <rect x="805" y="666" width="710" height="142" fill="#ffffff" stroke="#6b7280" stroke-width="1"/>
+  <rect x="805" y="666" width="710" height="40" fill="#102f5e"/>
+  <g class="table-head" text-anchor="middle"><text x="1000" y="692">1 Engine</text><text x="1200" y="692">2 Engines</text><text x="1405" y="692">4 Engines</text></g>
+  <line x1="920" y1="666" x2="920" y2="808" class="thin"/><line x1="1090" y1="666" x2="1090" y2="808" class="thin"/><line x1="1300" y1="666" x2="1300" y2="808" class="thin"/><line x1="805" y1="754" x2="1515" y2="754" class="thin"/>
+  <g class="table"><text x="820" y="736">cycles/block</text><text x="820" y="790">scaling efficiency</text></g>
+  <g class="table-strong" text-anchor="middle"><text x="1000" y="736">{format_fixed(Decimal(scaling[1]['effective_cycles_per_block']), 0)}</text><text x="1200" y="736">{format_fixed(Decimal(scaling[2]['effective_cycles_per_block']), 2)}</text><text x="1405" y="736">{format_fixed(Decimal(scaling[4]['effective_cycles_per_block']), 2)}</text><text x="1000" y="790">baseline</text><text x="1200" y="790">{format_fixed(efficiency[2], 2)}%</text><text x="1405" y="790">{format_fixed(efficiency[4], 2)}%</text></g>
+  <text x="805" y="837" class="body-bold">Packet-level atomic output</text>
+  <text x="805" y="864" class="body">Packet beats do not interleave; Frame/Block identity is preserved;</text>
+  <text x="805" y="889" class="body">completion order is not guaranteed.</text>
+  <text x="805" y="914" class="small">785 cycles/block is the imported Stage16D2 reference, not a wrapper NUM_ENGINES=1 rerun.</text>
+
+  <line x1="48" y1="923" x2="1552" y2="923" class="thin"/>
+  <text x="48" y="952" class="foot">Historical fixed RTL workloads; cycle metrics are service/payload intervals, not one-block latency.</text>
+  <text x="48" y="978" class="foot">Not Direct-AXIS sustained throughput, FPGA/ASIC timing, board bandwidth, or Fmax.</text>
+</svg>
+"""
+
+
+def stage1_architecture_power_svg(metrics):
+    rows = (
+        ("Cell area", metrics["area_total_um2"], 2, True, "um2"),
+        ("Cell count", metrics["cell_count"], 0, True, ""),
+        ("Dynamic power", metrics["dynamic_mw"], 4, False, "mW"),
+        ("Total power", metrics["total_mw"], 2, False, "mW"),
+        ("Energy/block", metrics["energy_per_block_nj"], 4, False, "nJ"),
+    )
+    table_rows = []
+    for index, (label, values, places, comma, unit) in enumerate(rows):
+        y = 356 + index * 77
+        baseline = format_fixed(values["baseline"], places, comma=comma)
+        candidate = format_fixed(values["candidate"], places, comma=comma)
+        percent = format_signed(values["percent"], 2) + "%"
+        suffix = " " + unit if unit else ""
+        table_rows.append(
+            f'  <line x1="840" y1="{y + 28}" x2="1530" y2="{y + 28}" class="thin"/>'
+            f'<text x="850" y="{y}" class="table">{label}</text>'
+            f'<text x="1110" y="{y}" text-anchor="middle" class="table">{baseline}{suffix}</text>'
+            f'<text x="1335" y="{y}" text-anchor="middle" class="table-strong">{candidate}{suffix}</text>'
+            f'<text x="1505" y="{y}" text-anchor="end" class="table-strong">{percent}</text>'
+        )
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc" preserveAspectRatio="xMidYMid meet">
+  <title id="title">Stage 1 &#8212; Buffered to Direct-AXIS: Architecture PPA and Power Optimization</title>
+  <desc id="desc">A controlled two-Engine mapped-DC study compares the Buffered wrapper against Direct-AXIS using RTL-SAIF-to-mapped activity at 315 MHz.</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#374151"/></marker></defs>
+  <style>{REPORT_STYLE}</style>
+  <rect width="1600" height="1000" fill="#ffffff"/>
+  <text x="48" y="58" class="title">Stage 1 &#8212; Buffered to Direct-AXIS: Architecture PPA and Power Optimization</text>
+  <text x="48" y="92" class="subtitle">Two-Engine RDTC Wrapper, Nangate45 TT / 1.1 V / 25 C, 315 MHz, Activity-Driven Mapped-Netlist Estimate</text>
+  <line x1="48" y1="116" x2="1552" y2="116" class="rule"/>
+
+  <rect x="48" y="150" width="740" height="700" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
+  <rect x="48" y="150" width="740" height="52" fill="#102f5e"/><text x="418" y="185" text-anchor="middle" class="table-head">Architecture Change</text>
+  <text x="72" y="244" class="panel-title">Buffered</text>
+  <rect x="72" y="285" width="100" height="76" class="box"/><text x="122" y="331" text-anchor="middle" class="body">Input</text>
+  <line x1="172" y1="323" x2="208" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="217" y="285" width="135" height="76" class="box"/><text x="284" y="331" text-anchor="middle" class="body">DDR Feeder</text>
+  <line x1="352" y1="323" x2="388" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="397" y="267" width="220" height="112" fill="#ffffff" stroke="#102f5e" stroke-width="1.3" stroke-dasharray="7 5"/><text x="507" y="302" text-anchor="middle" class="body">Per-Engine</text><text x="507" y="328" text-anchor="middle" class="body">Payload-Commit /</text><text x="507" y="354" text-anchor="middle" class="body">Packet Storage</text>
+  <line x1="617" y1="323" x2="653" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="662" y="285" width="100" height="76" class="box"/><text x="712" y="331" text-anchor="middle" class="body">Output</text>
+  <text x="507" y="414" text-anchor="middle" class="small">Storage-heavy wrapper responsibilities</text>
+  <line x1="72" y1="456" x2="764" y2="456" class="thin"/>
+
+  <text x="72" y="508" class="panel-title">Direct-AXIS</text>
+  <rect x="72" y="550" width="100" height="76" class="box"/><text x="122" y="596" text-anchor="middle" class="body">Input</text>
+  <line x1="172" y1="588" x2="208" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="217" y="550" width="150" height="76" class="box-blue"/><text x="292" y="582" text-anchor="middle" class="body-bold">Direct AXIS</text><text x="292" y="607" text-anchor="middle" class="body-bold">Path</text>
+  <line x1="367" y1="588" x2="403" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="412" y="550" width="175" height="76" class="box-blue"/><text x="499" y="596" text-anchor="middle" class="body-bold">Codec Engine</text>
+  <line x1="587" y1="588" x2="653" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="662" y="550" width="100" height="76" class="box"/><text x="712" y="596" text-anchor="middle" class="body">Output</text>
+  <text x="418" y="680" text-anchor="middle" class="metric">Removed DDR feeder and per-Engine payload-commit storage.</text>
+  <text x="72" y="735" class="small">The Codec Engine remains; the Direct profile still contains internal Ring/FIFO storage.</text>
+  <text x="72" y="770" class="small">The wrapper interfaces and storage responsibilities are intentionally different.</text>
+
+  <rect x="812" y="150" width="740" height="540" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
+  <rect x="812" y="150" width="740" height="52" fill="#102f5e"/><text x="1182" y="185" text-anchor="middle" class="table-head">Measured Impact &#8212; BURST_IDLE Workload</text>
+  <rect x="812" y="218" width="740" height="55" fill="#eef3f8"/>
+  <g class="table-header"><text x="850" y="252">Metric</text><text x="1110" y="241" text-anchor="middle">Buffered</text><text x="1110" y="263" text-anchor="middle">reference</text><text x="1315" y="252" text-anchor="middle">Direct-AXIS</text><text x="1505" y="241" text-anchor="end">Delta</text><text x="1505" y="263" text-anchor="end">Direct vs Buffered</text></g>
+{''.join(table_rows)}
+  <rect x="812" y="720" width="740" height="130" fill="#f7f9fc" stroke="#1456a0" stroke-width="1.4"/>
+  <text x="850" y="761" class="panel-title">Measured cause</text>
+  <text x="850" y="797" class="body">Main savings come from removing feeder and payload-commit storage;</text>
+  <text x="850" y="827" class="body">Codec-Engine power remains at a similar level.</text>
+
+  <line x1="48" y1="886" x2="1552" y2="886" class="thin"/>
+  <text x="48" y="923" class="foot">Controlled A/B under normalized Codec work and Packet-output contract; the Buffered and Direct wrapper architectures differ.</text>
+  <text x="48" y="953" class="foot">Same library/corner and 315 MHz point; RTL-SAIF-to-mapped power estimate, not post-route or silicon power.</text>
+</svg>
+"""
+
+
+def stage2_clock_gating_power_svg(data):
+    points = data["points"]
+    comparisons = data["comparisons"]
+    clock = data["clock"]
+    g0 = points["G0_BURST_IDLE"]
+    g1 = points["G1_BURST_IDLE"]
+    area = comparisons[("IMPLEMENTATION", "area_total_um2")]
+    energy = comparisons[("BURST_IDLE", "energy_per_block_nj")]
+    icg_count = clock[("G1", "icg_count")]
+    gated_bits = clock[("G1", "gated_bits")]
+    ring_gated_bits = clock[("G1", "ring_gated_bits")]
+    ring_total_bits = clock[("G1", "ring_total_bits")]
+    ring_coverage = clock[("G1", "ring_coverage_pct")]
+    idle_cycles = Decimal(points["G0_IDLE"]["window_cycles"])
+    burst_blocks = Decimal(points["G0_BURST_IDLE"]["blocks_completed"])
+    active_blocks = Decimal(points["G0_ACTIVE_LEGAL"]["blocks_completed"])
+    chart_left = 740
+    chart_right = 1530
+    plot_top = 275
+    plot_bottom = 690
+    plot_height = plot_bottom - plot_top
+    axis_max = Decimal("120")
+    centers = {"IDLE": 830, "BURST_IDLE": 1110, "ACTIVE_LEGAL": 1390}
+    bars = []
+    for workload in CLOCK_GATING_WORKLOADS:
+        center = centers[workload]
+        for variant, x, color in (("G0", center - 75, "#8b9199"), ("G1", center + 5, "#1456a0")):
+            value = data["dynamic"][workload][variant]
+            height = rounded_int(value * Decimal(plot_height) / axis_max)
+            y = plot_bottom - height
+            bars.append(f'<rect x="{x}" y="{y}" width="62" height="{height}" fill="{color}"/>')
+            bars.append(f'<text x="{x + 31}" y="{y - 12}" text-anchor="middle" class="body-bold">{format_fixed(value, 4)}</text>')
+        change = Decimal(comparisons[(workload, "dynamic_mw")]["percent_change"])
+        bars.append(f'<text x="{center}" y="225" text-anchor="middle" class="metric">{format_signed(change, 2)}%</text>')
+
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc" preserveAspectRatio="xMidYMid meet">
+  <title id="title">Stage 2 &#8212; Automatic Clock Gating on the Direct Profile</title>
+  <desc id="desc">Direct G0 ungated and Direct G1 clock-gated mapped-netlist dynamic power are compared for IDLE, BURST_IDLE, and ACTIVE_LEGAL at 315 MHz in functional mode.</desc>
+  <style>{REPORT_STYLE}</style>
+  <rect width="1600" height="1000" fill="#ffffff"/>
+  <text x="48" y="58" class="title">Stage 2 &#8212; Automatic Clock Gating on the Direct Profile</text>
+  <text x="48" y="92" class="subtitle">Direct Register-Expanded Profile, Nangate45 TT / 1.1 V / 25 C, 315 MHz, Activity-Driven Mapped-Netlist Estimate</text>
+  <line x1="48" y1="116" x2="1552" y2="116" class="rule"/>
+
+  <rect x="48" y="150" width="560" height="430" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
+  <rect x="48" y="150" width="560" height="52" fill="#102f5e"/><text x="328" y="185" text-anchor="middle" class="table-head">Clock-Gating Summary</text>
+  <g class="body"><text x="78" y="245">{format_fixed(icg_count, 0)} x CLKGATETST_X1 inserted</text><text x="78" y="285">{format_fixed(gated_bits, 0, comma=True)} gated bits</text><text x="78" y="325">Ring: {format_fixed(ring_gated_bits, 0, comma=True)} / {format_fixed(ring_total_bits, 0, comma=True)} bits ({format_fixed(ring_coverage, 0)}% Ring-data coverage)</text><text x="78" y="365" class="small">Cell area: {format_fixed(Decimal(area['baseline']), 2, comma=True)} -&gt; {format_fixed(Decimal(area['candidate']), 2, comma=True)} um2</text><text x="548" y="365" text-anchor="end" class="metric">{format_signed(Decimal(area['percent_change']), 2)}%</text><text x="78" y="405">Setup WNS: {format_signed(Decimal(g0['setup_wns_ns']), 6)} -&gt; {format_signed(Decimal(g1['setup_wns_ns']), 7)} ns</text><text x="78" y="445">Electrical violations: {g0['electrical_violations']} -&gt; {g1['electrical_violations']}</text><text x="78" y="485">Gating setup / hold WNS: +{compact_decimal(clock[('G1', 'gating_setup_wns')])} / +{compact_decimal(clock[('G1', 'gating_hold_wns')])} ns</text><text x="78" y="525" class="small">BURST_IDLE energy/block: {format_fixed(Decimal(energy['baseline']), 2)} -&gt; {format_fixed(Decimal(energy['candidate']), 2)} nJ</text><text x="548" y="525" text-anchor="end" class="metric">{format_signed(Decimal(energy['percent_change']), 2)}%</text></g>
+
+  <rect x="48" y="610" width="560" height="245" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
+  <rect x="48" y="610" width="560" height="52" fill="#102f5e"/><text x="328" y="645" text-anchor="middle" class="table-head">Workloads</text>
+  <text x="78" y="703" class="body-bold">IDLE</text><text x="230" y="703" class="body">{format_fixed(idle_cycles, 0)} measured cycles; no traffic</text>
+  <text x="78" y="751" class="body-bold">BURST_IDLE</text><text x="230" y="751" class="body">{format_fixed(burst_blocks, 0)} blocks; four groups of eight blocks</text><text x="230" y="777" class="small">drain + 1024 idle cycles after each group</text>
+  <text x="78" y="825" class="body-bold">ACTIVE_LEGAL</text><text x="230" y="825" class="body">{format_fixed(active_blocks, 0)} blocks; 320-cycle block-start interval</text><text x="230" y="848" class="small">no artificial long idle gap</text>
+
+  <rect x="650" y="150" width="902" height="705" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
+  <text x="1101" y="192" text-anchor="middle" class="panel-title">Dynamic Power Across Workloads</text>
+  <g class="grid"><line x1="{chart_left}" y1="{plot_bottom}" x2="{chart_right}" y2="{plot_bottom}"/><line x1="{chart_left}" y1="586" x2="{chart_right}" y2="586"/><line x1="{chart_left}" y1="483" x2="{chart_right}" y2="483"/><line x1="{chart_left}" y1="379" x2="{chart_right}" y2="379"/><line x1="{chart_left}" y1="{plot_top}" x2="{chart_right}" y2="{plot_top}"/></g>
+  <line x1="{chart_left}" y1="{plot_top}" x2="{chart_left}" y2="{plot_bottom}" stroke="#374151" stroke-width="1.5"/><line x1="{chart_left}" y1="{plot_bottom}" x2="{chart_right}" y2="{plot_bottom}" stroke="#374151" stroke-width="1.5"/>
+  <g class="axis" text-anchor="end"><text x="725" y="696">0</text><text x="725" y="592">30</text><text x="725" y="489">60</text><text x="725" y="385">90</text><text x="725" y="281">120</text></g>
+  <text x="680" y="485" text-anchor="middle" class="section" transform="rotate(-90 680 485)">Dynamic power (mW)</text>
+  {''.join(bars)}
+  <g class="body-bold" text-anchor="middle"><text x="830" y="730">IDLE</text><text x="1110" y="730">BURST_IDLE</text><text x="1390" y="730">ACTIVE_LEGAL</text></g>
+  <rect x="945" y="775" width="22" height="22" fill="#8b9199"/><text x="978" y="792" class="body">G0 ungated</text><rect x="1165" y="775" width="22" height="22" fill="#1456a0"/><text x="1198" y="792" class="body">G1 clock-gated</text>
+  <text x="1101" y="828" text-anchor="middle" class="small">ACTIVE_LEGAL is a high-duty legal compression workload, not maximum throughput.</text>
+
+  <line x1="48" y1="890" x2="1552" y2="890" class="thin"/>
+  <text x="48" y="927" class="foot">Independent Stage-2 A/B on the Direct Profile; Functional mode SE=0.</text>
+  <text x="48" y="957" class="foot">Gate-level regression equivalence evidence; Formality, DFT signoff, CTS/post-route/PTPX, and silicon results are not claimed.</text>
+</svg>
+"""
+
+
 def validate_xml(name, content):
     try:
         root = ET.fromstring(content)
@@ -897,6 +1454,13 @@ def validate_xml(name, content):
     for required_child in ("title", "desc"):
         if required_child not in child_names:
             raise ValueError("{} is missing {}".format(name, required_child))
+    for element in root.iter():
+        local_name = element.tag.rsplit("}", 1)[-1]
+        if local_name == "image":
+            raise ValueError("{} embeds raster image data".format(name))
+        for attribute, value in element.attrib.items():
+            if attribute.rsplit("}", 1)[-1] == "href" and re.match(r"(?i)^(?:https?:|data:)", value):
+                raise ValueError("{} contains an external or embedded image reference".format(name))
 
 
 def validate_authored_asset_semantics(name, content):
@@ -921,6 +1485,22 @@ def validate_generated_asset_semantics(name, content):
     for fragment in rules["forbidden"]:
         if fragment in content:
             raise ValueError("{} contains forbidden text: {}".format(name, fragment))
+    content_without_namespace = content.replace('xmlns="http://www.w3.org/2000/svg"', "")
+    for fragment in PURE_SVG_FORBIDDEN:
+        if fragment in content_without_namespace:
+            raise ValueError("{} contains non-portable SVG content: {}".format(name, fragment))
+    if name == "rdtc_stage2_clock_gating_power.svg" and re.search(
+        r"\bis\s+(?:the\s+)?maximum throughput\b", content, re.IGNORECASE
+    ):
+        raise ValueError("{} promotes ACTIVE_LEGAL to maximum throughput".format(name))
+    if name.startswith("rdtc_") and name in GENERATED_ASSETS:
+        if 'width="1600" height="1000" viewBox="0 0 1600 1000"' not in content:
+            if name in (
+                "rdtc_performance_evolution.svg",
+                "rdtc_stage1_architecture_ppa_power.svg",
+                "rdtc_stage2_clock_gating_power.svg",
+            ):
+                raise ValueError("{} does not use the coordinated 1600x1000 canvas".format(name))
 
 
 def main():
@@ -951,12 +1531,18 @@ def main():
     clock_gating_data = load_clock_gating_power_data(
         root / "evidence" / "rdtc_v1_clock_gating_mapped_dc" / "points.csv"
     )
+    performance_report_data = load_performance_report_data(root)
+    architecture_power_report_data = load_architecture_power_report_data(root)
+    clock_gating_report_data = load_clock_gating_report_data(root)
     expected = {
         "bitpacker_pipeline_ab.svg": bitpacker_svg(bitpacker_data),
         "clock_gating_power_ab.svg": clock_gating_power_svg(clock_gating_data),
         "compression_vs_snr.svg": compression_svg(snr_values, compression_data),
         "engine_scaling.svg": scaling_svg(scaling_data, bitpacker_data),
         "rdtc_multiengine_packet_timing.svg": direct_multiengine_packet_timing_svg(direct_timing_data),
+        "rdtc_performance_evolution.svg": performance_evolution_svg(performance_report_data),
+        "rdtc_stage1_architecture_ppa_power.svg": stage1_architecture_power_svg(architecture_power_report_data),
+        "rdtc_stage2_clock_gating_power.svg": stage2_clock_gating_power_svg(clock_gating_report_data),
         "rdtc_stream_timing.svg": direct_stream_timing_svg(direct_timing_data),
     }
 

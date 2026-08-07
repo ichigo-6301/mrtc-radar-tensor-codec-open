@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc" preserveAspectRatio="xMidYMid meet">
+  <title id="title">RDTC Performance Evolution</title>
+  <desc id="desc">Historical fixed RTL evidence separates the Stage16C3 to Stage16D2 single-Engine datapath improvement from measured two- and four-Engine scaling.</desc>
+  <defs><marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#374151"/></marker></defs>
+  <style>
+    .title{font:700 38px Arial,Helvetica,sans-serif;fill:#111827}
+    .subtitle{font:400 22px Arial,Helvetica,sans-serif;fill:#4b5563}
+    .panel-title{font:700 25px Arial,Helvetica,sans-serif;fill:#102f5e}
+    .section{font:700 22px Arial,Helvetica,sans-serif;fill:#111827}
+    .body{font:400 19px Arial,Helvetica,sans-serif;fill:#1f2937}
+    .body-bold{font:700 19px Arial,Helvetica,sans-serif;fill:#111827}
+    .metric{font:700 23px Arial,Helvetica,sans-serif;fill:#0f4c9a}
+    .small{font:400 16px Arial,Helvetica,sans-serif;fill:#4b5563}
+    .foot{font:400 17px Arial,Helvetica,sans-serif;fill:#374151}
+    .table-head{font:700 17px Arial,Helvetica,sans-serif;fill:#ffffff}
+    .table-header{font:700 16px Arial,Helvetica,sans-serif;fill:#111827}
+    .table{font:400 17px Arial,Helvetica,sans-serif;fill:#1f2937}
+    .table-strong{font:700 17px Arial,Helvetica,sans-serif;fill:#0f4c9a}
+    .axis{font:400 16px Arial,Helvetica,sans-serif;fill:#374151}
+    .grid{stroke:#d1d5db;stroke-width:1;stroke-dasharray:5 5}
+    .rule{stroke:#102f5e;stroke-width:1.5}
+    .thin{stroke:#9ca3af;stroke-width:1}
+    .box{fill:#ffffff;stroke:#6b7280;stroke-width:1.2}
+    .box-blue{fill:#ffffff;stroke:#1456a0;stroke-width:1.4}
+</style>
+  <rect width="1600" height="1000" fill="#ffffff"/>
+  <text x="48" y="58" class="title">RDTC Performance Evolution</text>
+  <text x="48" y="92" class="subtitle">Single-Engine Datapath Optimization and Multi-Engine Scaling</text>
+  <line x1="48" y1="116" x2="1552" y2="116" class="rule"/>
+  <line x1="770" y1="142" x2="770" y2="900" class="thin"/>
+
+  <text x="55" y="163" class="panel-title">(a) Single-Engine Datapath Optimization</text>
+  <text x="58" y="218" class="section">Stage16C3 baseline</text>
+  <text x="58" y="286" class="body">Input</text><text x="49" y="310" class="body">AXIS128</text>
+  <line x1="122" y1="293" x2="165" y2="293" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="174" y="250" width="155" height="86" class="box"/><text x="252" y="286" text-anchor="middle" class="body">Sample</text><text x="252" y="310" text-anchor="middle" class="body">Serializer</text>
+  <line x1="329" y1="293" x2="373" y2="293" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="382" y="250" width="220" height="86" class="box"/><text x="492" y="283" text-anchor="middle" class="body">Serial Cursor</text><text x="492" y="309" text-anchor="middle" class="body">+ OR Accumulation</text>
+  <line x1="602" y1="293" x2="646" y2="293" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="688" y="286" text-anchor="middle" class="body">Output</text><text x="688" y="310" text-anchor="middle" class="body">Packet</text>
+  <text x="380" y="375" text-anchor="middle" class="metric">8220 cycles/block</text>
+
+  <line x1="55" y1="411" x2="735" y2="411" class="grid"/>
+  <text x="58" y="461" class="panel-title">Stage16D2 optimized</text>
+  <text x="58" y="537" class="body">Input</text><text x="49" y="561" class="body">AXIS128</text>
+  <line x1="122" y1="544" x2="165" y2="544" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="174" y="495" width="155" height="98" class="box-blue"/><text x="252" y="531" text-anchor="middle" class="body-bold">Lane4 Word</text><text x="252" y="557" text-anchor="middle" class="body-bold">Bitpacker</text>
+  <line x1="329" y1="544" x2="373" y2="544" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="382" y="495" width="220" height="98" class="box-blue"/><text x="492" y="526" text-anchor="middle" class="body-bold">Suffix-Sum + Pipelined</text><text x="492" y="552" text-anchor="middle" class="body-bold">Shift / OR Tree</text>
+  <line x1="602" y1="544" x2="646" y2="544" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <text x="688" y="537" text-anchor="middle" class="body">Output</text><text x="688" y="561" text-anchor="middle" class="body">Packet</text>
+  <text x="380" y="636" text-anchor="middle" class="metric">785 cycles/block</text>
+  <rect x="55" y="676" width="330" height="120" class="box"/><text x="220" y="713" text-anchor="middle" class="body-bold">Service-rate improvement</text><text x="220" y="758" text-anchor="middle" class="metric">10.47&#215;</text>
+  <rect x="405" y="676" width="330" height="120" class="box"/><text x="570" y="713" text-anchor="middle" class="body-bold">Separate payload interval</text><text x="570" y="750" text-anchor="middle" class="metric">7693 -&gt; 721 cycles</text><text x="570" y="777" text-anchor="middle" class="small">10.67&#215;; bit-exact packet bytes</text>
+  <text x="55" y="832" class="small">The 8220-&gt;785 block-spacing result and 7693-&gt;721 payload interval use</text>
+  <text x="55" y="855" class="small">separate fixed historical RTL measurements. Packet bytes are bit-exact within each corresponding A/B.</text>
+
+  <text x="802" y="163" class="panel-title">(b) Multi-Engine Scaling Efficiency</text>
+  <text x="808" y="205" class="section">Normalized throughput (higher is better)</text>
+  <line x1="850" y1="250" x2="850" y2="600" stroke="#374151" stroke-width="1.5"/><line x1="850" y1="600" x2="1510" y2="600" stroke="#374151" stroke-width="1.5"/>
+  <g class="grid"><line x1="850" y1="575" x2="1510" y2="575"/><line x1="850" y1="467" x2="1510" y2="467"/><line x1="850" y1="358" x2="1510" y2="358"/><line x1="850" y1="250" x2="1510" y2="250"/></g>
+  <g class="axis" text-anchor="end"><text x="838" y="581">1.0</text><text x="838" y="473">2.0</text><text x="838" y="364">3.0</text><text x="838" y="256">4.0</text></g>
+  <polyline points="885,575 1120,467 1420,250" fill="none" stroke="#6b7280" stroke-width="2.5" stroke-dasharray="9 7"/>
+  <polyline points="885,575 1120,470 1420,253" fill="none" stroke="#1456a0" stroke-width="4"/>
+  <g fill="#1456a0" stroke="#ffffff" stroke-width="2"><circle cx="885" cy="575" r="9"/><circle cx="1120" cy="455" r="9"/><circle cx="1420" cy="205" r="9"/></g>
+  <g class="metric" text-anchor="middle"><text x="885" y="548">1.000&#215;</text><text x="1120" y="443">1.975&#215;</text><text x="1420" y="226">3.976&#215;</text></g>
+  <g class="body-bold" text-anchor="middle"><text x="885" y="630">1 Engine</text><text x="1120" y="630">2 Engines</text><text x="1420" y="630">4 Engines</text></g>
+  <rect x="805" y="666" width="710" height="142" fill="#ffffff" stroke="#6b7280" stroke-width="1"/>
+  <rect x="805" y="666" width="710" height="40" fill="#102f5e"/>
+  <g class="table-head" text-anchor="middle"><text x="1000" y="692">1 Engine</text><text x="1200" y="692">2 Engines</text><text x="1405" y="692">4 Engines</text></g>
+  <line x1="920" y1="666" x2="920" y2="808" class="thin"/><line x1="1090" y1="666" x2="1090" y2="808" class="thin"/><line x1="1300" y1="666" x2="1300" y2="808" class="thin"/><line x1="805" y1="754" x2="1515" y2="754" class="thin"/>
+  <g class="table"><text x="820" y="736">cycles/block</text><text x="820" y="790">scaling efficiency</text></g>
+  <g class="table-strong" text-anchor="middle"><text x="1000" y="736">785</text><text x="1200" y="736">397.52</text><text x="1405" y="736">197.41</text><text x="1000" y="790">baseline</text><text x="1200" y="790">98.74%</text><text x="1405" y="790">99.41%</text></g>
+  <text x="805" y="837" class="body-bold">Packet-level atomic output</text>
+  <text x="805" y="864" class="body">Packet beats do not interleave; Frame/Block identity is preserved;</text>
+  <text x="805" y="889" class="body">completion order is not guaranteed.</text>
+  <text x="805" y="914" class="small">785 cycles/block is the imported Stage16D2 reference, not a wrapper NUM_ENGINES=1 rerun.</text>
+
+  <line x1="48" y1="923" x2="1552" y2="923" class="thin"/>
+  <text x="48" y="952" class="foot">Historical fixed RTL workloads; cycle metrics are service/payload intervals, not one-block latency.</text>
+  <text x="48" y="978" class="foot">Not Direct-AXIS sustained throughput, FPGA/ASIC timing, board bandwidth, or Fmax.</text>
+</svg>
