@@ -1,86 +1,128 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1480" height="580" viewBox="0 0 1480 580" role="img" aria-labelledby="title desc">
-  <title id="title">MRTC-RDTC end-to-end overview</title>
-  <desc id="desc">OFDM sensing produces Range-Doppler blocks. Configurable lossless RDTC engines encode them into packet-atomic AXI streams, and the decoder reconstructs the original I and Q samples bit-exactly.</desc>
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc" preserveAspectRatio="xMidYMid meet">
+  <title id="title">MRTC-RDTC: sensing tensor to bit-exact reconstruction</title>
+  <desc id="desc">An end-to-end technical overview of the fixed radar-tensor block contract, configurable lossless RDTC coding, scalable engines, packet-atomic AXI output, and bit-exact reconstruction.</desc>
   <defs>
-    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0 0 L10 5 L0 10 z" fill="#334155"/></marker>
-    <style>
-      .title{font:700 30px Arial,sans-serif;fill:#0f172a}.subtitle{font:400 16px Arial,sans-serif;fill:#475569}.heading{font:700 18px Arial,sans-serif;fill:#0f172a}.body{font:400 14px Arial,sans-serif;fill:#334155}.tiny{font:400 12px Arial,sans-serif;fill:#475569}.box{stroke:#334155;stroke-width:2}.flow{stroke:#334155;stroke-width:3;fill:none;marker-end:url(#arrow)}
-    </style>
+    <marker id="arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+      <path d="M0,0 L8,4 L0,8 z" fill="#374151"/>
+    </marker>
   </defs>
-  <rect width="1480" height="580" fill="#f8fafc"/>
-  <text x="48" y="48" class="title">MRTC-RDTC: sensing tensor to bit-exact reconstruction</text>
-  <text x="48" y="78" class="subtitle">Lossless block coding, scalable engines, packet-atomic output, and evidence-backed implementation results.</text>
+  <style>
+    .title{font:700 38px Arial,Helvetica,sans-serif;fill:#111827}
+    .subtitle{font:400 22px Arial,Helvetica,sans-serif;fill:#4b5563}
+    .panel-title{font:700 25px Arial,Helvetica,sans-serif;fill:#102f5e}
+    .section{font:700 22px Arial,Helvetica,sans-serif;fill:#111827}
+    .body{font:400 19px Arial,Helvetica,sans-serif;fill:#1f2937}
+    .body-bold{font:700 19px Arial,Helvetica,sans-serif;fill:#111827}
+    .metric{font:700 23px Arial,Helvetica,sans-serif;fill:#0f4c9a}
+    .small{font:400 16px Arial,Helvetica,sans-serif;fill:#4b5563}
+    .foot{font:400 17px Arial,Helvetica,sans-serif;fill:#374151}
+    .table-head{font:700 17px Arial,Helvetica,sans-serif;fill:#ffffff}
+    .rule{stroke:#102f5e;stroke-width:1.5}
+    .thin{stroke:#9ca3af;stroke-width:1}
+    .box{fill:#ffffff;stroke:#6b7280;stroke-width:1.2}
+    .box-blue{fill:#ffffff;stroke:#1456a0;stroke-width:1.4}
+    .flow{stroke:#374151;stroke-width:2;fill:none;marker-end:url(#arrow)}
+  </style>
 
-  <rect x="45" y="145" width="170" height="230" rx="6" class="box" fill="#dbeafe"/>
-  <text x="130" y="182" text-anchor="middle" class="heading">OFDM sensing</text>
-  <path d="M82 257 Q130 190 178 257" stroke="#2563eb" stroke-width="4" fill="none"/>
-  <path d="M97 257 Q130 213 163 257" stroke="#2563eb" stroke-width="4" fill="none"/>
-  <circle cx="130" cy="257" r="8" fill="#2563eb"/>
-  <text x="130" y="310" text-anchor="middle" class="body">ADC / FFT pipeline</text>
-  <text x="130" y="334" text-anchor="middle" class="tiny">complex I16Q16</text>
+  <rect width="1600" height="1000" fill="#ffffff"/>
+  <text x="48" y="58" class="title">MRTC-RDTC: sensing tensor to bit-exact reconstruction</text>
+  <text x="48" y="92" class="subtitle">Fixed block semantics, configurable lossless coding, packet-atomic streaming, and evidence-backed implementation profiles</text>
+  <line x1="48" y1="116" x2="1552" y2="116" class="rule"/>
 
-  <path d="M215 260 H260" class="flow"/>
+  <text x="48" y="162" class="panel-title">End-to-End Data Path</text>
 
-  <rect x="265" y="145" width="190" height="230" rx="6" class="box" fill="#dcfce7"/>
-  <text x="360" y="182" text-anchor="middle" class="heading">Range-Doppler block</text>
-  <g stroke="#16a34a" stroke-width="1.5" fill="none">
-    <rect x="310" y="212" width="100" height="86"/>
-    <path d="M330 212 V298 M350 212 V298 M370 212 V298 M390 212 V298"/>
-    <path d="M310 229 H410 M310 246 H410 M310 263 H410 M310 280 H410"/>
+  <rect x="48" y="190" width="245" height="410" class="box"/>
+  <rect x="48" y="190" width="245" height="52" fill="#102f5e"/>
+  <text x="170" y="224" text-anchor="middle" class="table-head">Sensing Block</text>
+  <text x="170" y="282" text-anchor="middle" class="section">OFDM sensing</text>
+  <g stroke="#6b7280" stroke-width="1" fill="#ffffff">
+    <rect x="103" y="315" width="134" height="112"/>
+    <path d="M130 315 V427 M157 315 V427 M184 315 V427 M211 315 V427"/>
+    <path d="M103 337 H237 M103 359 H237 M103 382 H237 M103 404 H237"/>
   </g>
-  <rect x="350" y="229" width="20" height="17" fill="#f59e0b"/>
-  <rect x="390" y="263" width="20" height="17" fill="#ef4444"/>
-  <text x="360" y="327" text-anchor="middle" class="body">1024 samples / block</text>
-  <text x="360" y="350" text-anchor="middle" class="tiny">4096 raw bytes</text>
+  <rect x="157" y="337" width="27" height="22" fill="#1456a0"/>
+  <rect x="211" y="382" width="26" height="22" fill="#8b9199"/>
+  <text x="170" y="471" text-anchor="middle" class="body-bold">1024 samples / block</text>
+  <text x="170" y="505" text-anchor="middle" class="body">complex I16Q16</text>
+  <text x="170" y="539" text-anchor="middle" class="metric">4096 raw bytes</text>
+  <text x="170" y="572" text-anchor="middle" class="small">ADC / FFT pipeline boundary</text>
 
-  <path d="M455 260 H500" class="flow"/>
+  <line x1="293" y1="395" x2="330" y2="395" class="flow"/>
 
-  <rect x="505" y="120" width="235" height="280" rx="6" class="box" fill="#fef3c7"/>
-  <text x="622" y="160" text-anchor="middle" class="heading">Lossless RDTC</text>
-  <rect x="540" y="188" width="165" height="38" rx="5" fill="#fff" stroke="#d97706"/>
-  <text x="622" y="213" text-anchor="middle" class="body">RAW_BYPASS</text>
-  <rect x="540" y="238" width="165" height="38" rx="5" fill="#fff" stroke="#d97706"/>
-  <text x="622" y="263" text-anchor="middle" class="body">ZERO_RICE</text>
-  <rect x="540" y="288" width="165" height="38" rx="5" fill="#fff" stroke="#d97706"/>
-  <text x="622" y="313" text-anchor="middle" class="body">DELTA_RICE</text>
-  <text x="622" y="354" text-anchor="middle" class="tiny">predict -> map -> k-select -> pack</text>
-  <text x="622" y="376" text-anchor="middle" class="tiny">64-byte header + payload</text>
+  <rect x="340" y="190" width="260" height="410" class="box-blue"/>
+  <rect x="340" y="190" width="260" height="52" fill="#102f5e"/>
+  <text x="470" y="224" text-anchor="middle" class="table-head">Lossless RDTC</text>
+  <text x="470" y="282" text-anchor="middle" class="section">Mode selection</text>
+  <rect x="385" y="315" width="170" height="52" class="box"/>
+  <text x="470" y="348" text-anchor="middle" class="body-bold">RAW_BYPASS</text>
+  <rect x="385" y="383" width="170" height="52" class="box-blue"/>
+  <text x="470" y="416" text-anchor="middle" class="body-bold">ZERO_RICE</text>
+  <rect x="385" y="451" width="170" height="52" class="box-blue"/>
+  <text x="470" y="484" text-anchor="middle" class="body-bold">DELTA_RICE</text>
+  <text x="470" y="543" text-anchor="middle" class="small">predict / map / k-select / pack</text>
+  <text x="470" y="572" text-anchor="middle" class="body">64-byte header + payload</text>
 
-  <path d="M740 260 H785" class="flow"/>
+  <line x1="600" y1="395" x2="637" y2="395" class="flow"/>
 
-  <rect x="790" y="120" width="255" height="280" rx="6" class="box" fill="#ede9fe"/>
-  <text x="917" y="160" text-anchor="middle" class="heading">N x independent Engine</text>
-  <g>
-    <rect x="825" y="190" width="185" height="44" rx="5" fill="#fff" stroke="#7c3aed"/><text x="917" y="218" text-anchor="middle" class="body">Feeder + Engine 0</text>
-    <rect x="825" y="247" width="185" height="44" rx="5" fill="#fff" stroke="#7c3aed"/><text x="917" y="275" text-anchor="middle" class="body">Feeder + Engine 1</text>
-    <rect x="825" y="304" width="185" height="44" rx="5" fill="#fff" stroke="#7c3aed"/><text x="917" y="332" text-anchor="middle" class="body">... + packet buffers</text>
-  </g>
-  <text x="917" y="378" text-anchor="middle" class="tiny">round-robin whole-block dispatch</text>
+  <rect x="647" y="190" width="300" height="410" class="box-blue"/>
+  <rect x="647" y="190" width="300" height="52" fill="#102f5e"/>
+  <text x="797" y="224" text-anchor="middle" class="table-head">N x independent Engine</text>
+  <text x="797" y="282" text-anchor="middle" class="section">Whole-block ownership</text>
+  <rect x="697" y="320" width="200" height="64" class="box-blue"/>
+  <text x="797" y="360" text-anchor="middle" class="body-bold">Engine 0</text>
+  <rect x="697" y="404" width="200" height="64" class="box-blue"/>
+  <text x="797" y="444" text-anchor="middle" class="body-bold">Engine 1</text>
+  <text x="797" y="510" text-anchor="middle" class="body">Round-robin block dispatch</text>
+  <text x="797" y="543" text-anchor="middle" class="small">Buffered and Direct-AXIS profiles</text>
+  <text x="797" y="572" text-anchor="middle" class="small">use different storage boundaries</text>
 
-  <path d="M1045 260 H1090" class="flow"/>
+  <line x1="947" y1="395" x2="984" y2="395" class="flow"/>
 
-  <rect x="1095" y="145" width="190" height="230" rx="6" class="box" fill="#cffafe"/>
-  <text x="1190" y="182" text-anchor="middle" class="heading">Packet-locked AXI</text>
-  <rect x="1130" y="214" width="120" height="58" rx="5" fill="#fff" stroke="#0891b2"/>
-  <text x="1190" y="238" text-anchor="middle" class="body">Header</text>
-  <text x="1190" y="258" text-anchor="middle" class="tiny">Frame / Block ID</text>
-  <rect x="1130" y="284" width="120" height="50" rx="5" fill="#fff" stroke="#0891b2"/>
-  <text x="1190" y="315" text-anchor="middle" class="body">Payload</text>
-  <text x="1190" y="355" text-anchor="middle" class="tiny">no beat interleaving</text>
+  <rect x="994" y="190" width="270" height="410" class="box"/>
+  <rect x="994" y="190" width="270" height="52" fill="#102f5e"/>
+  <text x="1129" y="224" text-anchor="middle" class="table-head">Packet-locked AXI</text>
+  <text x="1129" y="282" text-anchor="middle" class="section">Packet identity</text>
+  <rect x="1044" y="320" width="170" height="76" class="box-blue"/>
+  <text x="1129" y="351" text-anchor="middle" class="body-bold">Header</text>
+  <text x="1129" y="378" text-anchor="middle" class="small">Frame / Block ID</text>
+  <rect x="1044" y="418" width="170" height="76" class="box"/>
+  <text x="1129" y="463" text-anchor="middle" class="body-bold">Payload</text>
+  <text x="1129" y="539" text-anchor="middle" class="body">No beat interleaving</text>
+  <text x="1129" y="572" text-anchor="middle" class="small">TLAST / TUSER preserved</text>
 
-  <path d="M1285 260 H1325" class="flow"/>
+  <line x1="1264" y1="395" x2="1301" y2="395" class="flow"/>
 
-  <rect x="1330" y="145" width="115" height="230" rx="6" class="box" fill="#fee2e2"/>
-  <text x="1387" y="182" text-anchor="middle" class="heading">Decoder</text>
-  <rect x="1350" y="218" width="75" height="44" rx="5" fill="#fff" stroke="#dc2626"/>
-  <text x="1387" y="246" text-anchor="middle" class="body">Parse</text>
-  <rect x="1350" y="282" width="75" height="44" rx="5" fill="#fff" stroke="#dc2626"/>
-  <text x="1387" y="310" text-anchor="middle" class="body">Restore</text>
-  <text x="1387" y="350" text-anchor="middle" class="tiny">I/Q exact</text>
+  <rect x="1311" y="190" width="241" height="410" class="box"/>
+  <rect x="1311" y="190" width="241" height="52" fill="#102f5e"/>
+  <text x="1431" y="224" text-anchor="middle" class="table-head">Bit-Exact Decoder</text>
+  <text x="1431" y="282" text-anchor="middle" class="section">Reconstruction</text>
+  <rect x="1361" y="320" width="141" height="64" class="box"/>
+  <text x="1431" y="360" text-anchor="middle" class="body-bold">Parse</text>
+  <line x1="1431" y1="384" x2="1431" y2="409" class="flow"/>
+  <rect x="1361" y="419" width="141" height="64" class="box-blue"/>
+  <text x="1431" y="459" text-anchor="middle" class="body-bold">Restore</text>
+  <text x="1431" y="526" text-anchor="middle" class="metric">I/Q bit-exact</text>
+  <text x="1431" y="562" text-anchor="middle" class="small">finite verified vectors</text>
 
-  <rect x="45" y="445" width="1400" height="88" rx="6" fill="#fff" stroke="#cbd5e1" stroke-width="2"/>
-  <text x="72" y="477" class="heading">End-to-end contract</text>
-  <text x="72" y="506" class="body">bit-exact I/Q | explicit mode and length | backpressure-safe framing | metadata-preserved identity | packet atomicity</text>
-  <text x="1415" y="489" text-anchor="end" class="body">Order may vary across packets.</text>
-  <text x="1415" y="514" text-anchor="end" class="tiny">Metadata enables indexed reconstruction; no software reorder PASS claimed.</text>
+  <rect x="48" y="650" width="1504" height="220" fill="#ffffff" stroke="#6b7280" stroke-width="1.2"/>
+  <rect x="48" y="650" width="1504" height="52" fill="#102f5e"/>
+  <text x="800" y="684" text-anchor="middle" class="table-head">End-to-End Contract and Maturity Boundary</text>
+  <line x1="550" y1="702" x2="550" y2="870" class="thin"/>
+  <line x1="1050" y1="702" x2="1050" y2="870" class="thin"/>
+
+  <text x="82" y="747" class="panel-title">Block semantics</text>
+  <text x="82" y="790" class="body">Explicit mode, payload length, and selected k</text>
+  <text x="82" y="826" class="body">Frame / Block metadata preserves identity</text>
+
+  <text x="584" y="747" class="panel-title">Stream semantics</text>
+  <text x="584" y="790" class="body">Backpressure-safe packet framing</text>
+  <text x="584" y="826" class="body">Packet atomicity; completion order may vary</text>
+
+  <text x="1084" y="747" class="panel-title">Verification boundary</text>
+  <text x="1084" y="790" class="body">Finite-vector MATLAB / C / RTL agreement</text>
+  <text x="1084" y="826" class="body">No software reorder PASS claimed</text>
+
+  <line x1="48" y1="908" x2="1552" y2="908" class="thin"/>
+  <text x="48" y="944" class="foot">Architecture overview only; performance, PPA, and power claims are reported in separate controlled A/B figures below.</text>
+  <text x="48" y="974" class="foot">Implementation points are profile-specific fixed results, not Fmax, board-throughput, foundry-signoff, or silicon claims.</text>
 </svg>

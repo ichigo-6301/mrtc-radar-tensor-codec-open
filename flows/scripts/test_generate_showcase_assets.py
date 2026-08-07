@@ -255,6 +255,18 @@ class CoordinatedReportAssetTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "maximum throughput"):
             ASSETS.validate_generated_asset_semantics("rdtc_stage2_clock_gating_power.svg", overclaim)
 
+    def test_overview_uses_coordinated_report_style(self):
+        path = ROOT / "docs" / "assets" / "rdtc_overview.svg"
+        content = path.read_text(encoding="utf-8")
+        ASSETS.validate_xml(path.name, content)
+        ASSETS.validate_authored_asset_semantics(path.name, content)
+        self.assertIn('width="1600" height="1000" viewBox="0 0 1600 1000"', content)
+        self.assertIn("#102f5e", content)
+        self.assertIn("#1456a0", content)
+        self.assertNotIn(" rx=", content)
+        self.assertNotIn("linearGradient", content)
+        self.assertNotIn("<image", content)
+
 
 if __name__ == "__main__":
     unittest.main()
