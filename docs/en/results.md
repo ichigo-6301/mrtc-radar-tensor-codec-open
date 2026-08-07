@@ -2,6 +2,8 @@
 
 [中文](../zh-CN/results.md)
 
+[Performance evolution](#performance-evolution) · [Implementation closure](#implementation-closure) · [Stage 1 architecture power](asic_power_experiment.md) · [Stage 2 clock gating](asic_clock_gating_experiment.md)
+
 ## Algorithm And Functional Verification
 
 | Result | Profile | Status | Caveat |
@@ -18,6 +20,8 @@ Across synthetic SNR points from `-20` to `30 dB`, the ZERO_RICE compression rat
 ![Synthetic compression ratio versus SNR](../assets/compression_vs_snr.svg)
 
 Sources: [MATLAB evidence](../../evidence/rdtc_v1_matlab_algorithm_study.yaml) · [public CSV](../../evidence/data/rdtc_v1_matlab_lossless_snr.csv)
+
+<a id="performance-evolution"></a>
 
 ## Bitpacker Pipeline A/B
 
@@ -57,6 +61,8 @@ Sources: [Multi-Engine evidence](../../evidence/rdtc_v1_multiengine_rtl.yaml) ·
 FPGA XSim covers the real encoder path, decoder golden comparison, width conversion, variable-length packets, `tkeep/tlast`, input gaps, and output backpressure. Dual-Engine distribution and arbitration come from separate RTL regression and are not merged into the single-input XSim scope.
 
 Sources: [XSim evidence](../../evidence/rdtc_v1_fpga_axis32_emulation.yaml) · [Direct OOC evidence](../../evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [Zynq trial-build evidence](../../evidence/rdtc_v1_zynq_trial_build.yaml) · [XSim case CSV](../../evidence/data/rdtc_v1_fpga_axis32_xsim_cases.csv)
+
+<a id="implementation-closure"></a>
 
 ## Implementation Profile Matrix
 

@@ -8,6 +8,13 @@
 自动时钟门控实现 `G1`。私有权威分类为
 `MRTC_CLOCK_GATING_MAPPED_POSITIVE_PRIVATE`；公开包从脱敏机器证据确定性复算。
 
+<p align="center">
+  <a href="../../evidence/rdtc_v1_clock_gating_mapped_dc/README.md"><img src="../assets/rdtc_stage2_clock_gating_power.svg" width="1000" alt="Stage-2 Direct G0 与 G1 自动时钟门控 mapped-power 对比"></a>
+</p>
+
+该协调图提供 Stage-2 总览；下文保留 coverage 分母、等价性、activity、审计 caveat
+与成熟度边界。
+
 两个功耗实验回答不同问题：
 
 | 阶段 | Baseline | Candidate | 唯一主要变量 |

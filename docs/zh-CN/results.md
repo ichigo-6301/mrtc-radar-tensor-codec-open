@@ -2,6 +2,8 @@
 
 [English](../en/results.md)
 
+[性能演进](#performance-evolution) · [实现闭合](#implementation-closure) · [Stage 1 架构功耗](asic_power_experiment.md) · [Stage 2 时钟门控](asic_clock_gating_experiment.md)
+
 ## 算法与功能验证
 
 | Result | Profile | Status | Caveat |
@@ -18,6 +20,8 @@ Synthetic SNR 从 `-20` 到 `30 dB` 时，ZERO_RICE compression ratio 为 `1.581
 ![Synthetic compression ratio versus SNR](../assets/compression_vs_snr.svg)
 
 来源：[MATLAB evidence](../../evidence/rdtc_v1_matlab_algorithm_study.yaml) · [公开 CSV](../../evidence/data/rdtc_v1_matlab_lossless_snr.csv)
+
+<a id="performance-evolution"></a>
 
 ## Bitpacker Pipeline A/B
 
@@ -57,6 +61,8 @@ Synthetic SNR 从 `-20` 到 `30 dB` 时，ZERO_RICE compression ratio 为 `1.581
 FPGA XSim 覆盖真实 encoder path、decoder golden comparison、width conversion、可变长 packet、`tkeep/tlast`、输入 gap 和输出 backpressure。双 Engine 分发与仲裁来自独立 RTL regression，不与该单输入 XSim scope 合并。
 
 来源：[XSim evidence](../../evidence/rdtc_v1_fpga_axis32_emulation.yaml) · [Direct OOC evidence](../../evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [Zynq trial-build evidence](../../evidence/rdtc_v1_zynq_trial_build.yaml) · [XSim case CSV](../../evidence/data/rdtc_v1_fpga_axis32_xsim_cases.csv)
+
+<a id="implementation-closure"></a>
 
 ## 实现 Profile 矩阵
 

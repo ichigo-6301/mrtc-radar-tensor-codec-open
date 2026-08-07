@@ -19,22 +19,37 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 | 贡献 | 量化结果 | Profile / 边界 | 直接 Evidence |
 |---|---|---|---|
 | 三模式 AXIS128 codec 与验证链 | `RAW_BYPASS`、`ZERO_RICE`、`DELTA_RICE`；`1024` 个 I16Q16 sample/block、64-byte header；MATLAB/C/DPI-C/RTL 有限向量 bit-exact | 编码器/压缩数据面为主；RTL decoder 用于 loopback 与协议闭环 | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [验证矩阵](docs/zh-CN/verification.md) |
-| prefix-128 + Lane-parallel Bitpacker | 固定 `smoke_zero_sparse` RTL workload 的 payload interval 为 `7693 -> 721 cycles`，提升 `10.67×`；packet 逐字节一致 | 历史固定 workload；这是 payload interval，不是 whole-block latency、持续吞吐或 Fmax | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
-| Multi-Engine wrapper | 历史 buffered profile 为 `785 / 397.52 / 197.41 cycles/block`，2/4 Engine 扩展效率 `98.7368% / 99.4115%` | `785` 是 Stage16D2 导入 reference，不是 wrapper `NUM_ENGINES=1` 重跑；历史平均 spacing 为 `8220 -> 785 cycles/block`、`10.47×`，见详细文档 | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
-| Direct-AXIS 低缓存重构 | 删除 DDR feeder 与 per-Engine payload commit；同库同约束 315 MHz DC A/B 的 cell area/count 减少 `72.53% / 71.98%` | 双 Engine、全寄存器、DC-only 架构 A/B；Direct RTL 约 `~277 > 256 cycles/block`，不声明持续零间隔调度 | [Direct RTL](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [真实流时序](evidence/rdtc_v1_direct_stream_timing_trace.yaml) · [DC A/B](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
-| Direct-AXIS 架构功耗 A/B | 315 MHz BURST_IDLE dynamic `436.4352 -> 109.8717 mW`（`-74.83%`），energy/block `674.82 -> 167.59 nJ`（`-75.17%`）；ACTIVE_LEGAL dynamic `-74.99%` | 同逻辑 workload、同库同频率、独立 RTL-SAIF-to-mapped activity；mapped-netlist estimate，不是 post-route/CTS/silicon 功耗 | [Evidence package](evidence/rdtc_v1_power_architecture_ab/README.md) · [方法与边界](docs/zh-CN/asic_power_experiment.md) |
+| RTL 性能演进 | Bitpacker payload interval `7693 -> 721 cycles`（`10.67×`）；历史单 Engine spacing `8220 -> 785 cycles/block`（`10.47×`），1/2/4 Engine 为 `785 / 397.52 / 197.41 cycles/block` | 前者是 payload interval；后者是历史 buffered service-rate，`785` 为 Stage16D2 导入 reference；都不是 Direct 持续吞吐或 Fmax | [Bitpacker YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) · [Multi-Engine YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
+| Direct-AXIS 架构与 Stage-1 PPA/功耗 | 删除 DDR feeder 与 per-Engine payload commit；315 MHz DC cell area/count 减少 `72.53% / 71.98%`；BURST_IDLE dynamic `436.4352 -> 109.8717 mW`（`-74.83%`） | 双 Engine、全寄存器；Direct RTL 约 `~277 > 256 cycles/block`；Stage 1 使用独立 RTL-SAIF-to-mapped activity，属于 mapped estimate | [Direct RTL](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [流时序](evidence/rdtc_v1_direct_stream_timing_trace.yaml) · [DC A/B](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) · [Stage-1 Evidence](evidence/rdtc_v1_power_architecture_ab/README.md) · [方法](docs/zh-CN/asic_power_experiment.md) |
 | Direct G0/G1 自动时钟门控 A/B | 315 MHz BURST_IDLE dynamic `107.3535 -> 41.1522 mW`（`-61.67%`），energy/block `164.55 -> 68.36 nJ`（`-58.46%`）；ACTIVE_LEGAL dynamic `-59.52%` | 独立 Stage 2；272 个 ICG、34,816 gated bits、mapped GLS activity；只相对 Direct G0，不与 Stage 1 百分比相加 | [Evidence package](evidence/rdtc_v1_clock_gating_mapped_dc/README.md) · [方法与边界](docs/zh-CN/asic_clock_gating_experiment.md) |
 | FPGA / ASIC 落地边界 | Direct FPGA OOC 200 MHz；Direct register-expanded / 8-macro OpenRAM 分别在 `600/300 MHz` 完成 fixed academic post-route PrimeTime setup/hold 闭合 | FPGA 不声明 bitstream/板级吞吐；ASIC 频率不是 Fmax 或 foundry signoff | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [结果矩阵](docs/zh-CN/results.md) |
 
+## 性能、PPA 与低功耗演进
+
 <p align="center">
-  <a href="evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"><img src="docs/assets/bitpacker_pipeline_ab.svg" width="760" alt="Single-Engine steady-state RTL pipeline A/B"></a>
+  <img src="docs/assets/rdtc_performance_evolution.svg" width="1000" alt="RDTC RTL performance evolution from Bitpacker pipeline to historical Multi-Engine scaling">
+</p>
+
+Figure 1 分开呈现固定 `smoke_zero_sparse` 的 Bitpacker payload interval 与历史 buffered Multi-Engine service-rate；完成顺序不保证，且 simulated DDR feeder、假设 200 MHz 与 RTL simulation projection 都不是已实现环境或板级吞吐。机器来源为 [Bitpacker YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml)、[Bitpacker CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv)、[Multi-Engine YAML](evidence/rdtc_v1_multiengine_rtl.yaml) 与 [Multi-Engine CSV](evidence/data/rdtc_v1_multiengine_scaling.csv)。
+
+<p align="center">
+  <a href="evidence/rdtc_v1_power_architecture_ab/README.md"><img src="docs/assets/rdtc_stage1_architecture_ppa_power.svg" width="1000" alt="Stage-1 Buffered versus Direct-AXIS architecture PPA and mapped-power comparison"></a>
 </p>
 <p align="center">
-  <a href="evidence/rdtc_v1_multiengine_rtl.yaml"><img src="docs/assets/engine_scaling.svg" width="760" alt="Historical buffered Multi-Engine average block-interval scaling"></a>
+  <a href="evidence/rdtc_v1_clock_gating_mapped_dc/README.md"><img src="docs/assets/rdtc_stage2_clock_gating_power.svg" width="1000" alt="Stage-2 Direct G0 versus G1 automatic clock-gating mapped-power comparison"></a>
 </p>
-<p align="center">
-  <a href="evidence/rdtc_v1_clock_gating_mapped_dc/README.md"><img src="docs/assets/clock_gating_power_ab.svg" width="760" alt="Direct G0 versus G1 mapped dynamic power across three workloads"></a>
-</p>
+
+Figure 2 与 Figure 3 是 baseline 不同的独立 A/B：Stage 1 比较 Buffered 与 Direct-AXIS，activity 方法为 RTL-SAIF-to-mapped；Stage 2 固定 Direct 架构，只比较 G0/G1，使用 mapped zero-delay GLS activity、功能态 SE=0。两阶段百分比不得相加。Activity Annotation Coverage 不是验证 test coverage。这里不声明 CTS clock-tree 或 PrimeTime-PX 功耗、Formality、DFT/scan、silicon/foundry signoff、Fmax，也不把固定 workload 的结果推广为 workload-universal saving。
+
+### FPGA / ASIC 实现闭环
+
+| 固定 closure profile | 已核验固定点 | 直接 Evidence | 边界 |
+|---|---|---|---|
+| Direct FPGA OOC | 200 MHz；setup/hold WNS `+0.001/+0.062 ns`；`32,672 LUT / 18,519 FF / 0 BRAM` | [FPGA 200 MHz evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) | OOC internal timing；无 bitstream、board IO、板级吞吐或 Fmax claim |
+| Direct register-expanded ASIC | 600 MHz；0 memory macro；standard-cell area `476,320 um2`；PT setup/hold WNS `+0.03/+0.02 ns` | [Register-expanded ASIC 600 MHz evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) | fixed academic internal closure；非完整 IO、foundry signoff 或 Fmax |
+| Direct 8-macro OpenRAM ASIC | 300 MHz；8 个 `32x128 1RW` 宏；PT setup/hold WNS `+0.16/+0.02 ns` | [8-macro OpenRAM ASIC 300 MHz evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) | 顶层闭合；macro DRC/LVS/PEX 未闭合，600 MHz 为 `MACRO_MODEL_BLOCKED` |
+
+三行是 profile-specific 固定点，不用于跨 FPGA、register-expanded ASIC 与 SRAM-macro ASIC 排名。
 
 <a id="data-contract"></a>
 

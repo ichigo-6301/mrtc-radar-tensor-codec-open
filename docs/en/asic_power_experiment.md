@@ -5,6 +5,13 @@
 This page is the Stage-1 `Buffered -> Direct-AXIS` architecture study. Stage 2
 uses Direct G0 as its own baseline and is reported separately.
 
+<p align="center">
+  <a href="../../evidence/rdtc_v1_power_architecture_ab/README.md"><img src="../assets/rdtc_stage1_architecture_ppa_power.svg" width="1000" alt="Stage-1 Buffered versus Direct-AXIS architecture PPA and mapped-power comparison"></a>
+</p>
+
+This coordinated figure is the Stage-1 overview; the complete workload,
+coverage, hierarchy-power, and maturity boundaries remain below.
+
 ## Decision
 
 The reviewed 315 MHz Buffered-to-Direct comparison is classified

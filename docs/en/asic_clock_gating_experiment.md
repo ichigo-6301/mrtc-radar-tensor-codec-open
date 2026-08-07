@@ -11,6 +11,14 @@ automatic clock gating (`G1`). It is classified
 public package reproduces the decision deterministically from sanitized
 machine-readable evidence.
 
+<p align="center">
+  <a href="../../evidence/rdtc_v1_clock_gating_mapped_dc/README.md"><img src="../assets/rdtc_stage2_clock_gating_power.svg" width="1000" alt="Stage-2 Direct G0 versus G1 automatic clock-gating mapped-power comparison"></a>
+</p>
+
+This coordinated figure is the Stage-2 overview; the complete coverage
+denominators, equivalence, activity, audit caveats, and maturity boundaries
+remain below.
+
 The two power studies answer different questions:
 
 | Stage | Baseline | Candidate | Controlled variable |

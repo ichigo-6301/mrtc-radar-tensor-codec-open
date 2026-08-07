@@ -5,6 +5,12 @@
 本页是 Stage-1 `Buffered -> Direct-AXIS` 架构实验。Stage 2 以 Direct G0
 为自己的 baseline，并独立报告。
 
+<p align="center">
+  <a href="../../evidence/rdtc_v1_power_architecture_ab/README.md"><img src="../assets/rdtc_stage1_architecture_ppa_power.svg" width="1000" alt="Stage-1 Buffered 与 Direct-AXIS 架构 PPA 和 mapped-power 对比"></a>
+</p>
+
+该协调图提供 Stage-1 总览；下文保留完整 workload、coverage、层级功耗与成熟度边界。
+
 ## 结论
 
 经审阅的 315 MHz Buffered-to-Direct 对比分类为 `ARCH_POWER_POSITIVE`。

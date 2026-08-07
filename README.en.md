@@ -19,22 +19,37 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 | Contribution | Result | Profile / boundary | Direct evidence |
 |---|---|---|---|
 | Three-mode AXIS128 codec and verification chain | `RAW_BYPASS`, `ZERO_RICE`, and `DELTA_RICE`; `1024` I16Q16 samples/block, 64-byte header; finite-vector MATLAB/C/DPI-C/RTL bit-exact agreement | Encoder/compression datapath is primary; RTL decoder supplies loopback and protocol closure | [Reference validation](evidence/rdtc_v1_reference_validation.yaml) · [verification matrix](docs/en/verification.md) |
-| prefix-128 + lane-parallel Bitpacker | On the fixed `smoke_zero_sparse` RTL workload, the payload interval is `7693 -> 721 cycles`, a `10.67×` improvement; packet bytes match exactly | Historical fixed workload; this is a payload interval, not whole-block latency, sustained throughput, or Fmax | [YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) |
-| Multi-Engine wrapper | Historical buffered profile reaches `785 / 397.52 / 197.41 cycles/block`, with `98.7368% / 99.4115%` 2/4-Engine scaling efficiency | `785` is the imported Stage16D2 reference, not a wrapper `NUM_ENGINES=1` rerun; historical average spacing is `8220 -> 785 cycles/block`, a `10.47×` change, detailed below | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
-| Direct-AXIS low-storage refactor | Removes the DDR feeder and per-Engine payload commit; same-library, same-315 MHz DC A/B reduces cell area/count by `72.53% / 71.98%` | Dual Engine, register-expanded, DC-only architectural A/B; Direct RTL is `~277 > 256 cycles/block`, so sustained zero-gap scheduling is not claimed | [Direct RTL](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [observed stream timing](evidence/rdtc_v1_direct_stream_timing_trace.yaml) · [DC A/B](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
-| Direct-AXIS architecture-power A/B | At 315 MHz, BURST_IDLE dynamic power is `436.4352 -> 109.8717 mW` (`-74.83%`) and energy/block is `674.82 -> 167.59 nJ` (`-75.17%`); ACTIVE_LEGAL dynamic power changes by `-74.99%` | Same logical workload, library, and frequency with independent RTL-SAIF-to-mapped activity; a mapped-netlist estimate, not post-route/CTS/silicon power | [evidence package](evidence/rdtc_v1_power_architecture_ab/README.md) · [method and boundary](docs/en/asic_power_experiment.md) |
+| RTL performance evolution | Bitpacker payload interval `7693 -> 721 cycles` (`10.67×`); historical single-Engine spacing `8220 -> 785 cycles/block` (`10.47×`), with 1/2/4 Engines at `785 / 397.52 / 197.41 cycles/block` | The first metric is a payload interval; the second is a historical buffered service rate, with `785` imported from Stage16D2; neither is Direct sustained throughput or Fmax | [Bitpacker YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml) · [CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv) · [Multi-Engine YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
+| Direct-AXIS architecture and Stage-1 PPA/power | Removes the DDR feeder and per-Engine payload commit; 315 MHz DC cell area/count fall by `72.53% / 71.98%`; BURST_IDLE dynamic is `436.4352 -> 109.8717 mW` (`-74.83%`) | Dual Engine and register-expanded; Direct RTL is `~277 > 256 cycles/block`; Stage 1 uses independent RTL-SAIF-to-mapped activity and remains a mapped estimate | [Direct RTL](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [stream timing](evidence/rdtc_v1_direct_stream_timing_trace.yaml) · [DC A/B](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) · [Stage-1 evidence](evidence/rdtc_v1_power_architecture_ab/README.md) · [method](docs/en/asic_power_experiment.md) |
 | Direct G0/G1 automatic clock-gating A/B | At 315 MHz, BURST_IDLE dynamic power is `107.3535 -> 41.1522 mW` (`-61.67%`) and energy/block is `164.55 -> 68.36 nJ` (`-58.46%`); ACTIVE_LEGAL dynamic changes by `-59.52%` | Independent Stage 2; 272 ICGs, 34,816 gated bits, mapped-GLS activity; relative to Direct G0 only and never added to Stage 1 | [evidence package](evidence/rdtc_v1_clock_gating_mapped_dc/README.md) · [method and boundary](docs/en/asic_clock_gating_experiment.md) |
 | FPGA / ASIC implementation boundary | Direct FPGA OOC at 200 MHz; Direct register-expanded / eight-macro OpenRAM profiles complete fixed academic post-route PrimeTime setup/hold closure at `600/300 MHz` | FPGA result is not a bitstream/board claim; ASIC frequencies are not Fmax or foundry signoff | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [result matrix](docs/en/results.md) |
 
+## Performance, PPA and Power Evolution
+
 <p align="center">
-  <a href="evidence/rdtc_v1_bitpacker_pipeline_ab.yaml"><img src="docs/assets/bitpacker_pipeline_ab.svg" width="760" alt="Single-Engine steady-state RTL pipeline A/B"></a>
+  <img src="docs/assets/rdtc_performance_evolution.svg" width="1000" alt="RDTC RTL performance evolution from Bitpacker pipeline to historical Multi-Engine scaling">
+</p>
+
+Figure 1 keeps the fixed `smoke_zero_sparse` Bitpacker payload interval separate from the historical buffered Multi-Engine service rate. Completion order is not guaranteed, and the simulated DDR feeder, assumed 200 MHz, and RTL simulation projection are not an implemented environment or measured board throughput. Machine sources are the [Bitpacker YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml), [Bitpacker CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv), [Multi-Engine YAML](evidence/rdtc_v1_multiengine_rtl.yaml), and [Multi-Engine CSV](evidence/data/rdtc_v1_multiengine_scaling.csv).
+
+<p align="center">
+  <a href="evidence/rdtc_v1_power_architecture_ab/README.md"><img src="docs/assets/rdtc_stage1_architecture_ppa_power.svg" width="1000" alt="Stage-1 Buffered versus Direct-AXIS architecture PPA and mapped-power comparison"></a>
 </p>
 <p align="center">
-  <a href="evidence/rdtc_v1_multiengine_rtl.yaml"><img src="docs/assets/engine_scaling.svg" width="760" alt="Historical buffered Multi-Engine average block-interval scaling"></a>
+  <a href="evidence/rdtc_v1_clock_gating_mapped_dc/README.md"><img src="docs/assets/rdtc_stage2_clock_gating_power.svg" width="1000" alt="Stage-2 Direct G0 versus G1 automatic clock-gating mapped-power comparison"></a>
 </p>
-<p align="center">
-  <a href="evidence/rdtc_v1_clock_gating_mapped_dc/README.md"><img src="docs/assets/clock_gating_power_ab.svg" width="760" alt="Direct G0 versus G1 mapped dynamic power across three workloads"></a>
-</p>
+
+Figures 2 and 3 are independent A/B studies with different baselines. Stage 1 compares Buffered with Direct-AXIS using RTL-SAIF-to-mapped activity; Stage 2 holds the Direct architecture fixed and compares G0/G1 using mapped zero-delay GLS activity with functional SE=0. Their percentages are not added. Activity Annotation Coverage is not verification test coverage. These results do not claim CTS clock-tree or PrimeTime-PX power, Formality, DFT/scan closure, silicon/foundry signoff, Fmax, or workload-universal savings.
+
+### FPGA / ASIC Implementation Closure
+
+| Fixed closure profile | Verified fixed point | Direct evidence | Boundary |
+|---|---|---|---|
+| Direct FPGA OOC | 200 MHz; setup/hold WNS `+0.001/+0.062 ns`; `32,672 LUT / 18,519 FF / 0 BRAM` | [FPGA 200 MHz evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) | OOC internal timing; no bitstream, board IO, measured board throughput, or Fmax claim |
+| Direct register-expanded ASIC | 600 MHz; 0 memory macros; standard-cell area `476,320 um2`; PT setup/hold WNS `+0.03/+0.02 ns` | [Register-expanded ASIC 600 MHz evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) | Fixed academic internal closure; not complete IO, foundry signoff, or Fmax |
+| Direct eight-macro OpenRAM ASIC | 300 MHz; 8 x `32x128 1RW` macros; PT setup/hold WNS `+0.16/+0.02 ns` | [Eight-macro OpenRAM ASIC 300 MHz evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) | Top-level closure; macro DRC/LVS/PEX remains open and 600 MHz is `MACRO_MODEL_BLOCKED` |
+
+The three rows are profile-specific fixed points and do not rank FPGA, register-expanded ASIC, and SRAM-macro ASIC profiles against each other.
 
 <a id="data-contract"></a>
 

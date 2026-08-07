@@ -7,8 +7,11 @@ import json
 import re
 import subprocess
 import sys
+from decimal import Decimal
 from pathlib import Path
 from urllib.parse import unquote
+
+import yaml
 
 
 LINK = re.compile(r"!?\[[^\]]*\]\(([^)]+)\)")
@@ -84,10 +87,17 @@ REVIEW_README_MARKERS = {
         "436.4352 -> 109.8717 mW",
         "107.3535 -> 41.1522 mW",
         "不会重新执行 ModelSim、Design Compiler、P&R 或 PrimeTime",
-        "docs/assets/bitpacker_pipeline_ab.svg",
-        "docs/assets/engine_scaling.svg",
-        "docs/assets/clock_gating_power_ab.svg",
-        'width="760"',
+        "性能、PPA 与低功耗演进",
+        "docs/assets/rdtc_performance_evolution.svg",
+        "docs/assets/rdtc_stage1_architecture_ppa_power.svg",
+        "docs/assets/rdtc_stage2_clock_gating_power.svg",
+        'width="1000"',
+        "Activity Annotation Coverage 不是验证 test coverage",
+        "不用于跨 FPGA、register-expanded ASIC 与 SRAM-macro ASIC 排名",
+        "PrimeTime-PX",
+        "Formality",
+        "DFT/scan",
+        "workload-universal saving",
         "PUBLIC_SCOPE.md",
         "provenance/claims.yaml",
         "provenance/evidence.yaml",
@@ -115,14 +125,92 @@ REVIEW_README_MARKERS = {
         "436.4352 -> 109.8717 mW",
         "107.3535 -> 41.1522 mW",
         "do not rerun ModelSim, Design Compiler, P&R, or PrimeTime",
-        "docs/assets/bitpacker_pipeline_ab.svg",
-        "docs/assets/engine_scaling.svg",
-        "docs/assets/clock_gating_power_ab.svg",
-        'width="760"',
+        "Performance, PPA and Power Evolution",
+        "docs/assets/rdtc_performance_evolution.svg",
+        "docs/assets/rdtc_stage1_architecture_ppa_power.svg",
+        "docs/assets/rdtc_stage2_clock_gating_power.svg",
+        'width="1000"',
+        "Activity Annotation Coverage is not verification test coverage",
+        "do not rank FPGA, register-expanded ASIC, and SRAM-macro ASIC profiles",
+        "PrimeTime-PX",
+        "Formality",
+        "DFT/scan",
+        "workload-universal savings",
         "PUBLIC_SCOPE.md",
         "provenance/claims.yaml",
         "provenance/evidence.yaml",
         "provenance/nonclaims.yaml",
+    ),
+}
+
+OVERVIEW_SECTIONS = {
+    "README.md": ("## 60 秒总览", "## 性能、PPA 与低功耗演进"),
+    "README.en.md": ("## 60-Second Overview", "## Performance, PPA and Power Evolution"),
+}
+
+COORDINATED_FIGURES = (
+    "docs/assets/rdtc_performance_evolution.svg",
+    "docs/assets/rdtc_stage1_architecture_ppa_power.svg",
+    "docs/assets/rdtc_stage2_clock_gating_power.svg",
+)
+
+CLOSURE_MATRIX_MARKERS = {
+    "README.md": (
+        "### FPGA / ASIC 实现闭环",
+        "| Direct FPGA OOC | 200 MHz；setup/hold WNS `+0.001/+0.062 ns`；`32,672 LUT / 18,519 FF / 0 BRAM`",
+        "| Direct register-expanded ASIC | 600 MHz；0 memory macro；standard-cell area `476,320 um2`；PT setup/hold WNS `+0.03/+0.02 ns`",
+        "| Direct 8-macro OpenRAM ASIC | 300 MHz；8 个 `32x128 1RW` 宏；PT setup/hold WNS `+0.16/+0.02 ns`",
+        "[FPGA 200 MHz evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml)",
+        "[Register-expanded ASIC 600 MHz evidence](evidence/rdtc_v1_bounded_direct_asic.yaml)",
+        "[8-macro OpenRAM ASIC 300 MHz evidence](evidence/rdtc_v1_bounded_direct_asic.yaml)",
+    ),
+    "README.en.md": (
+        "### FPGA / ASIC Implementation Closure",
+        "| Direct FPGA OOC | 200 MHz; setup/hold WNS `+0.001/+0.062 ns`; `32,672 LUT / 18,519 FF / 0 BRAM`",
+        "| Direct register-expanded ASIC | 600 MHz; 0 memory macros; standard-cell area `476,320 um2`; PT setup/hold WNS `+0.03/+0.02 ns`",
+        "| Direct eight-macro OpenRAM ASIC | 300 MHz; 8 x `32x128 1RW` macros; PT setup/hold WNS `+0.16/+0.02 ns`",
+        "[FPGA 200 MHz evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml)",
+        "[Register-expanded ASIC 600 MHz evidence](evidence/rdtc_v1_bounded_direct_asic.yaml)",
+        "[Eight-macro OpenRAM ASIC 300 MHz evidence](evidence/rdtc_v1_bounded_direct_asic.yaml)",
+    ),
+}
+
+PRESENTATION_DOC_MARKERS = {
+    "docs/zh-CN/results.md": (
+        "[性能演进](#performance-evolution) · [实现闭合](#implementation-closure) · [Stage 1 架构功耗](asic_power_experiment.md) · [Stage 2 时钟门控](asic_clock_gating_experiment.md)",
+        '<a id="performance-evolution"></a>',
+        '<a id="implementation-closure"></a>',
+        "RTL-SAIF-to-mapped",
+        "mapped zero-delay GLS activity",
+    ),
+    "docs/en/results.md": (
+        "[Performance evolution](#performance-evolution) · [Implementation closure](#implementation-closure) · [Stage 1 architecture power](asic_power_experiment.md) · [Stage 2 clock gating](asic_clock_gating_experiment.md)",
+        '<a id="performance-evolution"></a>',
+        '<a id="implementation-closure"></a>',
+        "RTL-SAIF-to-mapped",
+        "mapped zero-delay GLS activity",
+    ),
+    "docs/zh-CN/asic_power_experiment.md": (
+        "../assets/rdtc_stage1_architecture_ppa_power.svg",
+        'width="1000"',
+        "RTL SAIF 映射到 mapped design",
+    ),
+    "docs/en/asic_power_experiment.md": (
+        "../assets/rdtc_stage1_architecture_ppa_power.svg",
+        'width="1000"',
+        "RTL SAIF applied to mapped design",
+    ),
+    "docs/zh-CN/asic_clock_gating_experiment.md": (
+        "../assets/rdtc_stage2_clock_gating_power.svg",
+        'width="1000"',
+        "mapped_zero_delay",
+        "Activity Annotation Coverage 不是验证 test coverage",
+    ),
+    "docs/en/asic_clock_gating_experiment.md": (
+        "../assets/rdtc_stage2_clock_gating_power.svg",
+        'width="1000"',
+        "mapped_zero_delay",
+        "Activity Annotation Coverage is not verification test coverage",
     ),
 }
 
@@ -513,6 +601,114 @@ STREAM_TIMING_MARKERS = {
 }
 
 
+def section_text(text, start_marker, end_marker):
+    start = text.find(start_marker)
+    if start < 0:
+        return ""
+    end = text.find(end_marker, start + len(start_marker))
+    if end < 0:
+        return ""
+    return text[start:end]
+
+
+def table_data_rows(text, header_prefix):
+    lines = text.splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith(header_prefix):
+            table = []
+            for candidate in lines[index:]:
+                if not candidate.startswith("|"):
+                    break
+                table.append(candidate)
+            return max(0, len(table) - 2)
+    return -1
+
+
+def nested_value(document, path):
+    value = document
+    for key in path:
+        value = value[key]
+    return value
+
+
+def validate_closure_evidence(root):
+    errors = []
+    paths = {
+        "fpga": root / "evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml",
+        "asic": root / "evidence/rdtc_v1_bounded_direct_asic.yaml",
+    }
+    documents = {}
+    for name, path in paths.items():
+        try:
+            documents[name] = yaml.safe_load(path.read_text(encoding="utf-8"))
+        except (OSError, ValueError, yaml.YAMLError) as exc:
+            errors.append("cannot load {} closure evidence: {}".format(name, exc))
+    if len(documents) != len(paths):
+        return errors
+
+    expected = (
+        ("fpga", ("clock", "frequency_mhz"), Decimal("200")),
+        ("fpga", ("timing", "setup_wns_ns"), Decimal("0.001")),
+        ("fpga", ("timing", "hold_wns_ns"), Decimal("0.062")),
+        ("fpga", ("structure", "slice_lut"), Decimal("32672")),
+        ("fpga", ("structure", "slice_registers"), Decimal("18519")),
+        ("fpga", ("structure", "ramb18"), Decimal("0")),
+        ("fpga", ("structure", "ramb36"), Decimal("0")),
+        ("asic", ("register_expanded_600mhz", "physical_target_mhz"), Decimal("600")),
+        ("asic", ("register_expanded_600mhz", "memory_macro_count"), Decimal("0")),
+        ("asic", ("register_expanded_600mhz", "final_standard_cell_area_um2"), Decimal("476320")),
+        ("asic", ("register_expanded_600mhz", "setup_wns_ns"), Decimal("0.03")),
+        ("asic", ("register_expanded_600mhz", "hold_wns_ns"), Decimal("0.02")),
+        ("asic", ("sram_macro_300mhz", "physical_target_mhz"), Decimal("300")),
+        ("asic", ("sram_macro_300mhz", "memory_macro_count"), Decimal("8")),
+        ("asic", ("sram_macro_300mhz", "setup_wns_ns"), Decimal("0.16")),
+        ("asic", ("sram_macro_300mhz", "hold_wns_ns"), Decimal("0.02")),
+    )
+    for document_name, path, expected_value in expected:
+        try:
+            actual = Decimal(str(nested_value(documents[document_name], path)))
+        except (KeyError, TypeError, ValueError):
+            errors.append("{} closure evidence missing {}".format(document_name, ".".join(path)))
+            continue
+        if actual != expected_value:
+            errors.append(
+                "{} closure evidence {} mismatch: {} != {}".format(
+                    document_name, ".".join(path), actual, expected_value
+                )
+            )
+
+    exact_expected = (
+        ("fpga", ("result",), "MRTC_BOUNDED_DIRECT_AXIS_ROUTE200_CLOSED"),
+        ("asic", ("register_expanded_600mhz", "status"), "verified"),
+        (
+            "asic",
+            ("register_expanded_600mhz", "classification"),
+            "MRTC_BOUNDED_DIRECT_REGISTER_PNR600_PT_CLOSED",
+        ),
+        ("asic", ("sram_macro_300mhz", "status"), "verified"),
+        (
+            "asic",
+            ("sram_macro_300mhz", "classification"),
+            "MRTC_BOUNDED_DIRECT_SRAM_PNR300_PT_CLOSED",
+        ),
+        ("asic", ("sram_macro_300mhz", "macro_organization"), "32x128 1RW, words_per_row=2"),
+        ("asic", ("sram_600mhz", "classification"), "MACRO_MODEL_BLOCKED"),
+    )
+    for document_name, path, expected_value in exact_expected:
+        try:
+            actual = nested_value(documents[document_name], path)
+        except (KeyError, TypeError):
+            errors.append("{} closure evidence missing {}".format(document_name, ".".join(path)))
+            continue
+        if actual != expected_value:
+            errors.append(
+                "{} closure evidence {} mismatch: {} != {}".format(
+                    document_name, ".".join(path), actual, expected_value
+                )
+            )
+    return errors
+
+
 def tracked_markdown(root):
     output = subprocess.check_output(["git", "-C", str(root), "ls-files", "-z", "--", "*.md"])
     return [root / item.decode("utf-8") for item in output.split(b"\0") if item]
@@ -547,6 +743,73 @@ def check(root):
         for target in REVIEW_EVIDENCE_LINKS[name]:
             if "]({})".format(target) not in text and 'href="{}"'.format(target) not in text:
                 errors.append("{} missing direct reviewer link {}".format(name, target))
+        overview_start, overview_end = OVERVIEW_SECTIONS[name]
+        overview = section_text(text, overview_start, overview_end)
+        if not overview:
+            errors.append("{} missing bounded overview section".format(name))
+        overview_rows = table_data_rows(
+            overview, "| 贡献 |" if name == "README.md" else "| Contribution |"
+        )
+        if overview_rows != 5:
+            errors.append("{} overview must contain exactly five route-level rows, found {}".format(name, overview_rows))
+
+        evolution = section_text(text, overview_end, '<a id="data-contract"></a>')
+        if not evolution:
+            errors.append("{} missing coordinated performance/PPA/power section".format(name))
+            continue
+        last_position = -1
+        for figure in COORDINATED_FIGURES:
+            marker = 'src="{}" width="1000"'.format(figure)
+            position = evolution.find(marker)
+            if position < 0:
+                errors.append("{} missing full-width coordinated figure {}".format(name, figure))
+            elif position <= last_position:
+                errors.append("{} coordinated figures are out of order".format(name))
+            last_position = max(last_position, position)
+        closure_header = "| 固定 closure profile |" if name == "README.md" else "| Fixed closure profile |"
+        closure_heading = (
+            "### FPGA / ASIC 实现闭环"
+            if name == "README.md"
+            else "### FPGA / ASIC Implementation Closure"
+        )
+        if "{}\n\n{}".format(closure_heading, closure_header) not in evolution:
+            errors.append("{} closure heading must immediately precede the matrix".format(name))
+        closure_rows = table_data_rows(evolution, closure_header)
+        if closure_rows != 3:
+            errors.append("{} closure matrix must contain exactly three profile rows, found {}".format(name, closure_rows))
+        for marker in CLOSURE_MATRIX_MARKERS[name]:
+            if marker not in evolution:
+                errors.append("{} missing closure-matrix contract {}".format(name, marker))
+        if evolution.count("evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml") != 1:
+            errors.append("{} closure matrix must link FPGA evidence exactly once".format(name))
+        if evolution.count("evidence/rdtc_v1_bounded_direct_asic.yaml") != 2:
+            errors.append("{} closure matrix must link ASIC evidence once per ASIC profile".format(name))
+    errors.extend(validate_closure_evidence(root))
+    for name, markers in PRESENTATION_DOC_MARKERS.items():
+        text = (root / name).read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                errors.append("{} missing coordinated-presentation marker {}".format(name, marker))
+    cumulative_patterns = (
+        re.compile(r"(?im)^(?!.*\b(?:not|never|must not)\b).*\b(?:cumulative|combined)\s+(?:power\s+)?(?:saving|reduction)[^\n]*%"),
+        re.compile(r"(?m)^(?!.*(?:不|不得|禁止)).*(?:累计|合并|叠加)(?:节省|降幅|降低|减少)[^\n]*%"),
+        re.compile(r"(?i)(?:74\.8[0-9]%|stage\s*1)[^\n]{0,80}\+[^\n]{0,80}(?:61\.6[0-9]%|stage\s*2)"),
+    )
+    for name in (
+        "README.md",
+        "README.en.md",
+        "docs/zh-CN/results.md",
+        "docs/en/results.md",
+        "docs/zh-CN/asic_power_experiment.md",
+        "docs/en/asic_power_experiment.md",
+        "docs/zh-CN/asic_clock_gating_experiment.md",
+        "docs/en/asic_clock_gating_experiment.md",
+    ):
+        text = (root / name).read_text(encoding="utf-8")
+        for pattern in cumulative_patterns:
+            if pattern.search(text):
+                errors.append("{} contains a cumulative Stage-1/Stage-2 percentage claim".format(name))
+                break
     for name, markers in DIRECT_DOC_MARKERS.items():
         text = (root / name).read_text(encoding="utf-8")
         for marker in markers:
