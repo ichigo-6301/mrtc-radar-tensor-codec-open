@@ -829,6 +829,20 @@ def check(root):
         for marker in markers:
             if marker not in text:
                 errors.append("{} missing clock-gating power marker {}".format(name, marker))
+    clock_gating_doc_check = subprocess.run(
+        [
+            sys.executable,
+            str(root / "flows/scripts/rdtc_clock_gating_power_evidence.py"),
+            "validate-doc-values",
+            "--root",
+            str(root),
+        ],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.STDOUT,
+        text=True,
+    )
+    if clock_gating_doc_check.returncode != 0:
+        errors.append("clock-gating metric/value binding failed: {}".format(clock_gating_doc_check.stdout.strip()))
     for name, markers in DATA_CONTRACT_MARKERS.items():
         text = (root / name).read_text(encoding="utf-8")
         for marker in markers:

@@ -51,6 +51,12 @@ class ClockGatingEvidenceTests(unittest.TestCase):
         self.assertTrue(changed)
         EVIDENCE.write_csv(path, fields, rows)
 
+    def mutate_json(self, name, mutation):
+        path = self.package / name
+        value = json.loads(path.read_text(encoding="utf-8"))
+        mutation(value)
+        path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+
     def assert_rejected(self):
         with self.assertRaises(EVIDENCE.ValidationError):
             EVIDENCE.validate_package(self.root)
@@ -98,6 +104,16 @@ class ClockGatingEvidenceTests(unittest.TestCase):
         self.mutate_csv("points.csv", lambda row: row["point_id"] == "G1_ACTIVE_LEGAL", "internal_leaf_pin_coverage_pct", "89.9")
         self.assert_rejected()
 
+    def test_unknown_activity_category_with_complete_row_count(self):
+        self.mutate_csv(
+            "activity_coverage.csv",
+            lambda row: row["point_id"] == "G0_IDLE" and row["category"] == "clocks",
+            "category",
+            "bogus_category",
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
     def test_changed_wns(self):
         self.mutate_csv("points.csv", lambda row: row["point_id"] == "G1_IDLE", "setup_wns_ns", "-0.001")
         self.assert_rejected()
@@ -108,6 +124,16 @@ class ClockGatingEvidenceTests(unittest.TestCase):
 
     def test_trace_mismatch(self):
         self.mutate_csv("points.csv", lambda row: row["point_id"] == "G1_BURST_IDLE", "normalized_trace_sha256", "0" * 64)
+        self.assert_rejected()
+
+    def test_equivalence_hash_must_match_verification_record(self):
+        self.mutate_csv(
+            "equivalence.csv",
+            lambda row: row["workload"] == "BURST_IDLE",
+            "packet_trace_sha256",
+            "0" * 64,
+        )
+        self.refresh_hashes()
         self.assert_rejected()
 
     def test_parser_recovery_inconsistency(self):
@@ -152,6 +178,94 @@ class ClockGatingEvidenceTests(unittest.TestCase):
         path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
         self.assert_rejected()
 
+    def test_model_functional_test_enable_is_bound(self):
+        self.mutate_json("model_audit.json", lambda value: value.__setitem__("functional_test_enable", 1))
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_model_diagnostic_test_enable_is_bound(self):
+        self.mutate_json("model_audit.json", lambda value: value.__setitem__("diagnostic_test_enable", 0))
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_model_diagnostic_result_is_bound(self):
+        self.mutate_json("model_audit.json", lambda value: value.__setitem__("diagnostic_test_enable_result", "PASS"))
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_formality_classification_is_bound(self):
+        self.mutate_csv(
+            "classifications.csv",
+            lambda row: row["classification_id"] == "direct_clock_gating_mapped_dc315",
+            "formality_status",
+            "FORMAL_PASS",
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_equivalence_method_classification_is_bound(self):
+        self.mutate_csv(
+            "classifications.csv",
+            lambda row: row["classification_id"] == "direct_clock_gating_mapped_dc315",
+            "equivalence_method",
+            "formal equivalence",
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_report_hash_inventory_is_complete(self):
+        path = self.package / "report_hashes.csv"
+        EVIDENCE.write_csv(path, EVIDENCE.REPORT_FIELDS, [])
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_verification_inventory_is_authoritative(self):
+        path = self.package / "verification.csv"
+        rows = EVIDENCE.read_csv(path, EVIDENCE.VERIFICATION_FIELDS)
+        placeholder = dict(rows[0])
+        placeholder.update({
+            "verification_id": "placeholder",
+            "required": "NO",
+            "status": "FAIL",
+        })
+        EVIDENCE.write_csv(path, EVIDENCE.VERIFICATION_FIELDS, [placeholder])
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_verification_method_is_bound(self):
+        self.mutate_csv(
+            "verification.csv",
+            lambda row: row["verification_id"] == "implementation_g1",
+            "method",
+            "unreviewed_method",
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_sdc_replay_portable_handoff_is_rejected(self):
+        self.mutate_json(
+            "source_contract.json",
+            lambda value: value["sdc_replay"].__setitem__("portable_handoff_claim", True),
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_sdc_replay_fatal_errors_are_rejected(self):
+        self.mutate_json(
+            "source_contract.json",
+            lambda value: value["sdc_replay"].__setitem__("fatal_errors", 1),
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_sdc_replay_acceptance_inventory_is_complete(self):
+        self.mutate_json(
+            "source_contract.json",
+            lambda value: value["sdc_replay"].__setitem__("accepted_checks", []),
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
     def test_missing_required_file(self):
         (self.package / "equivalence.csv").unlink()
         self.assert_rejected()
@@ -172,6 +286,9 @@ class ClockGatingDocumentTests(unittest.TestCase):
             target = self.root / name
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(REPO / name, target)
+        comparisons = self.root / EVIDENCE.PACKAGE_REL / "comparisons.csv"
+        comparisons.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(CANONICAL / "comparisons.csv", comparisons)
 
     def tearDown(self):
         self.temp.cleanup()
@@ -187,6 +304,16 @@ class ClockGatingDocumentTests(unittest.TestCase):
     def test_english_overclaim_is_rejected(self):
         path = self.root / "docs/en/asic_clock_gating_experiment.md"
         path.write_text(path.read_text(encoding="utf-8") + "\npost-route power result\n", encoding="utf-8")
+        with self.assertRaises(EVIDENCE.ValidationError):
+            EVIDENCE.validate_doc_values(self.root)
+
+    def test_metric_values_cannot_be_swapped_between_rows(self):
+        path = self.root / "docs/en/asic_clock_gating_experiment.md"
+        text = path.read_text(encoding="utf-8")
+        text = text.replace("-61.67%", "SWAPPED_VALUE", 1)
+        text = text.replace("-59.52%", "-61.67%", 1)
+        text = text.replace("SWAPPED_VALUE", "-59.52%", 1)
+        path.write_text(text, encoding="utf-8", newline="\n")
         with self.assertRaises(EVIDENCE.ValidationError):
             EVIDENCE.validate_doc_values(self.root)
 

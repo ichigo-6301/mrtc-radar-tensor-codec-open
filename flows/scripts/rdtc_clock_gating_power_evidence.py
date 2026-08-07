@@ -10,7 +10,7 @@ import io
 import json
 import re
 import sys
-from decimal import Decimal, InvalidOperation, getcontext
+from decimal import Decimal, InvalidOperation, ROUND_HALF_UP, getcontext
 from pathlib import Path
 
 
@@ -23,6 +23,61 @@ POINT_IDS = (
     "G1_IDLE", "G1_BURST_IDLE", "G1_ACTIVE_LEGAL",
 )
 WORKLOADS = ("IDLE", "BURST_IDLE", "ACTIVE_LEGAL")
+ACTIVITY_CATEGORIES = (
+    "clocks", "functional_inputs", "sequential_outputs",
+    "internal_leaf_pins", "overall_non_default",
+)
+REPORT_NAMES = (
+    "area", "check_design", "check_timing", "clock_gating", "constraint",
+    "coverage_clocks", "coverage_inputs", "coverage_leaf_pins",
+    "coverage_sequential", "power", "power_groups", "power_hierarchy",
+    "qor", "timing_hold", "timing_setup",
+)
+VERIFICATION_IDS = (
+    "authority_hash_chain", "mapped_artifact_identity", "equivalence_2",
+    "equivalence_32", "equivalence_64", "activity_six_point",
+    "implementation_g0", "implementation_g1", "icg_model",
+    "parser_recovery", "release_audit",
+)
+VERIFICATION_CONTRACTS = {
+    "authority_hash_chain": ("package", "provenance", "sha256_recompute"),
+    "mapped_artifact_identity": ("G0_G1", "identity", "paired_compile_handoff"),
+    "equivalence_2": ("MINIMAL_TWO_BLOCK", "functional", "gate-level regression equivalence evidence"),
+    "equivalence_32": ("BURST_IDLE", "functional", "gate-level regression equivalence evidence"),
+    "equivalence_64": ("ACTIVE_LEGAL", "functional", "gate-level regression equivalence evidence"),
+    "activity_six_point": ("G0_G1", "activity", "mapped_zero_delay"),
+    "implementation_g0": ("G0", "implementation", "mapped_dc"),
+    "implementation_g1": ("G1", "implementation", "mapped_dc_gate_clock"),
+    "icg_model": ("CLKGATETST_X1", "model", "exact_model_and_canary"),
+    "parser_recovery": ("power", "parser", "immutable_report_reparse"),
+    "release_audit": ("power", "ownership", "process_group_release"),
+}
+HIERARCHIES = ("__ROOT__", "engine0", "engine1", "ring", "bitpacker", "prefix_k", "output_fifo")
+CLOCK_GATING_KEYS = (
+    ("G0", "icg_count"),
+    ("G1", "icg_count"),
+    ("G1", "gated_bits"),
+    ("G1", "postmap_sequential_bits"),
+    ("G1", "gated_pct_of_postmap_sequential_bits"),
+    ("G1", "precompile_register_bits"),
+    ("G1", "gated_pct_of_precompile_register_bits"),
+    ("G0", "mapped_sequential_cells"),
+    ("G1", "mapped_sequential_cells"),
+    ("G1", "ring_gated_bits"),
+    ("G1", "ring_total_bits"),
+    ("G1", "ring_coverage_pct"),
+    ("G1", "gating_setup_wns"),
+    ("G1", "gating_hold_wns"),
+)
+SDC_REPLAY_ACCEPTED_CHECKS = (
+    "DDC constraints retained",
+    "mapped SDC hash matched",
+    "clock count and period matched",
+    "operating condition matched",
+    "setup WNS and TNS passed",
+    "electrical violations zero",
+    "check_timing passed",
+)
 PACKAGE_FILES = frozenset((
     "README.md", "manifest.json", "source_contract.json", "points.csv",
     "comparisons.csv", "gates.csv", "classifications.csv",
@@ -337,6 +392,18 @@ def validate_package(root):
         "filelist_sha256": "b91c3c803b3a1617b7eacda31c08d4813c80d1f00e869a966c5718a58b8dcd83",
         "sdc_sha256": "d49d2eeb1727ff8bc682783e14db317d8616938242b8bba98b76629341f96b25",
         "library_db_sha256": "c6da1f0e7a7f445c0476d1e6bf6860c9815fe4f50c9ce138264a581af59e4cb5",
+        "library_lef_sha256": "840b01e500826096d1edcc752350834da647fdbf360798f243f8122b52b357c3",
+        "library_liberty_sha256": "8d540a4d4cf6d09d27c87ad067857a9c0c2eeb023ab7a56e058cd3113db4e9b1",
+        "common_checkpoint_sha256": "4eae020f6c4f27b69e3da9c6adddaa6e98b0f607121ec722f2f4fdb3ec972b99",
+        "icg_model_sha256": "2241df05c6a73a05e9630864f48962e6eb35e2d766ec391dbf8c77d2f45ae2d6",
+        "technology": "Nangate45 academic standard-cell library",
+        "corner": "TT / 1.1 V / 25 C",
+        "engines": 2,
+        "profile": "Direct-AXIS register-expanded",
+        "retiming": "disabled",
+        "formality_status": "NOT_RUN_NO_REVIEWED_SETUP",
+        "equivalence_method": "gate-level regression equivalence evidence",
+        "functional_test_enable": 0,
     }
     for key, expected in expected_source.items():
         if source.get(key) != expected:
@@ -345,10 +412,17 @@ def validate_package(root):
         raise ValidationError("frequency/period mismatch")
     if source.get("power_maturity") != "activity-driven mapped-netlist estimate":
         raise ValidationError("wrong power maturity")
-    if source.get("sdc_replay", {}).get("classification") != "MAPPED_SDC_VECTOR_REPLAY_ERRORS_DDC_CONSTRAINTS_PRESERVED":
+    sdc_replay = source.get("sdc_replay", {})
+    if sdc_replay.get("classification") != "MAPPED_SDC_VECTOR_REPLAY_ERRORS_DDC_CONSTRAINTS_PRESERVED":
         raise ValidationError("missing SDC replay classification")
-    if source.get("sdc_replay", {}).get("uid95_cmd036_pairs") != 8136:
+    if sdc_replay.get("uid95_cmd036_pairs") != 8136:
         raise ValidationError("wrong SDC replay count")
+    if sdc_replay.get("portable_handoff_claim") is not False:
+        raise ValidationError("mapped SDC must not claim a portable handoff")
+    if sdc_replay.get("fatal_errors") != 0:
+        raise ValidationError("mapped SDC replay fatal-error count mismatch")
+    if sdc_replay.get("accepted_checks") != list(SDC_REPLAY_ACCEPTED_CHECKS):
+        raise ValidationError("mapped SDC replay acceptance-check inventory mismatch")
 
     points = read_csv(package / "points.csv", POINT_FIELDS, "point_id")
     if [row["point_id"] for row in points] != list(POINT_IDS):
@@ -390,6 +464,33 @@ def validate_package(root):
             expected_dynamic_energy = decimal(row["dynamic_mw"], "dynamic") * cycles / Decimal("315") / blocks
             if decimal(row["energy_per_block_nj"], "energy") != expected_energy or decimal(row["dynamic_energy_per_block_nj"], "dynamic energy") != expected_dynamic_energy:
                 raise ValidationError("energy recomputation mismatch for {}".format(row["point_id"]))
+    implementation_authority = {
+        "G0": {
+            "area_total_um2": "420208.442440", "cell_count": "220298",
+            "sequential_cell_count": "50999", "setup_wns_ns": "0.093015",
+            "setup_tns_ns": "0", "electrical_violations": "0",
+        },
+        "G1": {
+            "area_total_um2": "354760.204745", "cell_count": "149697",
+            "sequential_cell_count": "51271", "setup_wns_ns": "0.0151572",
+            "setup_tns_ns": "0", "electrical_violations": "0",
+            "gating_setup_wns_ns": "1.4645", "gating_hold_wns_ns": "0.18546",
+        },
+    }
+    power_authority = {
+        "G0_IDLE": ("66.9676", "75.507", "NA"),
+        "G0_BURST_IDLE": ("107.3535", "115.4", "164.5480357142857142857142857"),
+        "G0_ACTIVE_LEGAL": ("107.2775", "115.3", "117.2045089285714285714285714"),
+        "G1_IDLE": ("27.7229", "34.826", "NA"),
+        "G1_BURST_IDLE": ("41.1522", "47.942", "68.36015535714285714285714284"),
+        "G1_ACTIVE_LEGAL": ("43.4293", "50.209", "51.03834508928571428571428572"),
+    }
+    for row in points:
+        for field, expected in implementation_authority[row["variant"]].items():
+            if row[field] != expected:
+                raise ValidationError("implementation authority mismatch for {} {}".format(row["point_id"], field))
+        if tuple(row[field] for field in ("dynamic_mw", "total_mw", "energy_per_block_nj")) != power_authority[row["point_id"]]:
+            raise ValidationError("power authority mismatch for {}".format(row["point_id"]))
     if len(saifs) != 6:
         raise ValidationError("six unique SAIF hashes required")
     if by_id["G0_IDLE"]["icg_count"] != "0" or by_id["G0_IDLE"]["gated_bits"] != "0":
@@ -400,12 +501,34 @@ def validate_package(root):
     comparisons = read_csv(package / "comparisons.csv", COMPARISON_FIELDS, "comparison_id")
     if comparisons != expected_comparisons(points):
         raise ValidationError("comparisons.csv is not deterministic")
+    comparison_authority = {
+        "IMPLEMENTATION:area_total_um2": "-15.57518390515086101419547671",
+        "IDLE:dynamic_mw": "-58.60251823269760301996786506",
+        "IDLE:total_mw": "-53.87712397526057186750897268",
+        "BURST_IDLE:dynamic_mw": "-61.66664337911665665302016236",
+        "BURST_IDLE:total_mw": "-58.45580589254766031195840555",
+        "BURST_IDLE:energy_per_block_nj": "-58.45580589254766031195840555",
+        "BURST_IDLE:sequential_power_mw": "-61.4079288625416821044831419",
+        "BURST_IDLE:internal_mw": "-63.09793024147182828669988501",
+        "BURST_IDLE:switching_mw": "-11.80242460675283037771766356",
+        "BURST_IDLE:leakage_mw": "-15.53004390601873157626338636",
+        "ACTIVE_LEGAL:dynamic_mw": "-59.51686047866514413553634266",
+        "ACTIVE_LEGAL:total_mw": "-56.45359930615784908933217693",
+    }
+    comparison_by_id = {row["comparison_id"]: row for row in comparisons}
+    for comparison_id, expected in comparison_authority.items():
+        if comparison_by_id[comparison_id]["percent_change"] != expected:
+            raise ValidationError("comparison authority mismatch for {}".format(comparison_id))
     gates = read_csv(package / "gates.csv", GATE_FIELDS, "gate_id")
     expected_gate_rows = expected_gates(points, comparisons)
     if gates != expected_gate_rows or any(row["status"] != "PASS" for row in gates):
         raise ValidationError("gates.csv is not deterministic or has a failed gate")
 
     clock_rows = read_csv(package / "clock_gating.csv", CLOCK_GATING_FIELDS)
+    if [(row["variant"], row["metric"]) for row in clock_rows] != list(CLOCK_GATING_KEYS):
+        raise ValidationError("clock-gating metric inventory mismatch")
+    if any(row["status"] != "PASS" for row in clock_rows):
+        raise ValidationError("clock-gating metric status failed")
     clock_by_metric = {(row["variant"], row["metric"]): row for row in clock_rows}
     required_clock = {
         ("G1", "icg_count"): "272", ("G1", "gated_bits"): "34816",
@@ -424,8 +547,14 @@ def validate_package(root):
         raise ValidationError("clock-gating percentage denominator drift")
 
     activity = read_csv(package / "activity_coverage.csv", ACTIVITY_FIELDS)
-    if len(activity) != 30 or len({(row["point_id"], row["category"]) for row in activity}) != 30:
-        raise ValidationError("activity coverage matrix must contain 30 unique rows")
+    actual_activity_pairs = [(row["point_id"], row["category"]) for row in activity]
+    expected_activity_pairs = [
+        (point_id, category)
+        for point_id in POINT_IDS
+        for category in ACTIVITY_CATEGORIES
+    ]
+    if actual_activity_pairs != expected_activity_pairs:
+        raise ValidationError("activity coverage matrix must match the exact point/category product")
     for row in activity:
         if row["point_id"] not in POINT_IDS or row["annotated_pct"] != "100" or row["default_toggle_rate"] != "0" or row["default_static_probability"] != "0" or row["activity_method"] != "mapped_zero_delay" or row["status"] != "PASS":
             raise ValidationError("invalid activity coverage row")
@@ -442,16 +571,66 @@ def validate_package(root):
             raise ValidationError("invalid equivalence hash")
 
     classifications = read_csv(package / "classifications.csv", CLASSIFICATION_FIELDS, "classification_id")
-    if len(classifications) != 1 or classifications[0]["two_c_decision"] != "CG_EQUIVALENCE_RECOVERED_MAPPED_POWER_COMPLETE" or classifications[0]["promotion_classification"] != "MRTC_CLOCK_GATING_MAPPED_POSITIVE_PRIVATE" or classifications[0]["branch_ready"] != "YES" or classifications[0]["production_rtl_changed"] != "NO":
+    expected_classification = {
+        "classification_id": "direct_clock_gating_mapped_dc315",
+        "two_c_decision": "CG_EQUIVALENCE_RECOVERED_MAPPED_POWER_COMPLETE",
+        "mapped_power_classification": "CG_MAPPED_POWER_POSITIVE",
+        "promotion_classification": "MRTC_CLOCK_GATING_MAPPED_POSITIVE_PRIVATE",
+        "branch_ready": "YES",
+        "production_rtl_changed": "NO",
+        "formality_status": "NOT_RUN_NO_REVIEWED_SETUP",
+        "equivalence_method": "gate-level regression equivalence evidence",
+        "status": "PASS",
+        "reason": "all_mapped_clock_gating_promotion_gates_pass",
+    }
+    if classifications != [expected_classification]:
         raise ValidationError("classification mismatch")
     hierarchy = read_csv(package / "hierarchy_power.csv", HIERARCHY_FIELDS)
-    required_hierarchies = {"__ROOT__", "engine0", "engine1", "ring", "bitpacker", "prefix_k", "output_fifo"}
-    if {row["hierarchy"] for row in hierarchy} != required_hierarchies or {row["point_id"] for row in hierarchy} != set(POINT_IDS):
+    expected_hierarchy_pairs = [
+        (point_id, hierarchy_name)
+        for point_id in POINT_IDS
+        for hierarchy_name in HIERARCHIES
+    ]
+    if [(row["point_id"], row["hierarchy"]) for row in hierarchy] != expected_hierarchy_pairs:
         raise ValidationError("curated hierarchy inventory mismatch")
+    for row in hierarchy:
+        if row["status"] != "PASS" or any(decimal(row[field], field) < 0 for field in ("internal_mw", "switching_mw", "leakage_mw", "total_mw")):
+            raise ValidationError("invalid hierarchy power row")
+        if row["hierarchy"] == "__ROOT__":
+            point = by_id[row["point_id"]]
+            if any(row[field] != point[field] for field in ("internal_mw", "switching_mw", "leakage_mw", "total_mw")):
+                raise ValidationError("root hierarchy power does not match point result")
     verification = read_csv(package / "verification.csv", VERIFICATION_FIELDS, "verification_id")
-    if not verification or any(row["status"] != "PASS" for row in verification if row["required"] == "YES"):
-        raise ValidationError("required verification failed")
+    if [row["verification_id"] for row in verification] != list(VERIFICATION_IDS):
+        raise ValidationError("verification inventory mismatch")
+    if any(row["required"] != "YES" or row["status"] != "PASS" for row in verification):
+        raise ValidationError("mandatory verification failed")
+    if any(not SHA256_RE.fullmatch(row["evidence_sha256"]) for row in verification):
+        raise ValidationError("invalid verification evidence hash")
+    for row in verification:
+        if tuple(row[field] for field in ("scope", "kind", "method")) != VERIFICATION_CONTRACTS[row["verification_id"]]:
+            raise ValidationError("verification contract mismatch for {}".format(row["verification_id"]))
+    verification_by_id = {row["verification_id"]: row for row in verification}
+    equivalence_verification_ids = {
+        "MINIMAL_TWO_BLOCK": "equivalence_2",
+        "BURST_IDLE": "equivalence_32",
+        "ACTIVE_LEGAL": "equivalence_64",
+    }
+    for row in equivalence:
+        verification_row = verification_by_id[equivalence_verification_ids[row["workload"]]]
+        if verification_row["evidence_sha256"] != row["packet_trace_sha256"]:
+            raise ValidationError("equivalence trace hash does not match verification record")
+        if verification_row["scope"] != row["workload"] or verification_row["kind"] != "functional" or verification_row["method"] != row["method"]:
+            raise ValidationError("equivalence verification contract mismatch")
     reports = read_csv(package / "report_hashes.csv", REPORT_FIELDS)
+    actual_report_pairs = [(row["point_id"], row["logical_report_name"]) for row in reports]
+    expected_report_pairs = [
+        (point_id, report_name)
+        for point_id in POINT_IDS
+        for report_name in REPORT_NAMES
+    ]
+    if actual_report_pairs != expected_report_pairs:
+        raise ValidationError("report hash inventory must match the exact point/report product")
     for row in reports:
         if row["point_id"] not in POINT_IDS or not SHA256_RE.fullmatch(row["sha256"]) or int(row["byte_count"]) <= 0 or row["sanitizer_status"] != "HASH_ONLY_PASS":
             raise ValidationError("invalid report hash row")
@@ -459,10 +638,10 @@ def validate_package(root):
             raise ValidationError("report path leaked through logical name")
 
     model = load_json(package / "model_audit.json")
-    if model.get("classification") != "EXACT_EXPECTED_MODEL" or model.get("effective_definition_count") != 1 or model.get("duplicate_or_shadow_count") != 0 or model.get("pins") != ["CK", "E", "SE", "GCK"] or model.get("canary_status") != "PASS" or model.get("timing_check_capability") != "NOT_SUPPORTED_BY_MODEL":
+    if model.get("classification") != "EXACT_EXPECTED_MODEL" or model.get("effective_definition_count") != 1 or model.get("duplicate_or_shadow_count") != 0 or model.get("pins") != ["CK", "E", "SE", "GCK"] or model.get("canary_status") != "PASS" or model.get("canary_cases") != {case: "PASS" for case in "ABCDEF"} or model.get("timing_check_capability") != "NOT_SUPPORTED_BY_MODEL" or model.get("functional_test_enable") != 0 or model.get("diagnostic_test_enable") != 1 or model.get("diagnostic_test_enable_result") != "ONE_OUTPUT_MISMATCH_NON_PRODUCTION_DIAGNOSTIC" or model.get("functional_model_sha256") != source["icg_model_sha256"]:
         raise ValidationError("ICG model audit mismatch")
     parser = load_json(package / "parser_recovery.json")
-    if parser.get("classification") != "PARSER_FALSE_POSITIVE_RECOVERED_FROM_IMMUTABLE_REPORTS" or parser.get("point_order") != list(POINT_IDS) or parser.get("outer_exit_code") != 2 or parser.get("eda_rerun") is not False or parser.get("release_status") != "FULL_RELEASED":
+    if parser.get("classification") != "PARSER_FALSE_POSITIVE_RECOVERED_FROM_IMMUTABLE_REPORTS" or parser.get("point_order") != list(POINT_IDS) or parser.get("point_count") != 6 or parser.get("outer_exit_code") != 2 or parser.get("tool_exit_code") != 0 or parser.get("eda_rerun") is not False or parser.get("immutable_reports_reused") is not True or parser.get("ownership_residuals") != 0 or parser.get("release_status") != "FULL_RELEASED" or parser.get("status") != "PASS_WITH_PARSER_RECOVERY":
         raise ValidationError("parser-recovery evidence mismatch")
 
     input_hashes = read_hash_manifest(package / "input_hashes.sha256")
@@ -499,20 +678,36 @@ def validate_doc_values(root):
     for path in files:
         if not path.is_file():
             raise ValidationError("missing public document {}".format(path.relative_to(root)))
-    groups = {
-        "zh-CN": (files[0], files[2], "不是验证 test coverage"),
-        "en": (files[1], files[3], "not verification test coverage"),
+    comparisons = read_csv(package_path(root) / "comparisons.csv", COMPARISON_FIELDS, "comparison_id")
+    by_comparison = {row["comparison_id"]: row for row in comparisons}
+    metric_patterns = (
+        ("IMPLEMENTATION:area_total_um2", r"(?:cell\s+area|area|\u9762\u79ef)[^\n]{0,120}"),
+        ("BURST_IDLE:dynamic_mw", r"BURST_IDLE[^\n]{0,160}dynamic(?:(?!energy/block)[^\n]){0,120}"),
+        ("BURST_IDLE:energy_per_block_nj", r"BURST_IDLE[^\n]{0,240}energy/block[^\n]{0,120}"),
+        ("ACTIVE_LEGAL:dynamic_mw", r"ACTIVE_LEGAL[^\n]{0,160}dynamic[^\n]{0,120}"),
+    )
+    documents = {
+        "zh-CN README": (files[0], "\u4e0d\u662f\u9a8c\u8bc1 test coverage"),
+        "English README": (files[1], "not verification test coverage"),
+        "zh-CN experiment": (files[2], "\u4e0d\u662f\u9a8c\u8bc1 test coverage"),
+        "English experiment": (files[3], "not verification test coverage"),
     }
-    for language, (readme, experiment, coverage_boundary) in groups.items():
-        combined = "\n".join(path.read_text(encoding="utf-8") for path in (readme, experiment))
-        for token in ("61.67%", "58.46%", "59.52%", "15.58%", "Activity Annotation Coverage"):
-            if token not in combined:
-                raise ValidationError("{} documents missing rounded value/boundary {}".format(language, token))
-        if coverage_boundary not in combined:
-            raise ValidationError("{} activity annotation coverage is not distinguished from test coverage".format(language))
+    for document_name, (path, coverage_boundary) in documents.items():
+        text = path.read_text(encoding="utf-8")
+        for comparison_id, label_pattern in metric_patterns:
+            try:
+                value = decimal(by_comparison[comparison_id]["percent_change"], comparison_id)
+            except KeyError:
+                raise ValidationError("comparisons.csv missing documentation metric {}".format(comparison_id))
+            token = "{}%".format(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
+            pattern = re.compile(r"{}{}".format(label_pattern, re.escape(token)), re.IGNORECASE)
+            if not pattern.search(text):
+                raise ValidationError("{} missing bound documentation metric {}={}".format(document_name, comparison_id, token))
+        if "Activity Annotation Coverage" not in text or coverage_boundary not in text:
+            raise ValidationError("{} activity annotation coverage is not distinguished from test coverage".format(document_name))
         for pattern in OVERCLAIM_PATTERNS:
-            if pattern.search(combined):
-                raise ValidationError("{} documentation overclaim matched: {}".format(language, pattern.pattern))
+            if pattern.search(text):
+                raise ValidationError("{} documentation overclaim matched: {}".format(document_name, pattern.pattern))
     return True
 
 
