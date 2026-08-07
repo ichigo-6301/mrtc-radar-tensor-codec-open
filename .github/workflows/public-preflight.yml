@@ -40,8 +40,8 @@ jobs:
         run: python flows/scripts/validate_rdtc_power_2a.py evidence/rdtc_v1_power_architecture_ab --require-promotion
       - name: Check mapped clock-gating power A/B evidence
         run: python flows/scripts/rdtc_clock_gating_power_evidence.py validate
-      - name: Check combined two-stage power evidence
-        run: make rdtc-two-stage-power-validate
+      - name: Check mapped clock-gating documentation values
+        run: python flows/scripts/rdtc_clock_gating_power_evidence.py validate-doc-values
       - name: Run current main unit tests
         shell: bash
         run: |

@@ -190,7 +190,7 @@ make rdtc-clock-gating-power-validate
 make rdtc-two-stage-power-validate
 ```
 
-The first command creates the public-safe configuration; the next four compile or run published C/RTL entrypoints. The final four only validate sanitized public evidence, identities, and metric contracts; they do not rerun ModelSim, Design Compiler, P&R, or PrimeTime.
+The first command creates the public-safe configuration; the next four compile or run published C/RTL entrypoints. The final six only validate sanitized public evidence, identities, and metric contracts; they do not rerun ModelSim, Design Compiler, P&R, or PrimeTime.
 
 <a id="public-scope-provenance"></a>
 

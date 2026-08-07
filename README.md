@@ -190,7 +190,7 @@ make rdtc-clock-gating-power-validate
 make rdtc-two-stage-power-validate
 ```
 
-首项生成 public-safe 配置，随后四项编译或运行公开 C/RTL 入口；末四项只校验脱敏的公开 Evidence、身份和计算合同，不会重新执行 ModelSim、Design Compiler、P&R 或 PrimeTime。
+首项生成 public-safe 配置，随后四项编译或运行公开 C/RTL 入口；末六项只校验脱敏的公开 Evidence、身份和计算合同，不会重新执行 ModelSim、Design Compiler、P&R 或 PrimeTime。
 
 <a id="public-scope-provenance"></a>
 
