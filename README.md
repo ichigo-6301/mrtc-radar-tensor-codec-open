@@ -27,19 +27,19 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 ## 性能、PPA 与低功耗演进
 
 <p align="center">
-  <img src="docs/assets/rdtc_performance_evolution.svg" width="1000" alt="RDTC RTL performance evolution from Bitpacker pipeline to historical Multi-Engine scaling">
+  <a href="docs/assets/rdtc_performance_evolution.svg"><img src="docs/assets/rdtc_performance_evolution.svg" width="1000" alt="RDTC RTL performance evolution from Bitpacker pipeline to historical Multi-Engine scaling"></a>
 </p>
 
 Figure 1 分开呈现固定 `smoke_zero_sparse` 的 Bitpacker payload interval 与历史 buffered Multi-Engine service-rate；完成顺序不保证，且 simulated DDR feeder、假设 200 MHz 与 RTL simulation projection 都不是已实现环境或板级吞吐。机器来源为 [Bitpacker YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml)、[Bitpacker CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv)、[Multi-Engine YAML](evidence/rdtc_v1_multiengine_rtl.yaml) 与 [Multi-Engine CSV](evidence/data/rdtc_v1_multiengine_scaling.csv)。
 
 <p align="center">
-  <a href="evidence/rdtc_v1_power_architecture_ab/README.md"><img src="docs/assets/rdtc_stage1_architecture_ppa_power.svg" width="1000" alt="Stage-1 Buffered versus Direct-AXIS architecture PPA and mapped-power comparison"></a>
+  <a href="docs/assets/rdtc_stage1_architecture_ppa_power.svg"><img src="docs/assets/rdtc_stage1_architecture_ppa_power.svg" width="1000" alt="Stage-1 Buffered versus Direct-AXIS architecture PPA and mapped-power comparison"></a>
 </p>
 <p align="center">
-  <a href="evidence/rdtc_v1_clock_gating_mapped_dc/README.md"><img src="docs/assets/rdtc_stage2_clock_gating_power.svg" width="1000" alt="Stage-2 Direct G0 versus G1 automatic clock-gating mapped-power comparison"></a>
+  <a href="docs/assets/rdtc_stage2_clock_gating_power.svg"><img src="docs/assets/rdtc_stage2_clock_gating_power.svg" width="1000" alt="Stage-2 Direct G0 versus G1 automatic clock-gating mapped-power comparison"></a>
 </p>
 
-Figure 2 与 Figure 3 是 baseline 不同的独立 A/B：Stage 1 比较 Buffered 与 Direct-AXIS，activity 方法为 RTL-SAIF-to-mapped；Stage 2 固定 Direct 架构，只比较 G0/G1，使用 mapped zero-delay GLS activity、功能态 SE=0。两阶段百分比不得相加。Activity Annotation Coverage 不是验证 test coverage。这里不声明 CTS clock-tree 或 PrimeTime-PX 功耗、Formality、DFT/scan、silicon/foundry signoff、Fmax，也不把固定 workload 的结果推广为 workload-universal saving。
+Figure 2 与 Figure 3 是 baseline 不同的独立 A/B：Stage 1 比较 Buffered 与 Direct-AXIS，activity 方法为 RTL-SAIF-to-mapped；Stage 2 固定 Direct 架构，只比较 G0/G1，使用 mapped zero-delay GLS activity、功能态 SE=0。两阶段百分比不得相加。Activity Annotation Coverage 不是验证 test coverage。机器来源见 [Stage-1 Evidence package](evidence/rdtc_v1_power_architecture_ab/README.md) 与 [Stage-2 Evidence package](evidence/rdtc_v1_clock_gating_mapped_dc/README.md)。这里不声明 CTS clock-tree 或 PrimeTime-PX 功耗、Formality、DFT/scan、silicon measurement 或 foundry signoff、Fmax，也不把固定 workload 的结果推广为 workload-universal saving。
 
 ### FPGA / ASIC 实现闭环
 

@@ -27,19 +27,19 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 ## Performance, PPA and Power Evolution
 
 <p align="center">
-  <img src="docs/assets/rdtc_performance_evolution.svg" width="1000" alt="RDTC RTL performance evolution from Bitpacker pipeline to historical Multi-Engine scaling">
+  <a href="docs/assets/rdtc_performance_evolution.svg"><img src="docs/assets/rdtc_performance_evolution.svg" width="1000" alt="RDTC RTL performance evolution from Bitpacker pipeline to historical Multi-Engine scaling"></a>
 </p>
 
 Figure 1 keeps the fixed `smoke_zero_sparse` Bitpacker payload interval separate from the historical buffered Multi-Engine service rate. Completion order is not guaranteed, and the simulated DDR feeder, assumed 200 MHz, and RTL simulation projection are not an implemented environment or measured board throughput. Machine sources are the [Bitpacker YAML](evidence/rdtc_v1_bitpacker_pipeline_ab.yaml), [Bitpacker CSV](evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv), [Multi-Engine YAML](evidence/rdtc_v1_multiengine_rtl.yaml), and [Multi-Engine CSV](evidence/data/rdtc_v1_multiengine_scaling.csv).
 
 <p align="center">
-  <a href="evidence/rdtc_v1_power_architecture_ab/README.md"><img src="docs/assets/rdtc_stage1_architecture_ppa_power.svg" width="1000" alt="Stage-1 Buffered versus Direct-AXIS architecture PPA and mapped-power comparison"></a>
+  <a href="docs/assets/rdtc_stage1_architecture_ppa_power.svg"><img src="docs/assets/rdtc_stage1_architecture_ppa_power.svg" width="1000" alt="Stage-1 Buffered versus Direct-AXIS architecture PPA and mapped-power comparison"></a>
 </p>
 <p align="center">
-  <a href="evidence/rdtc_v1_clock_gating_mapped_dc/README.md"><img src="docs/assets/rdtc_stage2_clock_gating_power.svg" width="1000" alt="Stage-2 Direct G0 versus G1 automatic clock-gating mapped-power comparison"></a>
+  <a href="docs/assets/rdtc_stage2_clock_gating_power.svg"><img src="docs/assets/rdtc_stage2_clock_gating_power.svg" width="1000" alt="Stage-2 Direct G0 versus G1 automatic clock-gating mapped-power comparison"></a>
 </p>
 
-Figures 2 and 3 are independent A/B studies with different baselines. Stage 1 compares Buffered with Direct-AXIS using RTL-SAIF-to-mapped activity; Stage 2 holds the Direct architecture fixed and compares G0/G1 using mapped zero-delay GLS activity with functional SE=0. Their percentages are not added. Activity Annotation Coverage is not verification test coverage. These results do not claim CTS clock-tree or PrimeTime-PX power, Formality, DFT/scan closure, silicon/foundry signoff, Fmax, or workload-universal savings.
+Figures 2 and 3 are independent A/B studies with different baselines. Stage 1 compares Buffered with Direct-AXIS using RTL-SAIF-to-mapped activity; Stage 2 holds the Direct architecture fixed and compares G0/G1 using mapped zero-delay GLS activity with functional SE=0. Their percentages are not added. Activity Annotation Coverage is not verification test coverage. See the [Stage-1 Evidence package](evidence/rdtc_v1_power_architecture_ab/README.md) and [Stage-2 Evidence package](evidence/rdtc_v1_clock_gating_mapped_dc/README.md). These results do not claim CTS clock-tree or PrimeTime-PX power, Formality, DFT/scan closure, silicon measurement or foundry signoff, Fmax, or workload-universal savings.
 
 ### FPGA / ASIC Implementation Closure
 

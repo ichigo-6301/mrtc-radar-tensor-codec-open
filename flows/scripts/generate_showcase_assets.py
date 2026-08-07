@@ -67,14 +67,20 @@ AUTHORED_ASSET_RULES = {
     "rdtc_overview.svg": {
         "required": (
             "MRTC-RDTC: sensing tensor to bit-exact reconstruction",
-            "N x independent Engine",
+            "N independent Engines",
             "Packet-locked AXI",
             "No software reorder PASS claimed",
+            "Explicit mode and selected k",
+            "Length from header or TLAST/TUSER",
+            "FFT backend boundary",
             'width="1600" height="1000" viewBox="0 0 1600 1000"',
             "End-to-End Contract and Maturity Boundary",
             "performance, PPA, and power claims are reported in separate controlled A/B figures below",
         ),
         "forbidden": (
+            "N x independent Engine",
+            "Explicit mode, payload length, and selected k",
+            "ADC / FFT pipeline boundary",
             "#dbeafe",
             "#dcfce7",
             "#fef3c7",
@@ -173,6 +179,9 @@ GENERATED_ASSET_RULES = {
             "-74.60%",
             "RTL-SAIF-to-mapped",
             "the Buffered and Direct wrapper architectures differ",
+            "Both profiles contain the Codec Engine",
+            "Four-Way Shallow Ring",
+            "Shared Output FIFO",
             "Codec-Engine power remains at a similar level",
         ),
         "forbidden": (
@@ -1219,6 +1228,32 @@ def format_signed(value, places):
     return rendered if value < 0 else "+" + rendered
 
 
+def performance_scaling_points(scaling, single_engine_cycles):
+    """Return one Evidence-derived geometry record per measured Engine count."""
+    engine_x = {1: 885, 2: 1120, 4: 1420}
+    plot_y_at_one = Decimal(575)
+    plot_y_at_four = Decimal(250)
+    y_per_normalized_unit = (plot_y_at_one - plot_y_at_four) / Decimal(3)
+    points = []
+    for engine in (1, 2, 4):
+        actual = single_engine_cycles / Decimal(scaling[engine]["effective_cycles_per_block"])
+        ideal = Decimal(engine)
+        actual_y = rounded_int(plot_y_at_one - (actual - Decimal(1)) * y_per_normalized_unit)
+        ideal_y = rounded_int(plot_y_at_one - (ideal - Decimal(1)) * y_per_normalized_unit)
+        label_y = actual_y + 31 if engine == 4 else actual_y - 27
+        points.append(
+            {
+                "engine": engine,
+                "x": engine_x[engine],
+                "ideal_y": ideal_y,
+                "actual_y": actual_y,
+                "label_y": label_y,
+                "actual": actual,
+            }
+        )
+    return points
+
+
 def performance_evolution_svg(data):
     bitpacker = data["bitpacker"]
     scaling = data["scaling"]
@@ -1228,21 +1263,35 @@ def performance_evolution_svg(data):
     payload_optimized = Decimal(bitpacker["optimized"]["payload_stream_cycles"])
     service_speedup = (block_baseline / block_optimized).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
     payload_speedup = (payload_baseline / payload_optimized).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-    normalized = {
-        engine: (block_optimized / Decimal(scaling[engine]["effective_cycles_per_block"])).quantize(
-            Decimal("0.001"), rounding=ROUND_HALF_UP
-        )
-        for engine in (1, 2, 4)
-    }
+    scaling_points = performance_scaling_points(scaling, block_optimized)
     efficiency = {
         engine: (Decimal(scaling[engine]["scaling_efficiency_vs_single_engine"]) * Decimal(100)).quantize(
             Decimal("0.01"), rounding=ROUND_HALF_UP
         )
         for engine in (2, 4)
     }
-    plot = {1: (885, 575), 2: (1120, 470), 4: (1420, 253)}
-    actual_points = " ".join("{},{}".format(*plot[engine]) for engine in (1, 2, 4))
-    ideal_points = "885,575 1120,467 1420,250"
+    actual_points = " ".join("{x},{actual_y}".format(**point) for point in scaling_points)
+    ideal_points = " ".join("{x},{ideal_y}".format(**point) for point in scaling_points)
+    measured_circles = "".join(
+        '<circle id="actual-point-{engine}" data-engine="{engine}" '
+        'data-normalized-throughput="{actual_text}" cx="{x}" cy="{actual_y}" r="9"/>'.format(
+            actual_text=compact_decimal(point["actual"]), **point
+        )
+        for point in scaling_points
+    )
+    measured_labels = "".join(
+        '<text id="actual-label-{engine}" data-engine="{engine}" x="{x}" y="{label_y}">'
+        '{value}&#215;</text>'.format(
+            value=format_fixed(point["actual"], 3), **point
+        )
+        for point in scaling_points
+    )
+    engine_labels = "".join(
+        '<text x="{x}" y="630">{engine} Engine{suffix}</text>'.format(
+            suffix="" if point["engine"] == 1 else "s", **point
+        )
+        for point in scaling_points
+    )
 
     return f"""<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" role="img" aria-labelledby="title desc" preserveAspectRatio="xMidYMid meet">
   <title id="title">RDTC Performance Evolution</title>
@@ -1286,11 +1335,11 @@ def performance_evolution_svg(data):
   <line x1="850" y1="250" x2="850" y2="600" stroke="#374151" stroke-width="1.5"/><line x1="850" y1="600" x2="1510" y2="600" stroke="#374151" stroke-width="1.5"/>
   <g class="grid"><line x1="850" y1="575" x2="1510" y2="575"/><line x1="850" y1="467" x2="1510" y2="467"/><line x1="850" y1="358" x2="1510" y2="358"/><line x1="850" y1="250" x2="1510" y2="250"/></g>
   <g class="axis" text-anchor="end"><text x="838" y="581">1.0</text><text x="838" y="473">2.0</text><text x="838" y="364">3.0</text><text x="838" y="256">4.0</text></g>
-  <polyline points="{ideal_points}" fill="none" stroke="#6b7280" stroke-width="2.5" stroke-dasharray="9 7"/>
-  <polyline points="{actual_points}" fill="none" stroke="#1456a0" stroke-width="4"/>
-  <g fill="#1456a0" stroke="#ffffff" stroke-width="2"><circle cx="885" cy="575" r="9"/><circle cx="1120" cy="455" r="9"/><circle cx="1420" cy="205" r="9"/></g>
-  <g class="metric" text-anchor="middle"><text x="885" y="548">{format_fixed(normalized[1], 3)}&#215;</text><text x="1120" y="443">{format_fixed(normalized[2], 3)}&#215;</text><text x="1420" y="226">{format_fixed(normalized[4], 3)}&#215;</text></g>
-  <g class="body-bold" text-anchor="middle"><text x="885" y="630">1 Engine</text><text x="1120" y="630">2 Engines</text><text x="1420" y="630">4 Engines</text></g>
+  <polyline id="ideal-throughput-polyline" points="{ideal_points}" fill="none" stroke="#6b7280" stroke-width="2.5" stroke-dasharray="9 7"/>
+  <polyline id="actual-throughput-polyline" points="{actual_points}" fill="none" stroke="#1456a0" stroke-width="4"/>
+  <g id="actual-throughput-points" fill="#1456a0" stroke="#ffffff" stroke-width="2">{measured_circles}</g>
+  <g id="actual-throughput-labels" class="metric" text-anchor="middle">{measured_labels}</g>
+  <g class="body-bold" text-anchor="middle">{engine_labels}</g>
   <rect x="805" y="666" width="710" height="142" fill="#ffffff" stroke="#6b7280" stroke-width="1"/>
   <rect x="805" y="666" width="710" height="40" fill="#102f5e"/>
   <g class="table-head" text-anchor="middle"><text x="1000" y="692">1 Engine</text><text x="1200" y="692">2 Engines</text><text x="1405" y="692">4 Engines</text></g>
@@ -1344,27 +1393,35 @@ def stage1_architecture_power_svg(metrics):
 
   <rect x="48" y="150" width="740" height="700" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
   <rect x="48" y="150" width="740" height="52" fill="#102f5e"/><text x="418" y="185" text-anchor="middle" class="table-head">Architecture Change</text>
+  <g id="stage1-buffered-architecture">
   <text x="72" y="244" class="panel-title">Buffered</text>
-  <rect x="72" y="285" width="100" height="76" class="box"/><text x="122" y="331" text-anchor="middle" class="body">Input</text>
-  <line x1="172" y1="323" x2="208" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="217" y="285" width="135" height="76" class="box"/><text x="284" y="331" text-anchor="middle" class="body">DDR Feeder</text>
-  <line x1="352" y1="323" x2="388" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="397" y="267" width="220" height="112" fill="#ffffff" stroke="#102f5e" stroke-width="1.3" stroke-dasharray="7 5"/><text x="507" y="302" text-anchor="middle" class="body">Per-Engine</text><text x="507" y="328" text-anchor="middle" class="body">Payload-Commit /</text><text x="507" y="354" text-anchor="middle" class="body">Packet Storage</text>
-  <line x1="617" y1="323" x2="653" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="662" y="285" width="100" height="76" class="box"/><text x="712" y="331" text-anchor="middle" class="body">Output</text>
-  <text x="507" y="414" text-anchor="middle" class="small">Storage-heavy wrapper responsibilities</text>
+  <rect x="72" y="285" width="70" height="76" class="box"/><text x="107" y="331" text-anchor="middle" class="body">Input</text>
+  <line x1="142" y1="323" x2="154" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="160" y="285" width="100" height="76" class="box"/><text x="210" y="331" text-anchor="middle" class="small">DDR Feeder</text>
+  <line x1="260" y1="323" x2="272" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="278" y="285" width="112" height="76" class="box-blue"/><text x="334" y="329" text-anchor="middle" class="small">Codec Engine</text>
+  <line x1="390" y1="323" x2="402" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="408" y="267" width="220" height="112" fill="#ffffff" stroke="#102f5e" stroke-width="1.3" stroke-dasharray="7 5"/><text x="518" y="302" text-anchor="middle" class="small">Per-Engine Payload-Commit</text><text x="518" y="332" text-anchor="middle" class="small">Storage</text>
+  <line x1="628" y1="323" x2="640" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="646" y="285" width="116" height="76" class="box"/><text x="704" y="331" text-anchor="middle" class="body">Output</text>
+  <text x="418" y="414" text-anchor="middle" class="small">Storage-heavy wrapper responsibilities</text>
+  </g>
   <line x1="72" y1="456" x2="764" y2="456" class="thin"/>
 
+  <g id="stage1-direct-architecture">
   <text x="72" y="508" class="panel-title">Direct-AXIS</text>
-  <rect x="72" y="550" width="100" height="76" class="box"/><text x="122" y="596" text-anchor="middle" class="body">Input</text>
-  <line x1="172" y1="588" x2="208" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="217" y="550" width="150" height="76" class="box-blue"/><text x="292" y="582" text-anchor="middle" class="body-bold">Direct AXIS</text><text x="292" y="607" text-anchor="middle" class="body-bold">Path</text>
-  <line x1="367" y1="588" x2="403" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="412" y="550" width="175" height="76" class="box-blue"/><text x="499" y="596" text-anchor="middle" class="body-bold">Codec Engine</text>
-  <line x1="587" y1="588" x2="653" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="662" y="550" width="100" height="76" class="box"/><text x="712" y="596" text-anchor="middle" class="body">Output</text>
+  <rect x="72" y="550" width="70" height="76" class="box"/><text x="107" y="596" text-anchor="middle" class="body">Input</text>
+  <line x1="142" y1="588" x2="154" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="160" y="538" width="190" height="100" class="box-blue"/><text x="255" y="570" text-anchor="middle" class="small">Direct AXIS /</text><text x="255" y="600" text-anchor="middle" class="small">Four-Way Shallow Ring</text>
+  <line x1="350" y1="588" x2="362" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="368" y="550" width="117" height="76" class="box-blue"/><text x="426" y="594" text-anchor="middle" class="small">Codec Engine</text>
+  <line x1="485" y1="588" x2="497" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <g aria-label="Shared Output FIFO"><rect x="503" y="550" width="132" height="76" class="box-blue"/><text x="569" y="578" text-anchor="middle" class="small">Shared Output</text><text x="569" y="605" text-anchor="middle" class="small">FIFO</text></g>
+  <line x1="635" y1="588" x2="647" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="653" y="550" width="109" height="76" class="box"/><text x="707" y="596" text-anchor="middle" class="body">Output</text>
+  </g>
   <text x="418" y="680" text-anchor="middle" class="metric">Removed DDR feeder and per-Engine payload-commit storage.</text>
-  <text x="72" y="735" class="small">The Codec Engine remains; the Direct profile still contains internal Ring/FIFO storage.</text>
+  <text x="72" y="735" class="small">Both profiles contain the Codec Engine; Direct retains its bounded Ring and shared FIFO.</text>
   <text x="72" y="770" class="small">The wrapper interfaces and storage responsibilities are intentionally different.</text>
 
   <rect x="812" y="150" width="740" height="540" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
@@ -1374,8 +1431,8 @@ def stage1_architecture_power_svg(metrics):
 {''.join(table_rows)}
   <rect x="812" y="720" width="740" height="130" fill="#f7f9fc" stroke="#1456a0" stroke-width="1.4"/>
   <text x="850" y="761" class="panel-title">Measured cause</text>
-  <text x="850" y="797" class="body">Main savings come from removing feeder and payload-commit storage;</text>
-  <text x="850" y="827" class="body">Codec-Engine power remains at a similar level.</text>
+  <text x="850" y="797" class="body">Main savings come from wrapper storage and data-movement changes,</text>
+  <text x="850" y="827" class="body">not removal of codec computation; Codec-Engine power remains at a similar level.</text>
 
   <line x1="48" y1="886" x2="1552" y2="886" class="thin"/>
   <text x="48" y="923" class="foot">Controlled A/B under normalized Codec work and Packet-output contract; the Buffered and Direct wrapper architectures differ.</text>

@@ -191,6 +191,60 @@ class CoordinatedReportAssetTests(unittest.TestCase):
         self.assertIn("-74.60%", generated["rdtc_stage1_architecture_ppa_power.svg"])
         self.assertIn("-61.67%", generated["rdtc_stage2_clock_gating_power.svg"])
 
+    def test_performance_plot_uses_one_evidence_derived_point_set(self):
+        content = ASSETS.performance_evolution_svg(self.performance)
+        root = ET.fromstring(content)
+        namespace = {"svg": "http://www.w3.org/2000/svg"}
+        actual_polyline = root.find(".//svg:polyline[@id='actual-throughput-polyline']", namespace)
+        ideal_polyline = root.find(".//svg:polyline[@id='ideal-throughput-polyline']", namespace)
+        self.assertIsNotNone(actual_polyline)
+        self.assertIsNotNone(ideal_polyline)
+
+        actual_coordinates = [tuple(map(int, point.split(","))) for point in actual_polyline.attrib["points"].split()]
+        ideal_coordinates = [tuple(map(int, point.split(","))) for point in ideal_polyline.attrib["points"].split()]
+        circles = root.findall(".//svg:g[@id='actual-throughput-points']/svg:circle", namespace)
+        circle_coordinates = [(int(circle.attrib["cx"]), int(circle.attrib["cy"])) for circle in circles]
+        self.assertEqual(actual_coordinates, circle_coordinates)
+        self.assertEqual([circle.attrib["data-engine"] for circle in circles], ["1", "2", "4"])
+
+        for index in (1, 2):
+            self.assertGreater(actual_coordinates[index][1], ideal_coordinates[index][1])
+        labels = root.findall(".//svg:g[@id='actual-throughput-labels']/svg:text", namespace)
+        self.assertEqual(len(labels), 3)
+        for label in labels:
+            self.assertGreaterEqual(int(label.attrib["y"]), 250)
+            self.assertLess(int(label.attrib["y"]), 600)
+
+        expected = ASSETS.performance_scaling_points(
+            self.performance["scaling"],
+            Decimal(self.performance["bitpacker"]["optimized"]["steady_state_cycles_per_block"]),
+        )
+        self.assertEqual(
+            [circle.attrib["data-normalized-throughput"] for circle in circles],
+            [ASSETS.compact_decimal(point["actual"]) for point in expected],
+        )
+        source = SCRIPT.read_text(encoding="utf-8")
+        self.assertNotRegex(source, r'<circle\s+cx="(?:885|1120|1420)"')
+
+    def test_stage1_diagram_shows_codec_and_profile_specific_storage(self):
+        content = ASSETS.stage1_architecture_power_svg(self.stage1)
+        root = ET.fromstring(content)
+        namespace = {"svg": "http://www.w3.org/2000/svg"}
+        buffered = root.find(".//svg:g[@id='stage1-buffered-architecture']", namespace)
+        direct = root.find(".//svg:g[@id='stage1-direct-architecture']", namespace)
+        self.assertIsNotNone(buffered)
+        self.assertIsNotNone(direct)
+        buffered_text = " ".join(" ".join(buffered.itertext()).split())
+        direct_text = " ".join(" ".join(direct.itertext()).split())
+        self.assertEqual(buffered_text.count("Codec Engine"), 1)
+        self.assertEqual(direct_text.count("Codec Engine"), 1)
+        self.assertIn("DDR Feeder", buffered_text)
+        self.assertNotIn("DDR Feeder", direct_text)
+        self.assertIn("Per-Engine Payload-Commit Storage", buffered_text)
+        self.assertNotIn("Per-Engine Payload-Commit Storage", direct_text)
+        self.assertIn("Four-Way Shallow Ring", direct_text)
+        self.assertIn("Shared Output FIFO", direct_text)
+
     def test_performance_loader_rejects_yaml_hash_drift(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -266,6 +320,19 @@ class CoordinatedReportAssetTests(unittest.TestCase):
         self.assertNotIn(" rx=", content)
         self.assertNotIn("linearGradient", content)
         self.assertNotIn("<image", content)
+        for required in (
+            "N independent Engines",
+            "Explicit mode and selected k",
+            "Length from header or TLAST/TUSER",
+            "FFT backend boundary",
+        ):
+            self.assertIn(required, content)
+        for obsolete in (
+            "N x independent Engine",
+            "Explicit mode, payload length, and selected k",
+            "ADC / FFT pipeline boundary",
+        ):
+            self.assertNotIn(obsolete, content)
 
 
 if __name__ == "__main__":

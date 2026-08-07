@@ -60,10 +60,10 @@
   <line x1="850" y1="250" x2="850" y2="600" stroke="#374151" stroke-width="1.5"/><line x1="850" y1="600" x2="1510" y2="600" stroke="#374151" stroke-width="1.5"/>
   <g class="grid"><line x1="850" y1="575" x2="1510" y2="575"/><line x1="850" y1="467" x2="1510" y2="467"/><line x1="850" y1="358" x2="1510" y2="358"/><line x1="850" y1="250" x2="1510" y2="250"/></g>
   <g class="axis" text-anchor="end"><text x="838" y="581">1.0</text><text x="838" y="473">2.0</text><text x="838" y="364">3.0</text><text x="838" y="256">4.0</text></g>
-  <polyline points="885,575 1120,467 1420,250" fill="none" stroke="#6b7280" stroke-width="2.5" stroke-dasharray="9 7"/>
-  <polyline points="885,575 1120,470 1420,253" fill="none" stroke="#1456a0" stroke-width="4"/>
-  <g fill="#1456a0" stroke="#ffffff" stroke-width="2"><circle cx="885" cy="575" r="9"/><circle cx="1120" cy="455" r="9"/><circle cx="1420" cy="205" r="9"/></g>
-  <g class="metric" text-anchor="middle"><text x="885" y="548">1.000&#215;</text><text x="1120" y="443">1.975&#215;</text><text x="1420" y="226">3.976&#215;</text></g>
+  <polyline id="ideal-throughput-polyline" points="885,575 1120,467 1420,250" fill="none" stroke="#6b7280" stroke-width="2.5" stroke-dasharray="9 7"/>
+  <polyline id="actual-throughput-polyline" points="885,575 1120,469 1420,253" fill="none" stroke="#1456a0" stroke-width="4"/>
+  <g id="actual-throughput-points" fill="#1456a0" stroke="#ffffff" stroke-width="2"><circle id="actual-point-1" data-engine="1" data-normalized-throughput="1" cx="885" cy="575" r="9"/><circle id="actual-point-2" data-engine="2" data-normalized-throughput="1.974743409136647212718856913" cx="1120" cy="469" r="9"/><circle id="actual-point-4" data-engine="4" data-normalized-throughput="3.976495618256420647383617851" cx="1420" cy="253" r="9"/></g>
+  <g id="actual-throughput-labels" class="metric" text-anchor="middle"><text id="actual-label-1" data-engine="1" x="885" y="548">1.000&#215;</text><text id="actual-label-2" data-engine="2" x="1120" y="442">1.975&#215;</text><text id="actual-label-4" data-engine="4" x="1420" y="284">3.976&#215;</text></g>
   <g class="body-bold" text-anchor="middle"><text x="885" y="630">1 Engine</text><text x="1120" y="630">2 Engines</text><text x="1420" y="630">4 Engines</text></g>
   <rect x="805" y="666" width="710" height="142" fill="#ffffff" stroke="#6b7280" stroke-width="1"/>
   <rect x="805" y="666" width="710" height="40" fill="#102f5e"/>

@@ -30,27 +30,35 @@
 
   <rect x="48" y="150" width="740" height="700" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
   <rect x="48" y="150" width="740" height="52" fill="#102f5e"/><text x="418" y="185" text-anchor="middle" class="table-head">Architecture Change</text>
+  <g id="stage1-buffered-architecture">
   <text x="72" y="244" class="panel-title">Buffered</text>
-  <rect x="72" y="285" width="100" height="76" class="box"/><text x="122" y="331" text-anchor="middle" class="body">Input</text>
-  <line x1="172" y1="323" x2="208" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="217" y="285" width="135" height="76" class="box"/><text x="284" y="331" text-anchor="middle" class="body">DDR Feeder</text>
-  <line x1="352" y1="323" x2="388" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="397" y="267" width="220" height="112" fill="#ffffff" stroke="#102f5e" stroke-width="1.3" stroke-dasharray="7 5"/><text x="507" y="302" text-anchor="middle" class="body">Per-Engine</text><text x="507" y="328" text-anchor="middle" class="body">Payload-Commit /</text><text x="507" y="354" text-anchor="middle" class="body">Packet Storage</text>
-  <line x1="617" y1="323" x2="653" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="662" y="285" width="100" height="76" class="box"/><text x="712" y="331" text-anchor="middle" class="body">Output</text>
-  <text x="507" y="414" text-anchor="middle" class="small">Storage-heavy wrapper responsibilities</text>
+  <rect x="72" y="285" width="70" height="76" class="box"/><text x="107" y="331" text-anchor="middle" class="body">Input</text>
+  <line x1="142" y1="323" x2="154" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="160" y="285" width="100" height="76" class="box"/><text x="210" y="331" text-anchor="middle" class="small">DDR Feeder</text>
+  <line x1="260" y1="323" x2="272" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="278" y="285" width="112" height="76" class="box-blue"/><text x="334" y="329" text-anchor="middle" class="small">Codec Engine</text>
+  <line x1="390" y1="323" x2="402" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="408" y="267" width="220" height="112" fill="#ffffff" stroke="#102f5e" stroke-width="1.3" stroke-dasharray="7 5"/><text x="518" y="302" text-anchor="middle" class="small">Per-Engine Payload-Commit</text><text x="518" y="332" text-anchor="middle" class="small">Storage</text>
+  <line x1="628" y1="323" x2="640" y2="323" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="646" y="285" width="116" height="76" class="box"/><text x="704" y="331" text-anchor="middle" class="body">Output</text>
+  <text x="418" y="414" text-anchor="middle" class="small">Storage-heavy wrapper responsibilities</text>
+  </g>
   <line x1="72" y1="456" x2="764" y2="456" class="thin"/>
 
+  <g id="stage1-direct-architecture">
   <text x="72" y="508" class="panel-title">Direct-AXIS</text>
-  <rect x="72" y="550" width="100" height="76" class="box"/><text x="122" y="596" text-anchor="middle" class="body">Input</text>
-  <line x1="172" y1="588" x2="208" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="217" y="550" width="150" height="76" class="box-blue"/><text x="292" y="582" text-anchor="middle" class="body-bold">Direct AXIS</text><text x="292" y="607" text-anchor="middle" class="body-bold">Path</text>
-  <line x1="367" y1="588" x2="403" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="412" y="550" width="175" height="76" class="box-blue"/><text x="499" y="596" text-anchor="middle" class="body-bold">Codec Engine</text>
-  <line x1="587" y1="588" x2="653" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
-  <rect x="662" y="550" width="100" height="76" class="box"/><text x="712" y="596" text-anchor="middle" class="body">Output</text>
+  <rect x="72" y="550" width="70" height="76" class="box"/><text x="107" y="596" text-anchor="middle" class="body">Input</text>
+  <line x1="142" y1="588" x2="154" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="160" y="538" width="190" height="100" class="box-blue"/><text x="255" y="570" text-anchor="middle" class="small">Direct AXIS /</text><text x="255" y="600" text-anchor="middle" class="small">Four-Way Shallow Ring</text>
+  <line x1="350" y1="588" x2="362" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="368" y="550" width="117" height="76" class="box-blue"/><text x="426" y="594" text-anchor="middle" class="small">Codec Engine</text>
+  <line x1="485" y1="588" x2="497" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <g aria-label="Shared Output FIFO"><rect x="503" y="550" width="132" height="76" class="box-blue"/><text x="569" y="578" text-anchor="middle" class="small">Shared Output</text><text x="569" y="605" text-anchor="middle" class="small">FIFO</text></g>
+  <line x1="635" y1="588" x2="647" y2="588" stroke="#374151" stroke-width="2" marker-end="url(#arrow)"/>
+  <rect x="653" y="550" width="109" height="76" class="box"/><text x="707" y="596" text-anchor="middle" class="body">Output</text>
+  </g>
   <text x="418" y="680" text-anchor="middle" class="metric">Removed DDR feeder and per-Engine payload-commit storage.</text>
-  <text x="72" y="735" class="small">The Codec Engine remains; the Direct profile still contains internal Ring/FIFO storage.</text>
+  <text x="72" y="735" class="small">Both profiles contain the Codec Engine; Direct retains its bounded Ring and shared FIFO.</text>
   <text x="72" y="770" class="small">The wrapper interfaces and storage responsibilities are intentionally different.</text>
 
   <rect x="812" y="150" width="740" height="540" fill="#ffffff" stroke="#102f5e" stroke-width="1.4"/>
@@ -60,8 +68,8 @@
   <line x1="840" y1="384" x2="1530" y2="384" class="thin"/><text x="850" y="356" class="table">Cell area</text><text x="1110" y="356" text-anchor="middle" class="table">1,529,495.20 um2</text><text x="1335" y="356" text-anchor="middle" class="table-strong">420,208.44 um2</text><text x="1505" y="356" text-anchor="end" class="table-strong">-72.53%</text>  <line x1="840" y1="461" x2="1530" y2="461" class="thin"/><text x="850" y="433" class="table">Cell count</text><text x="1110" y="433" text-anchor="middle" class="table">786,342</text><text x="1335" y="433" text-anchor="middle" class="table-strong">220,298</text><text x="1505" y="433" text-anchor="end" class="table-strong">-71.98%</text>  <line x1="840" y1="538" x2="1530" y2="538" class="thin"/><text x="850" y="510" class="table">Dynamic power</text><text x="1110" y="510" text-anchor="middle" class="table">436.4352 mW</text><text x="1335" y="510" text-anchor="middle" class="table-strong">109.8717 mW</text><text x="1505" y="510" text-anchor="end" class="table-strong">-74.83%</text>  <line x1="840" y1="615" x2="1530" y2="615" class="thin"/><text x="850" y="587" class="table">Total power</text><text x="1110" y="587" text-anchor="middle" class="table">462.70 mW</text><text x="1335" y="587" text-anchor="middle" class="table-strong">117.53 mW</text><text x="1505" y="587" text-anchor="end" class="table-strong">-74.60%</text>  <line x1="840" y1="692" x2="1530" y2="692" class="thin"/><text x="850" y="664" class="table">Energy/block</text><text x="1110" y="664" text-anchor="middle" class="table">674.8167 nJ</text><text x="1335" y="664" text-anchor="middle" class="table-strong">167.5852 nJ</text><text x="1505" y="664" text-anchor="end" class="table-strong">-75.17%</text>
   <rect x="812" y="720" width="740" height="130" fill="#f7f9fc" stroke="#1456a0" stroke-width="1.4"/>
   <text x="850" y="761" class="panel-title">Measured cause</text>
-  <text x="850" y="797" class="body">Main savings come from removing feeder and payload-commit storage;</text>
-  <text x="850" y="827" class="body">Codec-Engine power remains at a similar level.</text>
+  <text x="850" y="797" class="body">Main savings come from wrapper storage and data-movement changes,</text>
+  <text x="850" y="827" class="body">not removal of codec computation; Codec-Engine power remains at a similar level.</text>
 
   <line x1="48" y1="886" x2="1552" y2="886" class="thin"/>
   <text x="48" y="923" class="foot">Controlled A/B under normalized Codec work and Packet-output contract; the Buffered and Direct wrapper architectures differ.</text>

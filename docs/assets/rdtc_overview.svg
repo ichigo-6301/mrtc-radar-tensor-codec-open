@@ -45,7 +45,7 @@
   <text x="170" y="471" text-anchor="middle" class="body-bold">1024 samples / block</text>
   <text x="170" y="505" text-anchor="middle" class="body">complex I16Q16</text>
   <text x="170" y="539" text-anchor="middle" class="metric">4096 raw bytes</text>
-  <text x="170" y="572" text-anchor="middle" class="small">ADC / FFT pipeline boundary</text>
+  <text x="170" y="572" text-anchor="middle" class="small">FFT backend boundary</text>
 
   <line x1="293" y1="395" x2="330" y2="395" class="flow"/>
 
@@ -66,7 +66,7 @@
 
   <rect x="647" y="190" width="300" height="410" class="box-blue"/>
   <rect x="647" y="190" width="300" height="52" fill="#102f5e"/>
-  <text x="797" y="224" text-anchor="middle" class="table-head">N x independent Engine</text>
+  <text x="797" y="224" text-anchor="middle" class="table-head">N independent Engines</text>
   <text x="797" y="282" text-anchor="middle" class="section">Whole-block ownership</text>
   <rect x="697" y="320" width="200" height="64" class="box-blue"/>
   <text x="797" y="360" text-anchor="middle" class="body-bold">Engine 0</text>
@@ -111,8 +111,9 @@
   <line x1="1050" y1="702" x2="1050" y2="870" class="thin"/>
 
   <text x="82" y="747" class="panel-title">Block semantics</text>
-  <text x="82" y="790" class="body">Explicit mode, payload length, and selected k</text>
-  <text x="82" y="826" class="body">Frame / Block metadata preserves identity</text>
+  <text x="82" y="780" class="body">Explicit mode and selected k</text>
+  <text x="82" y="810" class="body">Length from header or TLAST/TUSER</text>
+  <text x="82" y="840" class="body">Frame / Block metadata preserves identity</text>
 
   <text x="584" y="747" class="panel-title">Stream semantics</text>
   <text x="584" y="790" class="body">Backpressure-safe packet framing</text>
