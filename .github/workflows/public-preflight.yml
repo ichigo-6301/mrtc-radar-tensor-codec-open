@@ -111,5 +111,6 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.11"
+      - run: python -m pip install -r requirements-public.txt
       - run: python flows/scripts/check_public_docs.py
       - run: python flows/scripts/scan_public_release.py --ref HEAD
