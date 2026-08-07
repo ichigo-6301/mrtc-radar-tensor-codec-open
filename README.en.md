@@ -23,6 +23,7 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 | Multi-Engine wrapper | Historical buffered profile reaches `785 / 397.52 / 197.41 cycles/block`, with `98.7368% / 99.4115%` 2/4-Engine scaling efficiency | `785` is the imported Stage16D2 reference, not a wrapper `NUM_ENGINES=1` rerun; historical average spacing is `8220 -> 785 cycles/block`, a `10.47×` change, detailed below | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
 | Direct-AXIS low-storage refactor | Removes the DDR feeder and per-Engine payload commit; same-library, same-315 MHz DC A/B reduces cell area/count by `72.53% / 71.98%` | Dual Engine, register-expanded, DC-only architectural A/B; Direct RTL is `~277 > 256 cycles/block`, so sustained zero-gap scheduling is not claimed | [Direct RTL](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [observed stream timing](evidence/rdtc_v1_direct_stream_timing_trace.yaml) · [DC A/B](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
 | Direct-AXIS architecture-power A/B | At 315 MHz, BURST_IDLE dynamic power is `436.4352 -> 109.8717 mW` (`-74.83%`) and energy/block is `674.82 -> 167.59 nJ` (`-75.17%`); ACTIVE_LEGAL dynamic power changes by `-74.99%` | Same logical workload, library, and frequency with independent RTL-SAIF-to-mapped activity; a mapped-netlist estimate, not post-route/CTS/silicon power | [evidence package](evidence/rdtc_v1_power_architecture_ab/README.md) · [method and boundary](docs/en/asic_power_experiment.md) |
+| Direct G0/G1 automatic clock-gating A/B | At 315 MHz, BURST_IDLE dynamic power is `107.3535 -> 41.1522 mW` (`-61.67%`) and energy/block is `164.55 -> 68.36 nJ` (`-58.46%`); ACTIVE_LEGAL dynamic changes by `-59.52%` | Independent Stage 2; 272 ICGs, 34,816 gated bits, mapped-GLS activity; relative to Direct G0 only and never added to Stage 1 | [evidence package](evidence/rdtc_v1_clock_gating_mapped_dc/README.md) · [method and boundary](docs/en/asic_clock_gating_experiment.md) |
 | FPGA / ASIC implementation boundary | Direct FPGA OOC at 200 MHz; Direct register-expanded / eight-macro OpenRAM profiles complete fixed academic post-route PrimeTime setup/hold closure at `600/300 MHz` | FPGA result is not a bitstream/board claim; ASIC frequencies are not Fmax or foundry signoff | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [result matrix](docs/en/results.md) |
 
 <p align="center">
@@ -30,6 +31,9 @@ Hardware implementation and performance optimization are encoder-centric. A rece
 </p>
 <p align="center">
   <a href="evidence/rdtc_v1_multiengine_rtl.yaml"><img src="docs/assets/engine_scaling.svg" width="760" alt="Historical buffered Multi-Engine average block-interval scaling"></a>
+</p>
+<p align="center">
+  <a href="evidence/rdtc_v1_clock_gating_mapped_dc/README.md"><img src="docs/assets/clock_gating_power_ab.svg" width="760" alt="Direct G0 versus G1 mapped dynamic power across three workloads"></a>
 </p>
 
 <a id="data-contract"></a>
@@ -167,6 +171,8 @@ make bitpacker-pipeline-ab-validate
 make bounded-dc-ab-validate
 make direct-stream-timing-validate
 make power-architecture-ab-validate
+make rdtc-clock-gating-power-validate
+make rdtc-two-stage-power-validate
 ```
 
 The first command creates the public-safe configuration; the next four compile or run published C/RTL entrypoints. The final four only validate sanitized public evidence, identities, and metric contracts; they do not rerun ModelSim, Design Compiler, P&R, or PrimeTime.
@@ -229,6 +235,19 @@ Under one Nangate45 typical library, one 315 MHz synchronous-boundary SDC, two E
 At the same 315 MHz, with the same Nangate45 TT library and the same logical block, packet, selected-k, descriptor, and ready sequences, each mapped design uses its own RTL SAIF. BURST_IDLE dynamic power is `436.4352 -> 109.8717 mW` (`-74.83%`) and energy/block is `674.82 -> 167.59 nJ` (`-75.17%`); ACTIVE_LEGAL dynamic power changes by `-74.99%`. The conservative promotion gate still passes after accounting for both reports' quantization. This result claims only an activity-driven mapped-netlist power estimate, not post-route, CTS clock-tree, silicon, or foundry-signoff power. Both `clock_mw = 0` values remain tool-reported data and are not interpreted as physical clock-tree power.
 
 [Power method and boundary](docs/en/asic_power_experiment.md) · [machine-readable evidence](evidence/rdtc_v1_power_architecture_ab/README.md)
+
+### Stage 2: Direct G0 -> Direct G1 Automatic Clock Gating
+
+Under the same Direct-AXIS, 315 MHz, Nangate45 TT/1.1 V/25 C contract, G1
+inserts 272 `CLKGATETST_X1` cells and gates 34,816 bits, including
+32,768/32,768 Ring data bits. BURST_IDLE dynamic power is
+`107.3535 -> 41.1522 mW` (`-61.67%`) and energy/block is
+`164.55 -> 68.36 nJ` (`-58.46%`); ACTIVE_LEGAL dynamic changes by `-59.52%`.
+Both G0 and G1 are setup/electrical clean and the 2/32/64-block mapped
+gate-level regressions are bit-exact. This result is relative to Direct G0
+only; it must not be added to the Stage-1 architecture percentage.
+
+[Clock-gating method and boundary](docs/en/asic_clock_gating_experiment.md) · [machine-readable evidence](evidence/rdtc_v1_clock_gating_mapped_dc/README.md)
 
 ### Post-Route Closure Points
 

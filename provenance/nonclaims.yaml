@@ -9,7 +9,7 @@ nonclaims:
     public: true
   - id: rdtc_v1_no_asic_signoff
     profile: rdtc_v1_public_release
-    statement: "RDTC v1 does not claim IO timing closure, OCV/MMMC closure, foundry signoff, macro DRC/LVS/PEX, DFT/ATPG, LEC, GLS/SDF, or silicon readiness."
+    statement: "RDTC v1 does not claim IO timing closure, OCV/MMMC closure, foundry signoff, macro DRC/LVS/PEX, DFT/ATPG, Formality/LEC closure, timing-annotated GLS/SDF closure, or silicon readiness."
     reason: "The public implementation evidence is academic internal reg-to-reg timing with explicit PDK, RC, memory-model, and integration-boundary caveats."
     status: not_claimed
     public: true
@@ -77,5 +77,35 @@ nonclaims:
     profile: rdtc_v1_bounded_architecture_power_ab
     statement: "The 315 MHz architecture-power A/B does not claim post-route or PrimeTime-PX power, CTS clock-tree power, silicon-measured or foundry-signoff power, Fmax, or a universal saving across untested workloads."
     reason: "Each point is an activity-driven Design Compiler mapped-netlist estimate from its own RTL SAIF; no routed parasitics or implemented clock tree were analyzed."
+    status: not_claimed
+    public: true
+  - id: rdtc_v1_clock_gating_mapped_no_physical_power
+    profile: rdtc_v1_direct_clock_gating_mapped_dc
+    statement: "The Direct G0/G1 clock-gating study does not claim routed or PrimeTime-PX power, CTS clock-tree power, silicon-measured or foundry-signoff power, Fmax, or workload-independent savings."
+    reason: "The study stops at activity-driven mapped Design Compiler power without P&R, CTS, routed parasitics, PrimeTime-PX, or silicon measurement."
+    status: not_claimed
+    public: true
+  - id: rdtc_v1_clock_gating_no_formal_or_dft_closure
+    profile: rdtc_v1_direct_clock_gating_mapped_dc
+    statement: "The clock-gating result does not claim a Formality result, exhaustive proof, DFT/scan closure, or timing-annotated GLS/SDF closure."
+    reason: "Functional evidence is finite zero-delay mapped gate-level regression for 2, 32, and 64 blocks; SE=1 was diagnostic only."
+    status: not_claimed
+    public: true
+  - id: rdtc_v1_clock_gating_no_portable_mapped_sdc_replay
+    profile: rdtc_v1_direct_clock_gating_mapped_dc
+    statement: "The exported mapped SDC is not claimed as a portable clean-replay handoff."
+    reason: "It emitted 8136 paired vector-replay errors; acceptance relies on retained DDC constraints plus matching SDC identity, clock, period, corner, WNS/TNS, electrical checks, and check_timing."
+    status: not_claimed
+    public: true
+  - id: rdtc_v1_clock_gating_activity_annotation_not_test_coverage
+    profile: rdtc_v1_direct_clock_gating_mapped_dc
+    statement: "The six points' 100% Activity Annotation Coverage is not verification test coverage or code, functional, assertion, toggle, or fault coverage closure."
+    reason: "It measures annotation of clocks, functional inputs, sequential outputs, internal leaf pins, and overall non-default activity for mapped power analysis."
+    status: not_claimed
+    public: true
+  - id: rdtc_v1_two_stage_power_no_arithmetic_accumulation
+    profile: rdtc_v1_two_stage_power_study
+    statement: "The Stage-1 Buffered-to-Direct and Stage-2 Direct-G0-to-Direct-G1 percentages are not added into one combined saving."
+    reason: "They are separate controlled A/B studies with different baselines and different activity methodologies; Stage 2 is referenced only to Direct G0."
     status: not_claimed
     public: true

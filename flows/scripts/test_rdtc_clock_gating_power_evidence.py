@@ -157,5 +157,39 @@ class ClockGatingEvidenceTests(unittest.TestCase):
         self.assert_rejected()
 
 
+class ClockGatingDocumentTests(unittest.TestCase):
+    DOCS = (
+        "README.md",
+        "README.en.md",
+        "docs/zh-CN/asic_clock_gating_experiment.md",
+        "docs/en/asic_clock_gating_experiment.md",
+    )
+
+    def setUp(self):
+        self.temp = tempfile.TemporaryDirectory()
+        self.root = Path(self.temp.name)
+        for name in self.DOCS:
+            target = self.root / name
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(REPO / name, target)
+
+    def tearDown(self):
+        self.temp.cleanup()
+
+    def test_bilingual_document_values_pass(self):
+        self.assertTrue(EVIDENCE.validate_doc_values(self.root))
+
+    def test_missing_english_experiment_is_rejected(self):
+        (self.root / "docs/en/asic_clock_gating_experiment.md").unlink()
+        with self.assertRaises(EVIDENCE.ValidationError):
+            EVIDENCE.validate_doc_values(self.root)
+
+    def test_english_overclaim_is_rejected(self):
+        path = self.root / "docs/en/asic_clock_gating_experiment.md"
+        path.write_text(path.read_text(encoding="utf-8") + "\npost-route power result\n", encoding="utf-8")
+        with self.assertRaises(EVIDENCE.ValidationError):
+            EVIDENCE.validate_doc_values(self.root)
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -89,4 +89,20 @@ The 333 MHz SRAM-macro result completed verified chip-level OpenROAD P&R, same-r
 
 ASIC evidence: [buffered versus Direct DC A/B](../../evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) · [register-expanded](../../evidence/rdtc_v1_register_expanded.yaml) · [SRAM macro](../../evidence/rdtc_v1_sram_macro_333m.yaml) · [bounded Direct register/SRAM](../../evidence/rdtc_v1_bounded_direct_asic.yaml)
 
+## Two-Stage Mapped Power Study
+
+| Stage | Controlled A/B | BURST_IDLE dynamic | BURST_IDLE energy/block | ACTIVE_LEGAL dynamic | Boundary |
+|---|---|---:|---:|---:|---|
+| Stage 1 | Buffered -> Direct-AXIS | `436.4352 -> 109.8717 mW` (-74.83%) | `674.82 -> 167.59 nJ` (-75.17%) | -74.99% | architecture change; RTL-SAIF-to-mapped |
+| Stage 2 | Direct G0 -> Direct G1 | `107.3535 -> 41.1522 mW` (-61.67%) | `164.55 -> 68.36 nJ` (-58.46%) | -59.52% | automatic clock gating; mapped zero-delay GLS activity |
+
+These are separate controlled comparisons with different baselines. Their
+percentages are not added. Stage 2 inserts 272 `CLKGATETST_X1` cells, gates
+34,816 bits, covers 100% of the 32,768 Ring data bits, and retains nonnegative
+setup and clock-gating setup/hold slack with zero electrical violations. The
+functional result is gate-level regression equivalence evidence for 2, 32,
+and 64 blocks; Formality was not run.
+
+[Stage-1 method](asic_power_experiment.md) · [Stage-2 method](asic_clock_gating_experiment.md) · [Stage-2 machine evidence](../../evidence/rdtc_v1_clock_gating_mapped_dc/README.md)
+
 Public evidence is under `evidence/`, with run conditions and boundaries under `provenance/`. PDKs, Liberty/DB, LEF/GDS, SPEF, and raw EDA work directories are not distributed.

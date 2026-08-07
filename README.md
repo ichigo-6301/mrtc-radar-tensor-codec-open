@@ -23,6 +23,7 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 | Multi-Engine wrapper | 历史 buffered profile 为 `785 / 397.52 / 197.41 cycles/block`，2/4 Engine 扩展效率 `98.7368% / 99.4115%` | `785` 是 Stage16D2 导入 reference，不是 wrapper `NUM_ENGINES=1` 重跑；历史平均 spacing 为 `8220 -> 785 cycles/block`、`10.47×`，见详细文档 | [YAML](evidence/rdtc_v1_multiengine_rtl.yaml) · [CSV](evidence/data/rdtc_v1_multiengine_scaling.csv) |
 | Direct-AXIS 低缓存重构 | 删除 DDR feeder 与 per-Engine payload commit；同库同约束 315 MHz DC A/B 的 cell area/count 减少 `72.53% / 71.98%` | 双 Engine、全寄存器、DC-only 架构 A/B；Direct RTL 约 `~277 > 256 cycles/block`，不声明持续零间隔调度 | [Direct RTL](evidence/rdtc_v1_bounded_direct_rtl.yaml) · [真实流时序](evidence/rdtc_v1_direct_stream_timing_trace.yaml) · [DC A/B](evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) |
 | Direct-AXIS 架构功耗 A/B | 315 MHz BURST_IDLE dynamic `436.4352 -> 109.8717 mW`（`-74.83%`），energy/block `674.82 -> 167.59 nJ`（`-75.17%`）；ACTIVE_LEGAL dynamic `-74.99%` | 同逻辑 workload、同库同频率、独立 RTL-SAIF-to-mapped activity；mapped-netlist estimate，不是 post-route/CTS/silicon 功耗 | [Evidence package](evidence/rdtc_v1_power_architecture_ab/README.md) · [方法与边界](docs/zh-CN/asic_power_experiment.md) |
+| Direct G0/G1 自动时钟门控 A/B | 315 MHz BURST_IDLE dynamic `107.3535 -> 41.1522 mW`（`-61.67%`），energy/block `164.55 -> 68.36 nJ`（`-58.46%`）；ACTIVE_LEGAL dynamic `-59.52%` | 独立 Stage 2；272 个 ICG、34,816 gated bits、mapped GLS activity；只相对 Direct G0，不与 Stage 1 百分比相加 | [Evidence package](evidence/rdtc_v1_clock_gating_mapped_dc/README.md) · [方法与边界](docs/zh-CN/asic_clock_gating_experiment.md) |
 | FPGA / ASIC 落地边界 | Direct FPGA OOC 200 MHz；Direct register-expanded / 8-macro OpenRAM 分别在 `600/300 MHz` 完成 fixed academic post-route PrimeTime setup/hold 闭合 | FPGA 不声明 bitstream/板级吞吐；ASIC 频率不是 Fmax 或 foundry signoff | [FPGA evidence](evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml) · [ASIC evidence](evidence/rdtc_v1_bounded_direct_asic.yaml) · [结果矩阵](docs/zh-CN/results.md) |
 
 <p align="center">
@@ -30,6 +31,9 @@ RDTC 以 block 为单位压缩 I16Q16 样本，在保持 bit-exact 恢复的同�
 </p>
 <p align="center">
   <a href="evidence/rdtc_v1_multiengine_rtl.yaml"><img src="docs/assets/engine_scaling.svg" width="760" alt="Historical buffered Multi-Engine average block-interval scaling"></a>
+</p>
+<p align="center">
+  <a href="evidence/rdtc_v1_clock_gating_mapped_dc/README.md"><img src="docs/assets/clock_gating_power_ab.svg" width="760" alt="Direct G0 versus G1 mapped dynamic power across three workloads"></a>
 </p>
 
 <a id="data-contract"></a>
@@ -167,6 +171,8 @@ make bitpacker-pipeline-ab-validate
 make bounded-dc-ab-validate
 make direct-stream-timing-validate
 make power-architecture-ab-validate
+make rdtc-clock-gating-power-validate
+make rdtc-two-stage-power-validate
 ```
 
 首项生成 public-safe 配置，随后四项编译或运行公开 C/RTL 入口；末四项只校验脱敏的公开 Evidence、身份和计算合同，不会重新执行 ModelSim、Design Compiler、P&R 或 PrimeTime。
@@ -229,6 +235,18 @@ MATLAB synthetic study
 在相同 315 MHz、相同 Nangate45 TT 库与相同逻辑 block/packet/selected-k/descriptor/ready 序列下，每个 mapped design 使用自己的 RTL SAIF。BURST_IDLE dynamic power 为 `436.4352 -> 109.8717 mW`（`-74.83%`），energy/block 为 `674.82 -> 167.59 nJ`（`-75.17%`）；ACTIVE_LEGAL dynamic power 变化为 `-74.99%`。保守 promotion gate 计入两端 report quantization 后仍通过。该结果只声明 activity-driven mapped-netlist power estimate，不声明 post-route、CTS clock-tree、silicon 或 foundry-signoff 功耗；两端 `clock_mw = 0` 保留为工具报告值，不解释成物理时钟树功耗。
 
 [功耗方法与边界](docs/zh-CN/asic_power_experiment.md) · [机器可读 Evidence](evidence/rdtc_v1_power_architecture_ab/README.md)
+
+### Stage 2：Direct G0 -> Direct G1 自动时钟门控
+
+在同一 Direct-AXIS、315 MHz、Nangate45 TT/1.1 V/25 C 合同下，G1 插入
+`272` 个 `CLKGATETST_X1`，门控 `34,816` bit，其中 Ring data 为
+`32,768/32,768`。BURST_IDLE dynamic power 为 `107.3535 -> 41.1522 mW`
+（`-61.67%`），energy/block 为 `164.55 -> 68.36 nJ`（`-58.46%`）；
+ACTIVE_LEGAL dynamic 变化为 `-59.52%`。G0/G1 均 setup/electrical clean，
+2/32/64-block mapped gate-level regression bit-exact。该结果只相对 Direct G0；
+不得与 Stage 1 的架构百分比相加。
+
+[时钟门控方法与边界](docs/zh-CN/asic_clock_gating_experiment.md) · [机器可读 Evidence](evidence/rdtc_v1_clock_gating_mapped_dc/README.md)
 
 ### 布局布线后闭合点
 

@@ -1,31 +1,61 @@
-schema: rdtc-experimental-power-branch-v1
-branch: research/mrtc-power-architecture-clock-gating-2026-08
+schema: rdtc-two-stage-power-review-branch-v1
+branch: research/mrtc-power-two-stage-optimization-2026-08
 public_base_commit: 06ce0a748793cbead317eb750ca8841611a26c26
+stage1_review_commit: 937bcf8a3bf2dd86e41e11c7f85d3c98fc194397
 evidence_source:
-  scope: private_authoritative_package
-  commit: c803374c581f7e8e1beb1f735d7176fcd6dbaab4
+  scope: private_authoritative_packages
+  design_source_authority: c803374c581f7e8e1beb1f735d7176fcd6dbaab4
+  r1_flow_authority: a6424534c11e8d57f366c9768234239f682d4f64
+  mapped_source_bundle: db2660c60795182b647bd3c31010b0be6aef6374
+  stage2_private_flow_head: 6a3b178dc9d9a075e93efeab59980ffb2ad89cb0
   publication: sanitized_machine_evidence
-evidence:
-  path: evidence/rdtc_v1_power_architecture_ab
-  schema: rdtc_power_2a_evidence_v3
-  registered_evidence: rdtc_v1_power_architecture_ab_public
-  registered_claims:
-    - rdtc_v1_bounded_direct_dc315_burst_dynamic_power_reduction
-    - rdtc_v1_bounded_direct_dc315_burst_energy_per_block_reduction
-  classification: ARCH_POWER_POSITIVE
-  promotion_eligible: true
-  merge_recommended: true
-  production_rtl_changed: false
-  postroute_pair_completed: false
-  clock_gating_executed: false
+stages:
+  - stage: architecture
+    comparison: Buffered_to_Direct_AXIS
+    path: evidence/rdtc_v1_power_architecture_ab
+    schema: rdtc_power_2a_evidence_v3
+    registered_evidence: rdtc_v1_power_architecture_ab_public
+    classification: ARCH_POWER_POSITIVE
+    promotion_eligible: true
+    production_rtl_changed: false
+    clock_gating_executed: false
+    postroute_pair_completed: false
+  - stage: automatic_clock_gating
+    comparison: Direct_G0_to_Direct_G1
+    path: evidence/rdtc_v1_clock_gating_mapped_dc
+    schema: rdtc-clock-gating-mapped-dc-public-v1
+    registered_evidence: rdtc_v1_clock_gating_mapped_dc_public
+    private_decision: CG_EQUIVALENCE_RECOVERED_MAPPED_POWER_COMPLETE
+    mapped_power_classification: CG_MAPPED_POWER_POSITIVE
+    private_promotion: MRTC_CLOCK_GATING_MAPPED_POSITIVE_PRIVATE
+    promotion_eligible: true
+    production_rtl_changed: false
+    clock_gating_executed: true
+    postroute_pair_completed: false
+    equivalence_method: gate-level_regression_equivalence_evidence
+    formality_status: not_run_no_reviewed_setup
+presentation:
+  percentage_combination_allowed: false
+  stage2_reference: Direct_G0
+  public_decision_pending_human_review: true
 publication:
   review_branch_only_until_human_merge: true
   public_main_modified_by_task: false
+  stage1_branch_modified_by_task: false
   release_or_tag_changed: false
+  pull_request_created: false
+  pushed_with_force: false
+  merge_performed: false
+  production_rtl_changed: false
+  eda_rerun: false
 nonclaims:
   - post-route power
   - CTS clock-tree power
+  - PrimeTime-PX
   - silicon-measured power
   - foundry-signoff power
   - Fmax
-  - automatic clock-gating benefit
+  - Formality result
+  - DFT or scan closure
+  - workload-independent clock-gating saving
+  - arithmetic combination of Stage-1 and Stage-2 percentages

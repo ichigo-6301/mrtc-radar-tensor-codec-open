@@ -20,6 +20,8 @@ PRIMARY_SHOWCASE_DOCS = (
     "docs/en/results.md",
     "docs/zh-CN/asic_implementation.md",
     "docs/en/asic_implementation.md",
+    "docs/zh-CN/asic_clock_gating_experiment.md",
+    "docs/en/asic_clock_gating_experiment.md",
     "docs/zh-CN/limitations.md",
     "docs/en/limitations.md",
     "docs/zh-CN/roadmap.md",
@@ -77,10 +79,14 @@ REVIEW_README_MARKERS = {
         "make bounded-dc-ab-validate",
         "make direct-stream-timing-validate",
         "make power-architecture-ab-validate",
+        "make rdtc-clock-gating-power-validate",
+        "make rdtc-two-stage-power-validate",
         "436.4352 -> 109.8717 mW",
+        "107.3535 -> 41.1522 mW",
         "不会重新执行 ModelSim、Design Compiler、P&R 或 PrimeTime",
         "docs/assets/bitpacker_pipeline_ab.svg",
         "docs/assets/engine_scaling.svg",
+        "docs/assets/clock_gating_power_ab.svg",
         'width="760"',
         "PUBLIC_SCOPE.md",
         "provenance/claims.yaml",
@@ -104,10 +110,14 @@ REVIEW_README_MARKERS = {
         "make bounded-dc-ab-validate",
         "make direct-stream-timing-validate",
         "make power-architecture-ab-validate",
+        "make rdtc-clock-gating-power-validate",
+        "make rdtc-two-stage-power-validate",
         "436.4352 -> 109.8717 mW",
+        "107.3535 -> 41.1522 mW",
         "do not rerun ModelSim, Design Compiler, P&R, or PrimeTime",
         "docs/assets/bitpacker_pipeline_ab.svg",
         "docs/assets/engine_scaling.svg",
+        "docs/assets/clock_gating_power_ab.svg",
         'width="760"',
         "PUBLIC_SCOPE.md",
         "provenance/claims.yaml",
@@ -128,7 +138,9 @@ REVIEW_EVIDENCE_LINKS = {
         "evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml",
         "evidence/rdtc_v1_bounded_direct_asic.yaml",
         "evidence/rdtc_v1_power_architecture_ab/README.md",
+        "evidence/rdtc_v1_clock_gating_mapped_dc/README.md",
         "docs/zh-CN/asic_power_experiment.md",
+        "docs/zh-CN/asic_clock_gating_experiment.md",
         "docs/zh-CN/results.md",
         "evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml",
     ),
@@ -143,7 +155,9 @@ REVIEW_EVIDENCE_LINKS = {
         "evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml",
         "evidence/rdtc_v1_bounded_direct_asic.yaml",
         "evidence/rdtc_v1_power_architecture_ab/README.md",
+        "evidence/rdtc_v1_clock_gating_mapped_dc/README.md",
         "docs/en/asic_power_experiment.md",
+        "docs/en/asic_clock_gating_experiment.md",
         "docs/en/results.md",
         "evidence/rdtc_v1_bounded_direct_fpga_ooc200.yaml",
     ),
@@ -165,6 +179,82 @@ POWER_DOC_MARKERS = {
         "74.819%",
         "clock_mw = 0",
         "../../evidence/rdtc_v1_power_architecture_ab/README.md",
+    ),
+}
+
+CLOCK_GATING_POWER_DOC_MARKERS = {
+    "docs/en/asic_clock_gating_experiment.md": (
+        "MRTC_CLOCK_GATING_MAPPED_POSITIVE_PRIVATE",
+        "Direct G0",
+        "Direct G1",
+        "272 `CLKGATETST_X1`",
+        "34,816",
+        "50,988",
+        "55,929",
+        "61.67%",
+        "58.46%",
+        "59.52%",
+        "15.58%",
+        "Activity Annotation Coverage is not verification test coverage",
+        "gate-level regression equivalence evidence",
+        "8,136",
+        "MAPPED_SDC_VECTOR_REPLAY_ERRORS_DDC_CONSTRAINTS_PRESERVED",
+        "FULL_RELEASED",
+        "../../evidence/rdtc_v1_clock_gating_mapped_dc/README.md",
+    ),
+    "docs/zh-CN/asic_clock_gating_experiment.md": (
+        "MRTC_CLOCK_GATING_MAPPED_POSITIVE_PRIVATE",
+        "Direct G0",
+        "Direct G1",
+        "272 个",
+        "34,816",
+        "50,988",
+        "55,929",
+        "61.67%",
+        "58.46%",
+        "59.52%",
+        "15.58%",
+        "Activity Annotation Coverage 不是验证 test coverage",
+        "gate-level regression equivalence evidence",
+        "8,136",
+        "MAPPED_SDC_VECTOR_REPLAY_ERRORS_DDC_CONSTRAINTS_PRESERVED",
+        "FULL_RELEASED",
+        "../../evidence/rdtc_v1_clock_gating_mapped_dc/README.md",
+    ),
+    "docs/en/results.md": (
+        "Two-Stage Mapped Power Study",
+        "Buffered -> Direct-AXIS",
+        "Direct G0 -> Direct G1",
+        "percentages are not added",
+    ),
+    "docs/zh-CN/results.md": (
+        "两阶段 mapped 功耗研究",
+        "Buffered -> Direct-AXIS",
+        "Direct G0 -> Direct G1",
+        "百分比不得相加",
+    ),
+    "docs/en/asic_implementation.md": (
+        "Direct Automatic Clock Gating (Mapped DC)",
+        "+0.093015/+0.0151572 ns",
+        "+1.4645/+0.18546 ns",
+    ),
+    "docs/zh-CN/asic_implementation.md": (
+        "Direct 自动时钟门控（Mapped DC）",
+        "+0.093015/+0.0151572 ns",
+        "+1.4645/+0.18546 ns",
+    ),
+    "provenance/claims.yaml": (
+        "rdtc_v1_direct_clock_gating_dc315_burst_dynamic_power_reduction",
+        "rdtc_v1_direct_clock_gating_dc315_burst_energy_per_block_reduction",
+        "rdtc_v1_direct_clock_gating_dc315_active_dynamic_power_reduction",
+    ),
+    "provenance/evidence.yaml": ("rdtc_v1_clock_gating_mapped_dc_public",),
+    "provenance/nonclaims.yaml": (
+        "rdtc_v1_clock_gating_mapped_no_physical_power",
+        "rdtc_v1_clock_gating_no_formal_or_dft_closure",
+        "rdtc_v1_clock_gating_no_portable_mapped_sdc_replay",
+        "rdtc_v1_clock_gating_activity_annotation_not_test_coverage",
+        "rdtc_v1_two_stage_power_no_arithmetic_accumulation",
     ),
 }
 
@@ -467,6 +557,15 @@ def check(root):
         for marker in markers:
             if marker not in text:
                 errors.append("{} missing architecture-power marker {}".format(name, marker))
+    for name, markers in CLOCK_GATING_POWER_DOC_MARKERS.items():
+        path = root / name
+        if not path.is_file():
+            errors.append("missing clock-gating power document: {}".format(name))
+            continue
+        text = path.read_text(encoding="utf-8")
+        for marker in markers:
+            if marker not in text:
+                errors.append("{} missing clock-gating power marker {}".format(name, marker))
     for name, markers in DATA_CONTRACT_MARKERS.items():
         text = (root / name).read_text(encoding="utf-8")
         for marker in markers:

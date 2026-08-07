@@ -1,5 +1,10 @@
 # Activity-Driven Architecture Power A/B
 
+[Chinese](../zh-CN/asic_power_experiment.md) · [Stage 2 mapped clock-gating study](asic_clock_gating_experiment.md) · [Results](results.md)
+
+This page is the Stage-1 `Buffered -> Direct-AXIS` architecture study. Stage 2
+uses Direct G0 as its own baseline and is reported separately.
+
 ## Decision
 
 The reviewed 315 MHz Buffered-to-Direct comparison is classified
@@ -7,9 +12,10 @@ The reviewed 315 MHz Buffered-to-Direct comparison is classified
 source/library/constraint identity, timing, electrical checks, and both power
 promotion criteria pass. The experiment changes no production RTL.
 
-Clock-gating synthesis is a separate experiment and was not promoted or
-published in this result. No ICG, routed-power, or PrimeTime-PX claim follows
-from this architecture comparison.
+Clock-gating synthesis is a separate experiment. Its later mapped result does
+not alter this Stage-1 baseline or authorize adding the two percentages. No
+ICG, routed-power, or PrimeTime-PX claim follows from this architecture
+comparison itself.
 
 ## Fixed Comparison
 
@@ -93,7 +99,7 @@ The result is an **activity-driven mapped-netlist power estimate**. It is not:
 - measured silicon or foundry-signoff power;
 - a maximum-frequency result;
 - a universal saving across untested traffic patterns;
-- evidence for automatic clock gating.
+- automatic clock-gating evidence within this Stage-1 package.
 
 Both mapped reports contain `clock_mw = 0`. The evidence preserves the
 zero-to-zero comparison as zero delta, but does not reinterpret it as a
@@ -101,3 +107,6 @@ physical clock-network measurement.
 
 Machine-readable evidence and validation commands are in
 [the architecture-power package](../../evidence/rdtc_v1_power_architecture_ab/README.md).
+
+Continue to the independent
+[Direct G0/G1 mapped clock-gating study](asic_clock_gating_experiment.md).

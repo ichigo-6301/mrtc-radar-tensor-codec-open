@@ -1,13 +1,18 @@
 # Activity-Driven 架构功耗 A/B
 
+[English](../en/asic_power_experiment.md) · [Stage 2 映射级时钟门控实验](asic_clock_gating_experiment.md) · [结果](results.md)
+
+本页是 Stage-1 `Buffered -> Direct-AXIS` 架构实验。Stage 2 以 Direct G0
+为自己的 baseline，并独立报告。
+
 ## 结论
 
 经审阅的 315 MHz Buffered-to-Direct 对比分类为 `ARCH_POWER_POSITIVE`。
 功能归一化、activity coverage、source/library/constraint 身份、时序、
 electrical check 与两项功耗 promotion 条件均通过；本实验未修改 production RTL。
 
-自动时钟门控属于独立实验，本结果没有 promotion 或发布 clock-gating 结论，
-也不由此声明 ICG、route 后功耗或 PrimeTime-PX 结果。
+自动时钟门控属于独立实验。后续 mapped 结果不改变本 Stage-1 baseline，也不允许
+把两阶段百分比相加。本架构比较本身不声明 ICG、route 后功耗或 PrimeTime-PX 结果。
 
 ## 固定对比条件
 
@@ -86,10 +91,13 @@ Engine 各约 `54.6 mW`。Direct root 约为 `117 mW`，两个 Engine 各约 `55
 - 芯片实测或 foundry-signoff 功耗；
 - maximum-frequency 结果；
 - 对未测试流量模式的通用节省结论；
-- 自动时钟门控证据。
+- 本 Stage-1 包内部的自动时钟门控证据。
 
 两份 mapped report 都包含 `clock_mw = 0`。Evidence 将 zero-to-zero 对比保留为
 零 delta，但不把它解释为物理 clock-network 测量。
 
 机器可读 Evidence 与验证命令见
 [架构功耗证据包](../../evidence/rdtc_v1_power_architecture_ab/README.md)。
+
+下一阶段见独立的
+[Direct G0/G1 映射级时钟门控实验](asic_clock_gating_experiment.md)。

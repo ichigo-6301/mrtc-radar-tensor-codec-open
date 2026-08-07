@@ -8,6 +8,20 @@ The buffered and Direct-AXIS wrappers were resynthesized with Design Compiler `O
 
 Both points close setup with zero violating paths. Buffered reports `1,529,495.20 um2 / 786,342 cells`; Direct reports `420,208.44 um2 / 220,298 cells`, a `72.53%` cell-area and `71.98%` cell-count reduction. The buffered feeder and payload-commit hierarchies account for `1,124,835.52 um2`, or `73.54%` of its top area, while the summed Engine hierarchy differs by only `0.34%` between the two designs. This isolates the gain to wrapper storage responsibility rather than a different Rice datapath or synthesis setting. The comparison is `PASS_DC_ONLY`: it is not SRAM-macro area, routed area, power, Fmax, or foundry signoff. Evidence: [bounded buffered versus Direct DC A/B](../../evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml).
 
+## Direct Automatic Clock Gating (Mapped DC)
+
+The independent Stage-2 comparison keeps the Direct architecture fixed and
+changes automatic clock gating only. G0 is ungated; G1 inserts 272
+`CLKGATETST_X1` cells and gates 34,816 bits, including all 32,768 Ring data
+bits. G0/G1 setup WNS is `+0.093015/+0.0151572 ns`, TNS is zero, and both have
+zero electrical violations. G1 clock-gating setup/hold WNS is
+`+1.4645/+0.18546 ns`. The mapped cell area is
+`420,208.442440 -> 354,760.204745 um2` (-15.58%).
+
+This is a synthesis and mapped-power result, separate from the physical
+implementation profiles below. See the [clock-gating experiment](asic_clock_gating_experiment.md)
+and [sanitized machine evidence](../../evidence/rdtc_v1_clock_gating_mapped_dc/README.md).
+
 ## Register-expanded
 
 `register-expanded` binds no SRAM leaf; prefix buffers are implemented as standard-cell registers, so the SRAM macro count is zero. The primary public results use the NanGate15 and Nangate45 DC matrices; Nangate45 adds a 700 MHz point. NanGate15 Liberty uses a 1 ps time unit, so the flow applies `SDC_TIME_SCALE=1000.0`. Since 45 nm closes at 700 MHz but not at 800 MHz, the 700 MHz mapped netlist is selected for the latest physical handoff.

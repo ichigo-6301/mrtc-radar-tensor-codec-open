@@ -346,3 +346,63 @@ claims:
     status: verified
     caveat: "Activity-driven mapped-netlist estimate for the fixed BURST_IDLE workload only; not post-route or PrimeTime-PX energy, CTS clock-tree power, silicon measurement, foundry signoff, a universal workload result, or Fmax."
     public: true
+  - id: rdtc_v1_direct_clock_gating_dc315_burst_dynamic_power_reduction
+    profile: rdtc_v1_direct_clock_gating_mapped_dc
+    statement: "At 315 MHz under the matched Direct-AXIS BURST_IDLE mapped-netlist contract, automatic clock gating reduced dynamic power from 107.3535 mW to 41.1522 mW, a 61.66664337911665665302016236% reduction relative to Direct G0."
+    metric: burst_idle_dynamic_power_reduction_percent
+    value: 61.66664337911665665302016236
+    unit: percent
+    benchmark: fixed 32-block BURST_IDLE Direct G0/G1 mapped clock-gating workload
+    configuration: "two Engines, Direct-AXIS register-expanded, Nangate45 TT/1.1 V/25 C, 315 MHz, retiming disabled, mapped zero-delay activity with race-free drive and functional test-enable 0"
+    source_ref: 6a3b178dc9d9a075e93efeab59980ffb2ad89cb0
+    tool: "Design Compiler / Power Compiler O-2018.06-SP1 and Questa mapped zero-delay gate simulation"
+    evidence:
+      - rdtc_v1_clock_gating_mapped_dc_public
+    status: verified
+    caveat: "Activity-driven mapped-netlist estimate for this fixed workload; relative to Direct G0 only and not additive with the Buffered-to-Direct result. No routed power, CTS clock-tree power, PrimeTime-PX, silicon measurement, foundry signoff, universal workload result, or Fmax is claimed."
+    public: true
+  - id: rdtc_v1_direct_clock_gating_dc315_burst_energy_per_block_reduction
+    profile: rdtc_v1_direct_clock_gating_mapped_dc
+    statement: "For the same BURST_IDLE comparison, total energy per completed block changed from 164.5480357142857142857142857 nJ to 68.36015535714285714285714284 nJ, a 58.45580589254766031195840555% reduction relative to Direct G0."
+    metric: burst_idle_energy_per_block_reduction_percent
+    value: 58.45580589254766031195840555
+    unit: percent
+    benchmark: fixed 32-block BURST_IDLE Direct G0/G1 mapped clock-gating workload
+    configuration: "energy derived from each point's unrounded mapped total power, exact 14,373-cycle measurement window, 315 MHz frequency, and 32 completed blocks"
+    source_ref: 6a3b178dc9d9a075e93efeab59980ffb2ad89cb0
+    tool: "Design Compiler / Power Compiler O-2018.06-SP1 and Questa mapped zero-delay gate simulation"
+    evidence:
+      - rdtc_v1_clock_gating_mapped_dc_public
+    status: verified
+    caveat: "Activity-driven mapped-netlist energy estimate for this fixed workload; relative to Direct G0 only. It is not a routed, clock-tree, silicon, foundry-signoff, universal-workload, or Fmax result."
+    public: true
+  - id: rdtc_v1_direct_clock_gating_dc315_active_dynamic_power_reduction
+    profile: rdtc_v1_direct_clock_gating_mapped_dc
+    statement: "On the fixed high-duty ACTIVE_LEGAL workload, Direct G1 dynamic power changed from 107.2775 mW to 43.4293 mW, a 59.51686047866514413553634266% reduction relative to Direct G0."
+    metric: active_legal_dynamic_power_reduction_percent
+    value: 59.51686047866514413553634266
+    unit: percent
+    benchmark: fixed 64-block ACTIVE_LEGAL Direct G0/G1 mapped clock-gating workload
+    configuration: "P0/P1 alternation, 320-cycle block-start interval, output ready continuously high, mapped zero-delay activity with race-free drive and functional test-enable 0"
+    source_ref: 6a3b178dc9d9a075e93efeab59980ffb2ad89cb0
+    tool: "Design Compiler / Power Compiler O-2018.06-SP1 and Questa mapped zero-delay gate simulation"
+    evidence:
+      - rdtc_v1_clock_gating_mapped_dc_public
+    status: verified
+    caveat: "ACTIVE_LEGAL is a high-duty legal workload, not maximum throughput, zero-gap sustained input, 100% output-valid duty, or a universal traffic model. The result is mapped, not routed or silicon power."
+    public: true
+  - id: rdtc_v1_direct_g1_dc315_ring_clock_gating_coverage
+    profile: rdtc_v1_direct_clock_gating_mapped_dc
+    statement: "The electrically clean Direct G1 mapped implementation inserted 272 CLKGATETST_X1 cells and gated 34816 bits, including 32768 of 32768 Ring data bits."
+    metric: ring_gated_bit_coverage_percent
+    value: 100
+    unit: percent
+    benchmark: Direct G1 mapped automatic clock-gating implementation
+    configuration: "post-map denominator 50988 register bits; precompile denominator 55929 register bits; mapped sequential-cell counts G0/G1 50999/51271 are reported separately"
+    source_ref: 6a3b178dc9d9a075e93efeab59980ffb2ad89cb0
+    tool: Design Compiler O-2018.06-SP1
+    evidence:
+      - rdtc_v1_clock_gating_mapped_dc_public
+    status: verified
+    caveat: "Ring coverage is a gated-register-bit ratio, not verification coverage, DFT/scan coverage, total mapped-cell coverage, or physical clock-tree coverage."
+    public: true

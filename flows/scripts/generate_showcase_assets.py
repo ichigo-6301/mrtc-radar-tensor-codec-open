@@ -12,6 +12,7 @@ from pathlib import Path
 
 GENERATED_ASSETS = (
     "bitpacker_pipeline_ab.svg",
+    "clock_gating_power_ab.svg",
     "compression_vs_snr.svg",
     "engine_scaling.svg",
     "rdtc_multiengine_packet_timing.svg",
@@ -124,6 +125,22 @@ AUTHORED_ASSET_RULES = {
 }
 
 GENERATED_ASSET_RULES = {
+    "clock_gating_power_ab.svg": {
+        "required": (
+            "Direct G0/G1 mapped dynamic power",
+            "G0 ungated",
+            "G1 clock-gated",
+            "IDLE",
+            "BURST_IDLE",
+            "ACTIVE_LEGAL",
+            "Stage 2 only",
+            "not cumulative",
+        ),
+        "forbidden": (
+            "Stage 1 + Stage 2",
+            "cumulative saving",
+        ),
+    },
     "rdtc_stream_timing.svg": {
         "required": (
             "Engine 0 / Block 0",
@@ -278,6 +295,65 @@ def load_bitpacker_data(path):
         if by_role["baseline"][field] != by_role["optimized"][field]:
             raise ValueError("Bitpacker rows disagree on {} in {}".format(field, path))
     return by_role
+
+
+CLOCK_GATING_POINT_ORDER = (
+    "G0_IDLE",
+    "G0_BURST_IDLE",
+    "G0_ACTIVE_LEGAL",
+    "G1_IDLE",
+    "G1_BURST_IDLE",
+    "G1_ACTIVE_LEGAL",
+)
+
+CLOCK_GATING_WORKLOADS = ("IDLE", "BURST_IDLE", "ACTIVE_LEGAL")
+
+
+def load_clock_gating_power_data(path):
+    """Load the fixed mapped G0/G1 dynamic-power points used by the chart."""
+    rows = read_csv(path)
+    required_fields = {
+        "point_id",
+        "variant",
+        "workload",
+        "status",
+        "activity_method",
+        "drive_mode",
+        "test_enable",
+        "dynamic_mw",
+    }
+    if not rows or not required_fields.issubset(rows[0]):
+        raise ValueError("clock-gating points schema mismatch: {}".format(path))
+    if tuple(row["point_id"] for row in rows) != CLOCK_GATING_POINT_ORDER:
+        raise ValueError("clock-gating chart requires the canonical six-point order")
+
+    by_workload = {workload: {} for workload in CLOCK_GATING_WORKLOADS}
+    for row in rows:
+        variant = row["variant"]
+        workload = row["workload"]
+        expected_point = "{}_{}".format(variant, workload)
+        if variant not in ("G0", "G1") or workload not in by_workload:
+            raise ValueError("unexpected clock-gating point: {}".format(row["point_id"]))
+        if row["point_id"] != expected_point:
+            raise ValueError("clock-gating point identity mismatch: {}".format(row["point_id"]))
+        if variant in by_workload[workload]:
+            raise ValueError("duplicate {} {} point".format(variant, workload))
+        if row["status"] != "PASS":
+            raise ValueError("clock-gating point did not pass: {}".format(row["point_id"]))
+        if (
+            row["activity_method"] != "mapped_zero_delay"
+            or row["drive_mode"] != "RACE_FREE_DRIVE"
+            or row["test_enable"] != "0"
+        ):
+            raise ValueError("clock-gating activity contract mismatch: {}".format(row["point_id"]))
+        dynamic_mw = Decimal(row["dynamic_mw"])
+        if not dynamic_mw.is_finite() or dynamic_mw <= 0:
+            raise ValueError("invalid dynamic power for {}".format(row["point_id"]))
+        by_workload[workload][variant] = dynamic_mw
+
+    if any(tuple(sorted(points)) != ("G0", "G1") for points in by_workload.values()):
+        raise ValueError("clock-gating chart requires paired G0/G1 points")
+    return by_workload
 
 
 def _sha256_file(path):
@@ -737,6 +813,79 @@ def scaling_svg(by_engine, bitpacker_by_role):
     )
 
 
+def clock_gating_power_svg(by_workload):
+    axis_max = Decimal("120")
+    plot_top = 120
+    plot_bottom = 500
+    plot_height = plot_bottom - plot_top
+    group_centers = {"IDLE": 250, "BURST_IDLE": 520, "ACTIVE_LEGAL": 790}
+    bar_width = 76
+    bar_gap = 14
+
+    bars = []
+    labels = []
+    savings = []
+    for workload in CLOCK_GATING_WORKLOADS:
+        center = group_centers[workload]
+        g0 = by_workload[workload]["G0"]
+        g1 = by_workload[workload]["G1"]
+        if g0 > axis_max or g1 > axis_max:
+            raise ValueError("clock-gating dynamic power exceeds the fixed chart axis")
+        for variant, value, x, color in (
+            ("G0", g0, center - bar_gap // 2 - bar_width, "#2563eb"),
+            ("G1", g1, center + bar_gap // 2, "#16a34a"),
+        ):
+            height = rounded_int(value * Decimal(plot_height) / axis_max)
+            y = plot_bottom - height
+            bars.append(
+                '  <rect class="{}-bar" x="{}" y="{}" width="{}" height="{}" rx="5" fill="{}"/>'.format(
+                    variant.lower(), x, y, bar_width, height, color
+                )
+            )
+            labels.append(
+                '  <text x="{}" y="{}" text-anchor="middle" class="value">{}</text>'.format(
+                    x + bar_width // 2, y - 10, compact_decimal(value)
+                )
+            )
+        reduction = ((g0 - g1) * Decimal(100) / g0).quantize(
+            Decimal("0.1"), rounding=ROUND_HALF_UP
+        )
+        savings.append(
+            '  <text x="{}" y="568" text-anchor="middle" class="saving">{}% lower</text>'.format(
+                center, compact_decimal(reduction)
+            )
+        )
+
+    return """<svg xmlns="http://www.w3.org/2000/svg" width="1000" height="650" viewBox="0 0 1000 650" role="img" aria-labelledby="title desc" preserveAspectRatio="xMidYMid meet">
+  <title id="title">Direct G0/G1 mapped dynamic power</title>
+  <desc id="desc">Grouped bars compare Direct G0 ungated and Direct G1 clock-gated mapped-netlist dynamic power for IDLE, BURST_IDLE, and ACTIVE_LEGAL at 315 MHz.</desc>
+  <style>.title{{font:700 31px Arial,sans-serif;fill:#0f172a}}.sub{{font:400 17px Arial,sans-serif;fill:#475569}}.axis{{font:400 16px Arial,sans-serif;fill:#334155}}.label{{font:700 18px Arial,sans-serif;fill:#0f172a}}.value{{font:700 17px Arial,sans-serif;fill:#0f172a}}.saving{{font:700 17px Arial,sans-serif;fill:#166534}}.grid{{stroke:#cbd5e1;stroke-width:1}}</style>
+  <rect width="1000" height="650" fill="#f8fafc"/>
+  <text x="55" y="48" class="title">Direct G0/G1 mapped dynamic power</text>
+  <text x="55" y="76" class="sub">315 MHz mapped-netlist estimate; lower is better.</text>
+  <rect x="680" y="38" width="18" height="18" rx="3" fill="#2563eb"/><text x="708" y="53" class="axis">G0 ungated</text>
+  <rect x="820" y="38" width="18" height="18" rx="3" fill="#16a34a"/><text x="848" y="53" class="axis">G1 clock-gated</text>
+
+  <g class="grid">
+    <line x1="110" y1="500" x2="930" y2="500"/><line x1="110" y1="405" x2="930" y2="405"/>
+    <line x1="110" y1="310" x2="930" y2="310"/><line x1="110" y1="215" x2="930" y2="215"/>
+    <line x1="110" y1="120" x2="930" y2="120"/>
+  </g>
+  <line x1="110" y1="120" x2="110" y2="500" stroke="#334155" stroke-width="2"/>
+  <line x1="110" y1="500" x2="930" y2="500" stroke="#334155" stroke-width="2"/>
+  <g class="axis" text-anchor="end"><text x="98" y="505">0</text><text x="98" y="410">30</text><text x="98" y="315">60</text><text x="98" y="220">90</text><text x="98" y="125">120</text></g>
+  <text x="34" y="310" text-anchor="middle" class="label" transform="rotate(-90 34 310)">Dynamic power (mW)</text>
+
+{bars}
+{labels}
+  <g class="label" text-anchor="middle"><text x="250" y="532">IDLE</text><text x="520" y="532">BURST_IDLE</text><text x="790" y="532">ACTIVE_LEGAL</text></g>
+{savings}
+  <text x="500" y="610" text-anchor="middle" class="sub">Stage 2 only: G1 relative to Direct G0; architecture and clock-gating savings are not cumulative.</text>
+  <text x="500" y="635" text-anchor="middle" class="sub">Activity-driven zero-delay mapped estimate; not CTS clock-tree, post-route, or silicon power.</text>
+</svg>
+""".format(bars="\n".join(bars), labels="\n".join(labels), savings="\n".join(savings))
+
+
 def validate_xml(name, content):
     try:
         root = ET.fromstring(content)
@@ -799,8 +948,12 @@ def main():
         data_dir / "rdtc_v1_direct_stream_timing_nominal.csv",
         data_dir / "rdtc_v1_direct_stream_timing_backpressure.csv",
     )
+    clock_gating_data = load_clock_gating_power_data(
+        root / "evidence" / "rdtc_v1_clock_gating_mapped_dc" / "points.csv"
+    )
     expected = {
         "bitpacker_pipeline_ab.svg": bitpacker_svg(bitpacker_data),
+        "clock_gating_power_ab.svg": clock_gating_power_svg(clock_gating_data),
         "compression_vs_snr.svg": compression_svg(snr_values, compression_data),
         "engine_scaling.svg": scaling_svg(scaling_data, bitpacker_data),
         "rdtc_multiengine_packet_timing.svg": direct_multiengine_packet_timing_svg(direct_timing_data),

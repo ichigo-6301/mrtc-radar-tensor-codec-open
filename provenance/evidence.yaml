@@ -239,3 +239,22 @@ evidence:
     maturity: verified
     evidence_result_status: verified
     comparison_scope: register_expanded_mapped_netlist_power_only
+  - id: rdtc_v1_clock_gating_mapped_dc_public
+    path: evidence/rdtc_v1_clock_gating_mapped_dc/manifest.json
+    type: direct_ungated_vs_automatic_clock_gated_activity_driven_mapped_power_ab
+    source_ref: 6a3b178dc9d9a075e93efeab59980ffb2ad89cb0
+    source_visibility: private_fixed_commit
+    public_evidence_scope: "sanitized six-point mapped activity/power package, G0/G1 implementation and ICG metrics, denominator-explicit coverage, gate-level regression equivalence hashes, model audit, parser recovery, and report hashes"
+    tool: "Design Compiler / Power Compiler O-2018.06-SP1 and Questa mapped zero-delay gate simulation"
+    claims:
+      - rdtc_v1_direct_clock_gating_dc315_burst_dynamic_power_reduction
+      - rdtc_v1_direct_clock_gating_dc315_burst_energy_per_block_reduction
+      - rdtc_v1_direct_clock_gating_dc315_active_dynamic_power_reduction
+      - rdtc_v1_direct_g1_dc315_ring_clock_gating_coverage
+    sha256: c2490bda46c37c83644551a5d8ac6c67b35b099cac7115bd2b101a86b9ec9338
+    public: true
+    maturity: verified
+    evidence_result_status: verified
+    comparison_scope: direct_g0_vs_direct_g1_mapped_clock_gating_only
+    equivalence_method: gate-level_regression_equivalence_evidence
+    formality_status: not_run_no_reviewed_setup

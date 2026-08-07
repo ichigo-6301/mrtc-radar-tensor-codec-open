@@ -499,15 +499,20 @@ def validate_doc_values(root):
     for path in files:
         if not path.is_file():
             raise ValidationError("missing public document {}".format(path.relative_to(root)))
-    combined = "\n".join(path.read_text(encoding="utf-8") for path in files)
-    for token in ("61.67%", "58.46%", "59.52%", "15.58%", "Activity Annotation Coverage"):
-        if token not in combined:
-            raise ValidationError("missing rounded document value/boundary {}".format(token))
-    if "not verification test coverage" not in combined and "不是验证 test coverage" not in combined:
-        raise ValidationError("activity annotation coverage is not distinguished from test coverage")
-    for pattern in OVERCLAIM_PATTERNS:
-        if pattern.search(combined):
-            raise ValidationError("documentation overclaim matched: {}".format(pattern.pattern))
+    groups = {
+        "zh-CN": (files[0], files[2], "不是验证 test coverage"),
+        "en": (files[1], files[3], "not verification test coverage"),
+    }
+    for language, (readme, experiment, coverage_boundary) in groups.items():
+        combined = "\n".join(path.read_text(encoding="utf-8") for path in (readme, experiment))
+        for token in ("61.67%", "58.46%", "59.52%", "15.58%", "Activity Annotation Coverage"):
+            if token not in combined:
+                raise ValidationError("{} documents missing rounded value/boundary {}".format(language, token))
+        if coverage_boundary not in combined:
+            raise ValidationError("{} activity annotation coverage is not distinguished from test coverage".format(language))
+        for pattern in OVERCLAIM_PATTERNS:
+            if pattern.search(combined):
+                raise ValidationError("{} documentation overclaim matched: {}".format(language, pattern.pattern))
     return True
 
 

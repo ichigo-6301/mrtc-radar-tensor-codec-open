@@ -38,6 +38,10 @@ jobs:
         run: python flows/scripts/validate_bitpacker_pipeline_ab.py
       - name: Check mapped architecture-power A/B evidence
         run: python flows/scripts/validate_rdtc_power_2a.py evidence/rdtc_v1_power_architecture_ab --require-promotion
+      - name: Check mapped clock-gating power A/B evidence
+        run: python flows/scripts/rdtc_clock_gating_power_evidence.py validate
+      - name: Check combined two-stage power evidence
+        run: make rdtc-two-stage-power-validate
       - name: Run current main unit tests
         shell: bash
         run: |
@@ -91,7 +95,7 @@ jobs:
       - run: make bounded-direct-rtl-smoke
       - run: make bounded-direct-rtl-identity-check
       - run: make bitpacker-pipeline-ab-validate
-      - run: make power-architecture-ab-validate
+      - run: make rdtc-two-stage-power-validate
       - run: make showcase-assets-check
       - run: python -m unittest discover -s flows/scripts -p 'test_*.py' -v
       - run: python -m unittest discover -s scripts/vivado -p 'test_*.py' -v

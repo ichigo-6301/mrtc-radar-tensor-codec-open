@@ -89,4 +89,18 @@ SRAM-macro 的 333 MHz 结果已完成并验证芯片级 OpenROAD P&R、OpenRCX 
 
 ASIC evidence：[buffered versus Direct DC A/B](../../evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml) · [register-expanded](../../evidence/rdtc_v1_register_expanded.yaml) · [SRAM macro](../../evidence/rdtc_v1_sram_macro_333m.yaml) · [bounded Direct register/SRAM](../../evidence/rdtc_v1_bounded_direct_asic.yaml)
 
+## 两阶段 mapped 功耗研究
+
+| 阶段 | 受控 A/B | BURST_IDLE dynamic | BURST_IDLE energy/block | ACTIVE_LEGAL dynamic | 边界 |
+|---|---|---:|---:|---:|---|
+| Stage 1 | Buffered -> Direct-AXIS | `436.4352 -> 109.8717 mW`（-74.83%） | `674.82 -> 167.59 nJ`（-75.17%） | -74.99% | 架构变化；RTL-SAIF-to-mapped |
+| Stage 2 | Direct G0 -> Direct G1 | `107.3535 -> 41.1522 mW`（-61.67%） | `164.55 -> 68.36 nJ`（-58.46%） | -59.52% | 自动时钟门控；mapped zero-delay GLS activity |
+
+两项是 baseline 不同的独立受控实验，百分比不得相加。Stage 2 插入 272 个
+`CLKGATETST_X1`，门控 34,816 bit，覆盖全部 32,768 Ring data bit；setup、
+clock-gating setup/hold slack 均非负，electrical violation 为 0。功能证据是
+2/32/64-block gate-level regression equivalence evidence；没有运行 Formality。
+
+[Stage-1 方法](asic_power_experiment.md) · [Stage-2 方法](asic_clock_gating_experiment.md) · [Stage-2 机器证据](../../evidence/rdtc_v1_clock_gating_mapped_dc/README.md)
+
 公开 evidence 位于 `evidence/`，运行条件和边界位于 `provenance/`。PDK、Liberty/DB、LEF/GDS、SPEF 和原始 EDA 工作目录不随仓库发布。

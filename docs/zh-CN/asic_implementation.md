@@ -8,6 +8,19 @@ Buffered 与 Direct-AXIS wrapper 使用 Design Compiler `O-2018.06-SP1`、同一
 
 两侧均以零 setup violating path 闭合。Buffered 为 `1,529,495.20 um2 / 786,342 cells`，Direct 为 `420,208.44 um2 / 220,298 cells`，cell area 与 cell count 分别减少 `72.53%` 和 `71.98%`。Buffered 的 feeder 与 payload-commit 层次合计 `1,124,835.52 um2`，占顶层面积 `73.54%`；两侧 Engine 汇总面积仅相差 `0.34%`。这将收益归因到 wrapper 存储职责重构，而不是更换 Rice 数据通路或综合设置。该比较分类为 `PASS_DC_ONLY`，不代表 SRAM 宏面积、布线后面积、功耗、Fmax 或 foundry signoff。证据：[bounded buffered versus Direct DC A/B](../../evidence/rdtc_v1_bounded_buffered_vs_direct_dc_ab.yaml)。
 
+## Direct 自动时钟门控（Mapped DC）
+
+独立 Stage-2 比较保持 Direct 架构不变，只改变自动时钟门控。G0 未门控；G1
+插入 272 个 `CLKGATETST_X1`，门控 34,816 bit，其中包含全部 32,768 Ring
+data bit。G0/G1 setup WNS 为 `+0.093015/+0.0151572 ns`，TNS 为 0，且
+electrical violation 均为 0。G1 clock-gating setup/hold WNS 为
+`+1.4645/+0.18546 ns`。Mapped cell area 为
+`420,208.442440 -> 354,760.204745 um2`（-15.58%）。
+
+这是综合与 mapped-power 结果，和下文 physical implementation profile 分开。
+详见[时钟门控实验](asic_clock_gating_experiment.md)与
+[脱敏机器证据](../../evidence/rdtc_v1_clock_gating_mapped_dc/README.md)。
+
 ## Register-expanded
 
 `register-expanded` 不绑定 SRAM leaf，prefix buffer 由标准单元寄存器实现，因此 SRAM macro count 为 0。公开主结果使用 NanGate15 与 Nangate45 DC 矩阵；Nangate45 另增加 700 MHz 点。NanGate15 的 Liberty 时间单位为 1 ps，flow 通过 `SDC_TIME_SCALE=1000.0` 转换到 ns；45 nm 700 MHz 闭合而 800 MHz 未闭合，所以 700 MHz mapped netlist 被选作最新 physical handoff。

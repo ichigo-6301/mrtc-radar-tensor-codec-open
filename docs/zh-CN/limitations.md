@@ -36,7 +36,7 @@
 ## ASIC 与 signoff 边界
 
 - 不声明完整 top-level IO timing closure 或 silicon readiness；
-- 不声明 CDC/RDC、clock-gating、DFT/ATPG、LEC、GLS/SDF 或 foundry-signoff closure；
+- 不声明 CDC/RDC、DFT/ATPG、Formality/LEC、timing-annotated GLS/SDF 或 foundry-signoff closure；独立 clock-gating 研究只到 mapped DC power 与 zero-delay gate regression；
 - `72.53%` cell area 与 `71.98%` cell count 降幅来自同库、同 315 MHz、全寄存器 Design Compiler A/B，不代表 SRAM 宏面积、post-route 面积、功耗、Fmax 或 signoff；
 - 历史 `register-expanded` profile 将 prefix buffer 映射为标准单元寄存器；Direct register profile 同样展开 `32,768 bit` way-ring。两者都不代表 SRAM macro PPA；
 - 15 nm DC-only profile 只提供 ideal-clock internal reg-to-reg 综合边界。DC closure 不等于 P&R closure，因此不从该结果推导 post-route Fmax；
