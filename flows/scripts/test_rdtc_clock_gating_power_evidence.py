@@ -100,6 +100,24 @@ class ClockGatingEvidenceTests(unittest.TestCase):
         self.mutate_csv("clock_gating.csv", lambda row: row["metric"] == "postmap_sequential_bits", "value", "50999")
         self.assert_rejected()
 
+    def test_ring_coverage_is_recomputed_from_bit_counts(self):
+        self.mutate_csv(
+            "clock_gating.csv",
+            lambda row: row["metric"] == "ring_coverage_pct",
+            "value",
+            "1",
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_manifest_mapped_power_classification_is_bound(self):
+        self.mutate_json(
+            "manifest.json",
+            lambda value: value.__setitem__("mapped_power_classification", "CG_MAPPED_POWER_NEGATIVE"),
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
     def test_low_activity_coverage(self):
         self.mutate_csv("points.csv", lambda row: row["point_id"] == "G1_ACTIVE_LEGAL", "internal_leaf_pin_coverage_pct", "89.9")
         self.assert_rejected()
@@ -313,6 +331,13 @@ class ClockGatingDocumentTests(unittest.TestCase):
         text = text.replace("-61.67%", "SWAPPED_VALUE", 1)
         text = text.replace("-59.52%", "-61.67%", 1)
         text = text.replace("SWAPPED_VALUE", "-59.52%", 1)
+        path.write_text(text, encoding="utf-8", newline="\n")
+        with self.assertRaises(EVIDENCE.ValidationError):
+            EVIDENCE.validate_doc_values(self.root)
+
+    def test_stage_two_baseline_endpoint_is_bound(self):
+        path = self.root / "docs/en/asic_clock_gating_experiment.md"
+        text = path.read_text(encoding="utf-8").replace("107.3535 mW", "999.0000 mW", 1)
         path.write_text(text, encoding="utf-8", newline="\n")
         with self.assertRaises(EVIDENCE.ValidationError):
             EVIDENCE.validate_doc_values(self.root)

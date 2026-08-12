@@ -192,6 +192,7 @@ def eligibility_rows(points):
 
 
 def write_package(root, points):
+    (root / "README.md").write_text("Fixture evidence package.\n", encoding="utf-8")
     contract = contract_data()
     contract_path = root / "source_contract.json"
     contract_path.write_text(json.dumps(contract, sort_keys=True, indent=2) + "\n", encoding="utf-8")
@@ -271,11 +272,32 @@ class EvidenceContractTests(unittest.TestCase):
             with self.assertRaisesRegex(evidence.ValidationError, "input_hashes.sha256 SHA-256"):
                 evidence.validate(root)
 
+    def test_extra_raw_report_is_rejected_even_without_private_tokens(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = write_package(Path(temp), gating_points())
+            (root / "power.rpt").write_text("Total Dynamic Power = 1.0 mW\n", encoding="utf-8")
+            with self.assertRaisesRegex(evidence.ValidationError, "package inventory mismatch"):
+                evidence.validate(root)
+
+    def test_promoted_input_authority_is_exact(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = write_package(Path(temp), gating_points())
+            manifest_path = root / "manifest.json"
+            entries = evidence._read_hash_entries(root / "input_hashes.sha256")
+            entries["activity:fixture:bundle"] = "0" * 64
+            write_hash_entries(root / "input_hashes.sha256", entries)
+            manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+            manifest["input_hashes_sha256"] = evidence.sha256_file(root / "input_hashes.sha256")
+            manifest_path.write_text(json.dumps(manifest, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+            write_output_hashes(root)
+            with self.assertRaisesRegex(evidence.ValidationError, "promoted input authority inventory"):
+                evidence.validate(root, require_promotion=True)
+
     def test_output_hashes_are_required_and_verified(self):
         with tempfile.TemporaryDirectory() as temp:
             root = write_package(Path(temp), gating_points())
             (root / "output_hashes.sha256").unlink()
-            with self.assertRaisesRegex(evidence.ValidationError, "missing output_hashes.sha256"):
+            with self.assertRaisesRegex(evidence.ValidationError, "missing output_hashes.sha256|package inventory mismatch"):
                 evidence.validate(root)
         with tempfile.TemporaryDirectory() as temp:
             root = write_package(Path(temp), gating_points())

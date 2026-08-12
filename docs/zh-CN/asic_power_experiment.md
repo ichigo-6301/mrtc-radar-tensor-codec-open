@@ -49,7 +49,8 @@ activity artifact。
 两组 workload 的 output ready 始终有效。能量由每个 point 的精确测量周期与完成
 block 数直接计算。`IDLE` 只保留为诊断 workload，不参与架构 promotion。
 
-每种架构在两组 workload 中的 coverage 保持一致：
+每种架构在两组 workload 中的 Activity Annotation Coverage 保持一致。
+Activity Annotation Coverage 不是验证 test coverage：
 
 | 架构 | Clock | Functional inputs | Sequential outputs | Internal leaf pins | Overall non-default |
 |---|---:|---:|---:|---:|---:|

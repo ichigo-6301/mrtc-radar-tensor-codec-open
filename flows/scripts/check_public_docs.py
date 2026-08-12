@@ -7,6 +7,7 @@ import json
 import re
 import subprocess
 import sys
+import csv
 from decimal import Decimal
 from pathlib import Path
 from urllib.parse import unquote
@@ -714,6 +715,64 @@ def tracked_markdown(root):
     return [root / item.decode("utf-8") for item in output.split(b"\0") if item]
 
 
+def validate_stage1_document_values(root):
+    package = root / "evidence/rdtc_v1_power_architecture_ab"
+    comparison_path = package / "comparisons.csv"
+    try:
+        with comparison_path.open("r", encoding="utf-8", newline="") as stream:
+            rows = list(csv.DictReader(stream))
+    except (OSError, UnicodeError) as exc:
+        return ["cannot load Stage-1 comparisons: {}".format(exc)]
+    by_id = {}
+    for row in rows:
+        comparison_id = row.get("comparison_id", "")
+        if not comparison_id or comparison_id in by_id:
+            return ["Stage-1 comparison IDs must be nonempty and unique"]
+        by_id[comparison_id] = row
+
+    metrics = (
+        ("Cell area", "architecture-315mhz:bursty:area_total_um2", 2, "um2"),
+        ("Cell count", "architecture-315mhz:bursty:cell_count", 0, ""),
+        ("Sequential cells", "architecture-315mhz:bursty:sequential_cell_count", 0, ""),
+        ("BURST_IDLE dynamic power", "architecture-315mhz:bursty:dynamic_mw", 4, "mW"),
+        ("BURST_IDLE total power", "architecture-315mhz:bursty:total_mw", 2, "mW"),
+        ("BURST_IDLE energy/block", "architecture-315mhz:bursty:energy_per_block_nj", 2, "nJ"),
+        ("ACTIVE_LEGAL dynamic power", "architecture-315mhz:active:dynamic_mw", 4, "mW"),
+        ("ACTIVE_LEGAL total power", "architecture-315mhz:active:total_mw", 2, "mW"),
+        ("ACTIVE_LEGAL energy/block", "architecture-315mhz:active:energy_per_block_nj", 2, "nJ"),
+    )
+    errors = []
+    for document_name in (
+        "docs/en/asic_power_experiment.md",
+        "docs/zh-CN/asic_power_experiment.md",
+    ):
+        text = (root / document_name).read_text(encoding="utf-8")
+        for label, comparison_id, places, unit in metrics:
+            row = by_id.get(comparison_id)
+            if row is None or row.get("status") != "PASS":
+                errors.append("Stage-1 comparisons missing PASS row {}".format(comparison_id))
+                continue
+            line = next((item for item in text.splitlines() if "| {} |".format(label) in item), "")
+            baseline = format(Decimal(row["baseline"]), ",.{}f".format(places))
+            candidate = format(Decimal(row["candidate"]), ",.{}f".format(places))
+            percent = "{}%".format(Decimal(row["delta_percent"]).quantize(Decimal("0.01")))
+            required = (baseline, candidate, percent) + ((unit,) if unit else ())
+            if not line or any(token not in line for token in required):
+                errors.append(
+                    "{} missing bound Stage-1 endpoints {}: {} -> {} ({})".format(
+                        document_name, comparison_id, baseline, candidate, percent
+                    )
+                )
+        coverage_boundary = (
+            "Activity Annotation Coverage is not verification test coverage"
+            if document_name.startswith("docs/en/")
+            else "Activity Annotation Coverage 不是验证 test coverage"
+        )
+        if coverage_boundary not in text:
+            errors.append("{} does not distinguish activity annotation from verification coverage".format(document_name))
+    return errors
+
+
 def check(root):
     errors = []
     required = [root / "docs/zh-CN/release_model.md", root / "docs/en/release_model.md"]
@@ -785,6 +844,7 @@ def check(root):
         if evolution.count("evidence/rdtc_v1_bounded_direct_asic.yaml") != 2:
             errors.append("{} closure matrix must link ASIC evidence once per ASIC profile".format(name))
     errors.extend(validate_closure_evidence(root))
+    errors.extend(validate_stage1_document_values(root))
     for name, markers in PRESENTATION_DOC_MARKERS.items():
         text = (root / name).read_text(encoding="utf-8")
         for marker in markers:

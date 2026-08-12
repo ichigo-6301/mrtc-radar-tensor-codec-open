@@ -379,6 +379,8 @@ def validate_package(root):
         raise ValidationError("wrong private final decision")
     if manifest.get("promotion_classification") != "MRTC_CLOCK_GATING_MAPPED_POSITIVE_PRIVATE":
         raise ValidationError("wrong mapped-power promotion")
+    if manifest.get("mapped_power_classification") != "CG_MAPPED_POWER_POSITIVE":
+        raise ValidationError("wrong mapped-power classification")
 
     source = load_json(package / "source_contract.json")
     expected_source = {
@@ -543,7 +545,12 @@ def validate_package(root):
             raise ValidationError("clock-gating denominator/count mismatch for {}".format(key))
     post_pct = decimal(clock_by_metric[("G1", "gated_pct_of_postmap_sequential_bits")]["value"], "postmap pct")
     pre_pct = decimal(clock_by_metric[("G1", "gated_pct_of_precompile_register_bits")]["value"], "precompile pct")
-    if post_pct != Decimal("34816") * 100 / Decimal("50988") or pre_pct != Decimal("34816") * 100 / Decimal("55929"):
+    ring_pct = decimal(clock_by_metric[("G1", "ring_coverage_pct")]["value"], "Ring pct")
+    if (
+        post_pct != Decimal("34816") * 100 / Decimal("50988")
+        or pre_pct != Decimal("34816") * 100 / Decimal("55929")
+        or ring_pct != Decimal("32768") * 100 / Decimal("32768")
+    ):
         raise ValidationError("clock-gating percentage denominator drift")
 
     activity = read_csv(package / "activity_coverage.csv", ACTIVITY_FIELDS)
@@ -681,10 +688,10 @@ def validate_doc_values(root):
     comparisons = read_csv(package_path(root) / "comparisons.csv", COMPARISON_FIELDS, "comparison_id")
     by_comparison = {row["comparison_id"]: row for row in comparisons}
     metric_patterns = (
-        ("IMPLEMENTATION:area_total_um2", r"(?:cell\s+area|area|\u9762\u79ef)[^\n]{0,120}"),
-        ("BURST_IDLE:dynamic_mw", r"BURST_IDLE[^\n]{0,160}dynamic(?:(?!energy/block)[^\n]){0,120}"),
-        ("BURST_IDLE:energy_per_block_nj", r"BURST_IDLE[^\n]{0,240}energy/block[^\n]{0,120}"),
-        ("ACTIVE_LEGAL:dynamic_mw", r"ACTIVE_LEGAL[^\n]{0,160}dynamic[^\n]{0,120}"),
+        ("IMPLEMENTATION:area_total_um2", r"(?:cell\s+area|area|\u9762\u79ef)", 6, "um2"),
+        ("BURST_IDLE:dynamic_mw", r"BURST_IDLE[^\n]*dynamic", 4, "mW"),
+        ("BURST_IDLE:energy_per_block_nj", r"BURST_IDLE[^\n]*energy/block", None, "nJ"),
+        ("ACTIVE_LEGAL:dynamic_mw", r"ACTIVE_LEGAL[^\n]*dynamic", 4, "mW"),
     )
     documents = {
         "zh-CN README": (files[0], "\u4e0d\u662f\u9a8c\u8bc1 test coverage"),
@@ -694,15 +701,32 @@ def validate_doc_values(root):
     }
     for document_name, (path, coverage_boundary) in documents.items():
         text = path.read_text(encoding="utf-8")
-        for comparison_id, label_pattern in metric_patterns:
+        for comparison_id, label_pattern, fixed_places, unit in metric_patterns:
             try:
-                value = decimal(by_comparison[comparison_id]["percent_change"], comparison_id)
+                comparison = by_comparison[comparison_id]
             except KeyError:
                 raise ValidationError("comparisons.csv missing documentation metric {}".format(comparison_id))
-            token = "{}%".format(value.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP))
-            pattern = re.compile(r"{}{}".format(label_pattern, re.escape(token)), re.IGNORECASE)
-            if not pattern.search(text):
-                raise ValidationError("{} missing bound documentation metric {}={}".format(document_name, comparison_id, token))
+            places = fixed_places
+            if places is None:
+                places = 2 if "README" in document_name else 7
+            quantum = Decimal(1).scaleb(-places)
+            baseline = decimal(comparison["baseline"], comparison_id).quantize(quantum, rounding=ROUND_HALF_UP)
+            candidate = decimal(comparison["candidate"], comparison_id).quantize(quantum, rounding=ROUND_HALF_UP)
+            percent = decimal(comparison["percent_change"], comparison_id).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+            baseline_token = ("{:,.%df}" % places).format(baseline)
+            candidate_token = ("{:,.%df}" % places).format(candidate)
+            percent_token = "{}%".format(percent)
+            required_tokens = (baseline_token, candidate_token, percent_token, unit)
+            candidate_lines = [
+                item for item in text.splitlines()
+                if re.search(label_pattern, item, re.IGNORECASE)
+            ]
+            if not any(all(token in line for token in required_tokens) for line in candidate_lines):
+                raise ValidationError(
+                    "{} missing bound documentation endpoints {}: {} -> {} ({})".format(
+                        document_name, comparison_id, baseline_token, candidate_token, percent_token
+                    )
+                )
         if "Activity Annotation Coverage" not in text or coverage_boundary not in text:
             raise ValidationError("{} activity annotation coverage is not distinguished from test coverage".format(document_name))
         for pattern in OVERCLAIM_PATTERNS:

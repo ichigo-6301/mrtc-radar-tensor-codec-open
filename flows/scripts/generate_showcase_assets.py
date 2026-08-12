@@ -518,6 +518,12 @@ def load_performance_report_data(root):
             == Decimal(scaling[engine]["effective_cycles_per_block"]),
             "Multi-Engine YAML/CSV cycles mismatch for {} Engines".format(engine),
         )
+        if engine in (2, 4):
+            require(
+                Decimal(str(yaml_point["scaling_efficiency_vs_single_engine"]))
+                == Decimal(scaling[engine]["scaling_efficiency_vs_single_engine"]),
+                "Multi-Engine YAML/CSV efficiency mismatch for {} Engines".format(engine),
+            )
     require(
         Decimal(bitpacker["optimized"]["steady_state_cycles_per_block"])
         == Decimal(scaling[1]["effective_cycles_per_block"]),

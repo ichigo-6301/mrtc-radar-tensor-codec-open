@@ -29,6 +29,23 @@ YES_NO = ("YES", "NO")
 PRIVATE_TEXT = re.compile(r"(?:[A-Za-z]:[\\/]|\\\\|/(?:home|mnt|Users|work|tmp|root|opt)/|(?:LM_LICENSE_FILE|SNPSLMD_LICENSE_FILE|MGLS_LICENSE_FILE|license|licserver|password|token)\\s*[:=])", re.IGNORECASE)
 HASH_ENTRY_RE = re.compile(r"^([0-9a-f]{64})  ([A-Za-z0-9][A-Za-z0-9_.:/-]*)$")
 
+PACKAGE_FILES = frozenset((
+    "README.md", "manifest.json", "source_contract.json", "points.csv",
+    "comparisons.csv", "verification.csv", "gates.csv", "classifications.csv",
+    "eligibility.csv", "hierarchy_power.csv", "raw_reports.csv",
+    "input_hashes.sha256", "output_hashes.sha256",
+))
+PROMOTED_INPUT_HASHES = {
+    "activity:architecture_a0_active:bundle": "fc2d83df5325e5b760b6998a8cd01080cbfd5fe4b8af40d81e64c4ece6f35084",
+    "activity:architecture_a0_bursty:bundle": "4a0d2338d396999b5e15bbf1e247b9a6252db40c52fc2cbc3d9e94d6fb441a9d",
+    "activity:architecture_a1_active:bundle": "2a04ce38cc06e94eba827a6afee3157e5a256a24418caf100a211c8fc745e81e",
+    "activity:architecture_a1_bursty:bundle": "7a334b5a97aa9db758f10cbca4054bdd4475b0df666e0acc6b79209c2b3bb242",
+    "mapped:architecture_a0_active:collection": "04546d3725f89d210709421f1b6d894d347423211daf797112f117679e7c15f6",
+    "mapped:architecture_a0_bursty:collection": "f542128ac45e2224c4eb05066198c3bf47ff7ef7c311b464561dd95f63cb2776",
+    "mapped:architecture_a1_active:collection": "0f4175e93d5f8f9e31dec042b245d1d96ed8fe581bf46dbec50555fa00e50546",
+    "mapped:architecture_a1_bursty:collection": "d46c3d5ccb97506bac8f00f248f009f3f81f193d29d3a8d08f3479a5f4533b39",
+}
+
 MANIFEST_FIELDS = (
     "schema", "points_csv", "comparisons_csv", "verification_csv", "gates_csv",
     "classifications_csv", "eligibility_csv", "hierarchy_power_csv", "raw_reports_csv",
@@ -363,6 +380,10 @@ def _walk_json(value):
 
 def read_package(directory):
     directory = Path(directory)
+    actual_files = frozenset(path.name for path in directory.iterdir() if path.is_file())
+    if actual_files != PACKAGE_FILES:
+        raise ValidationError("package inventory mismatch: missing={} extra={}".format(
+            sorted(PACKAGE_FILES - actual_files), sorted(actual_files - PACKAGE_FILES)))
     manifest_path = directory / "manifest.json"
     if not manifest_path.is_file():
         raise ValidationError("missing manifest.json")
@@ -391,10 +412,11 @@ def read_package(directory):
     )
     _require_hash(manifest["input_hashes_sha256"], "manifest input_hashes_sha256")
     input_hashes_path = directory / manifest["input_hashes_file"]
-    _read_hash_entries(input_hashes_path)
+    input_hashes = _read_hash_entries(input_hashes_path)
     if sha256_file(input_hashes_path) != manifest["input_hashes_sha256"]:
         raise ValidationError("input_hashes.sha256 SHA-256 does not match manifest")
     return manifest, contract, {
+        "input_hashes": input_hashes,
         "points": _read_csv(directory / "points.csv", POINT_FIELDS),
         "comparisons": _read_csv(directory / "comparisons.csv", COMPARISON_FIELDS, allow_empty=True),
         "verification": _read_csv(directory / "verification.csv", VERIFICATION_FIELDS, allow_empty=True),
@@ -1146,6 +1168,8 @@ def validate(directory, require_promotion=False):
     _validate_output_hashes(directory, manifest)
     if require_promotion and blocked:
         raise ValidationError("fail-closed promotion gate: {}".format(blocked[0]))
+    if require_promotion and package["input_hashes"] != PROMOTED_INPUT_HASHES:
+        raise ValidationError("promoted input authority inventory mismatch")
     return {"manifest": manifest, "source_contract": contract, "points": points, "comparisons": comparisons,
             "gates": gates, "classifications": classifications, "promotion_eligible": not blocked,
             "blocked_gates": blocked}

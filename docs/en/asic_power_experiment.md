@@ -55,7 +55,8 @@ Both workloads keep output ready asserted. Energy uses each point's exact
 measured cycle window and completed block count. `IDLE` remains diagnostic-only
 and is excluded from architecture promotion.
 
-Coverage is invariant across the two workloads for each architecture:
+Activity Annotation Coverage is invariant across the two workloads for each
+architecture. Activity Annotation Coverage is not verification test coverage:
 
 | Architecture | Clock | Functional inputs | Sequential outputs | Internal leaf pins | Overall non-default |
 |---|---:|---:|---:|---:|---:|
