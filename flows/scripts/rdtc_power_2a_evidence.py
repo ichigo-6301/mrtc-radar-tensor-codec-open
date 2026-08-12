@@ -29,6 +29,47 @@ YES_NO = ("YES", "NO")
 PRIVATE_TEXT = re.compile(r"(?:[A-Za-z]:[\\/]|\\\\|/(?:home|mnt|Users|work|tmp|root|opt)/|(?:LM_LICENSE_FILE|SNPSLMD_LICENSE_FILE|MGLS_LICENSE_FILE|license|licserver|password|token)\\s*[:=])", re.IGNORECASE)
 HASH_ENTRY_RE = re.compile(r"^([0-9a-f]{64})  ([A-Za-z0-9][A-Za-z0-9_.:/-]*)$")
 
+PACKAGE_FILES = frozenset((
+    "README.md", "manifest.json", "source_contract.json", "points.csv",
+    "comparisons.csv", "verification.csv", "gates.csv", "classifications.csv",
+    "eligibility.csv", "hierarchy_power.csv", "raw_reports.csv",
+    "input_hashes.sha256", "output_hashes.sha256",
+))
+PROMOTED_INPUT_HASHES = {
+    "activity:architecture_a0_active:bundle": "fc2d83df5325e5b760b6998a8cd01080cbfd5fe4b8af40d81e64c4ece6f35084",
+    "activity:architecture_a0_bursty:bundle": "4a0d2338d396999b5e15bbf1e247b9a6252db40c52fc2cbc3d9e94d6fb441a9d",
+    "activity:architecture_a1_active:bundle": "2a04ce38cc06e94eba827a6afee3157e5a256a24418caf100a211c8fc745e81e",
+    "activity:architecture_a1_bursty:bundle": "7a334b5a97aa9db758f10cbca4054bdd4475b0df666e0acc6b79209c2b3bb242",
+    "mapped:architecture_a0_active:collection": "04546d3725f89d210709421f1b6d894d347423211daf797112f117679e7c15f6",
+    "mapped:architecture_a0_bursty:collection": "f542128ac45e2224c4eb05066198c3bf47ff7ef7c311b464561dd95f63cb2776",
+    "mapped:architecture_a1_active:collection": "0f4175e93d5f8f9e31dec042b245d1d96ed8fe581bf46dbec50555fa00e50546",
+    "mapped:architecture_a1_bursty:collection": "d46c3d5ccb97506bac8f00f248f009f3f81f193d29d3a8d08f3479a5f4533b39",
+}
+PROMOTED_POINT_INPUT_KEYS = {
+    "arch315-a0-active": (
+        "activity:architecture_a0_active:bundle",
+        "mapped:architecture_a0_active:collection",
+    ),
+    "arch315-a0-bursty": (
+        "activity:architecture_a0_bursty:bundle",
+        "mapped:architecture_a0_bursty:collection",
+    ),
+    "arch315-a1-active": (
+        "activity:architecture_a1_active:bundle",
+        "mapped:architecture_a1_active:collection",
+    ),
+    "arch315-a1-bursty": (
+        "activity:architecture_a1_bursty:bundle",
+        "mapped:architecture_a1_bursty:collection",
+    ),
+}
+PROMOTED_POINT_BINDINGS = {
+    "arch315-a0-active": "ab27b02803547d30014b58c8c5bd71928d35de1fc4ccdaf43bb8772a9ef7a91d",
+    "arch315-a0-bursty": "1d3cab26ce1f9e2e2aa98128c48cd9603555444a737a4bec2365befae06dc743",
+    "arch315-a1-active": "7db61ffd657ccd611168baae20d4ab0f6267750edc7a81b1632781ca36c57941",
+    "arch315-a1-bursty": "362b0edd7a4f04654a4d167989ed6d3011aae838f05cfb147c7c9dfca5997682",
+}
+
 MANIFEST_FIELDS = (
     "schema", "points_csv", "comparisons_csv", "verification_csv", "gates_csv",
     "classifications_csv", "eligibility_csv", "hierarchy_power_csv", "raw_reports_csv",
@@ -363,6 +404,14 @@ def _walk_json(value):
 
 def read_package(directory):
     directory = Path(directory)
+    entries = tuple(directory.iterdir())
+    actual_files = frozenset(path.name for path in entries)
+    non_files = sorted(path.name for path in entries if not path.is_file())
+    if actual_files != PACKAGE_FILES or non_files:
+        raise ValidationError("package inventory mismatch: missing={} extra={}".format(
+            sorted(PACKAGE_FILES - actual_files),
+            sorted((actual_files - PACKAGE_FILES).union(non_files)),
+        ))
     manifest_path = directory / "manifest.json"
     if not manifest_path.is_file():
         raise ValidationError("missing manifest.json")
@@ -391,10 +440,11 @@ def read_package(directory):
     )
     _require_hash(manifest["input_hashes_sha256"], "manifest input_hashes_sha256")
     input_hashes_path = directory / manifest["input_hashes_file"]
-    _read_hash_entries(input_hashes_path)
+    input_hashes = _read_hash_entries(input_hashes_path)
     if sha256_file(input_hashes_path) != manifest["input_hashes_sha256"]:
         raise ValidationError("input_hashes.sha256 SHA-256 does not match manifest")
     return manifest, contract, {
+        "input_hashes": input_hashes,
         "points": _read_csv(directory / "points.csv", POINT_FIELDS),
         "comparisons": _read_csv(directory / "comparisons.csv", COMPARISON_FIELDS, allow_empty=True),
         "verification": _read_csv(directory / "verification.csv", VERIFICATION_FIELDS, allow_empty=True),
@@ -1126,6 +1176,26 @@ def _compare_classifications(recorded, derived):
             raise ValidationError("classification is not deterministic: {}".format(row["classification_id"]))
 
 
+def _validate_promoted_point_bindings(points, raw_reports, input_hashes):
+    if set(points) != set(PROMOTED_POINT_BINDINGS):
+        raise ValidationError("promoted point artifact inventory mismatch")
+    for point_id in sorted(PROMOTED_POINT_BINDINGS):
+        input_keys = PROMOTED_POINT_INPUT_KEYS[point_id]
+        report_rows = [
+            raw_reports[(point_id, kind)]
+            for kind in sorted(REQUIRED_RAW_REPORTS[points[point_id]["experiment"]])
+        ]
+        payload = {
+            "point": points[point_id],
+            "raw_reports": report_rows,
+            "input_authorities": {key: input_hashes[key] for key in input_keys},
+        }
+        rendered = json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("ascii")
+        actual = hashlib.sha256(rendered).hexdigest()
+        if actual != PROMOTED_POINT_BINDINGS[point_id]:
+            raise ValidationError("promoted point artifact binding mismatch: {}".format(point_id))
+
+
 def validate(directory, require_promotion=False):
     """Validate sanitized evidence; ``--require-promotion`` is deliberately stricter."""
     directory = Path(directory)
@@ -1146,6 +1216,10 @@ def validate(directory, require_promotion=False):
     _validate_output_hashes(directory, manifest)
     if require_promotion and blocked:
         raise ValidationError("fail-closed promotion gate: {}".format(blocked[0]))
+    if require_promotion and package["input_hashes"] != PROMOTED_INPUT_HASHES:
+        raise ValidationError("promoted input authority inventory mismatch")
+    if require_promotion:
+        _validate_promoted_point_bindings(points, raw_reports, package["input_hashes"])
     return {"manifest": manifest, "source_contract": contract, "points": points, "comparisons": comparisons,
             "gates": gates, "classifications": classifications, "promotion_eligible": not blocked,
             "blocked_gates": blocked}

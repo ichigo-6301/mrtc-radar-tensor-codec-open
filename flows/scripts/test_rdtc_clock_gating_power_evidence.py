@@ -18,6 +18,11 @@ REPO = SCRIPT.parents[2]
 CANONICAL = REPO / EVIDENCE.PACKAGE_REL
 
 
+def write_text_lf(path, text, encoding="utf-8"):
+    with path.open("w", encoding=encoding, newline="") as stream:
+        stream.write(text)
+
+
 class ClockGatingEvidenceTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -34,7 +39,7 @@ class ClockGatingEvidenceTests(unittest.TestCase):
         for name in sorted(EVIDENCE.PACKAGE_FILES - {"output_hashes.sha256"}):
             digest = hashlib.sha256((self.package / name).read_bytes()).hexdigest()
             rows.append("{}  {}\n".format(digest, name))
-        (self.package / "output_hashes.sha256").write_text("".join(rows), encoding="ascii", newline="\n")
+        write_text_lf(self.package / "output_hashes.sha256", "".join(rows), encoding="ascii")
 
     def mutate_csv(self, name, predicate, field, value):
         path = self.package / name
@@ -55,7 +60,7 @@ class ClockGatingEvidenceTests(unittest.TestCase):
         path = self.package / name
         value = json.loads(path.read_text(encoding="utf-8"))
         mutation(value)
-        path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        write_text_lf(path, json.dumps(value, indent=2, sort_keys=True) + "\n")
 
     def assert_rejected(self):
         with self.assertRaises(EVIDENCE.ValidationError):
@@ -77,13 +82,13 @@ class ClockGatingEvidenceTests(unittest.TestCase):
     def test_duplicate_point(self):
         path = self.package / "points.csv"
         lines = path.read_text(encoding="utf-8").splitlines()
-        path.write_text("\n".join(lines + [lines[1]]) + "\n", encoding="utf-8", newline="\n")
+        write_text_lf(path, "\n".join(lines + [lines[1]]) + "\n")
         self.assert_rejected()
 
     def test_duplicate_json_key(self):
         path = self.package / "manifest.json"
         text = path.read_text(encoding="utf-8")
-        path.write_text(text.replace('{\n  "activity_coverage"', '{\n  "schema": "duplicate",\n  "activity_coverage"'), encoding="utf-8", newline="\n")
+        write_text_lf(path, text.replace('{\n  "activity_coverage"', '{\n  "schema": "duplicate",\n  "activity_coverage"'))
         self.assert_rejected()
 
     def test_reused_saif(self):
@@ -98,6 +103,44 @@ class ClockGatingEvidenceTests(unittest.TestCase):
 
     def test_wrong_gated_bit_denominator(self):
         self.mutate_csv("clock_gating.csv", lambda row: row["metric"] == "postmap_sequential_bits", "value", "50999")
+        self.assert_rejected()
+
+    def test_ring_coverage_is_recomputed_from_bit_counts(self):
+        self.mutate_csv(
+            "clock_gating.csv",
+            lambda row: row["metric"] == "ring_coverage_pct",
+            "value",
+            "1",
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_ring_coverage_denominator_metadata_is_bound(self):
+        self.mutate_csv(
+            "clock_gating.csv",
+            lambda row: row["metric"] == "ring_coverage_pct",
+            "denominator",
+            "1",
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_ring_coverage_denominator_kind_is_bound(self):
+        self.mutate_csv(
+            "clock_gating.csv",
+            lambda row: row["metric"] == "ring_coverage_pct",
+            "denominator_kind",
+            "unrelated_bits",
+        )
+        self.refresh_hashes()
+        self.assert_rejected()
+
+    def test_manifest_mapped_power_classification_is_bound(self):
+        self.mutate_json(
+            "manifest.json",
+            lambda value: value.__setitem__("mapped_power_classification", "CG_MAPPED_POWER_NEGATIVE"),
+        )
+        self.refresh_hashes()
         self.assert_rejected()
 
     def test_low_activity_coverage(self):
@@ -140,7 +183,7 @@ class ClockGatingEvidenceTests(unittest.TestCase):
         path = self.package / "parser_recovery.json"
         value = json.loads(path.read_text(encoding="utf-8"))
         value["eda_rerun"] = True
-        path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        write_text_lf(path, json.dumps(value, indent=2, sort_keys=True) + "\n")
         self.assert_rejected()
 
     def test_non_deterministic_comparison(self):
@@ -149,25 +192,25 @@ class ClockGatingEvidenceTests(unittest.TestCase):
 
     def test_formality_overclaim(self):
         path = self.package / "README.md"
-        path.write_text(path.read_text(encoding="utf-8") + "\nFormality PASS\n", encoding="utf-8", newline="\n")
+        write_text_lf(path, path.read_text(encoding="utf-8") + "\nFormality PASS\n")
         self.refresh_hashes()
         self.assert_rejected()
 
     def test_postroute_overclaim(self):
         path = self.package / "README.md"
-        path.write_text(path.read_text(encoding="utf-8") + "\npost-route power result\n", encoding="utf-8", newline="\n")
+        write_text_lf(path, path.read_text(encoding="utf-8") + "\npost-route power result\n")
         self.refresh_hashes()
         self.assert_rejected()
 
     def test_private_path_leakage(self):
         path = self.package / "README.md"
-        path.write_text(path.read_text(encoding="utf-8") + "\nD:/master/private\n", encoding="utf-8", newline="\n")
+        write_text_lf(path, path.read_text(encoding="utf-8") + "\nD:/master/private\n")
         self.refresh_hashes()
         self.assert_rejected()
 
     def test_bare_test_coverage_wording(self):
         path = self.package / "README.md"
-        path.write_text(path.read_text(encoding="utf-8") + "\n100% test coverage\n", encoding="utf-8", newline="\n")
+        write_text_lf(path, path.read_text(encoding="utf-8") + "\n100% test coverage\n")
         self.refresh_hashes()
         self.assert_rejected()
 
@@ -175,7 +218,7 @@ class ClockGatingEvidenceTests(unittest.TestCase):
         path = self.package / "model_audit.json"
         value = json.loads(path.read_text(encoding="utf-8"))
         value["effective_definition_count"] = 2
-        path.write_text(json.dumps(value, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+        write_text_lf(path, json.dumps(value, indent=2, sort_keys=True) + "\n")
         self.assert_rejected()
 
     def test_model_functional_test_enable_is_bound(self):
@@ -313,7 +356,24 @@ class ClockGatingDocumentTests(unittest.TestCase):
         text = text.replace("-61.67%", "SWAPPED_VALUE", 1)
         text = text.replace("-59.52%", "-61.67%", 1)
         text = text.replace("SWAPPED_VALUE", "-59.52%", 1)
-        path.write_text(text, encoding="utf-8", newline="\n")
+        write_text_lf(path, text)
+        with self.assertRaises(EVIDENCE.ValidationError):
+            EVIDENCE.validate_doc_values(self.root)
+
+    def test_stage_two_baseline_endpoint_is_bound(self):
+        path = self.root / "docs/en/asic_clock_gating_experiment.md"
+        text = path.read_text(encoding="utf-8").replace("107.3535 mW", "999.0000 mW", 1)
+        write_text_lf(path, text)
+        with self.assertRaises(EVIDENCE.ValidationError):
+            EVIDENCE.validate_doc_values(self.root)
+
+    def test_stage_two_endpoint_order_is_bound(self):
+        path = self.root / "docs/en/asic_clock_gating_experiment.md"
+        text = path.read_text(encoding="utf-8").replace(
+            "| BURST_IDLE dynamic | 107.3535 mW | 41.1522 mW | -61.67% |",
+            "| BURST_IDLE dynamic | 41.1522 mW | 107.3535 mW | -61.67% |",
+        )
+        write_text_lf(path, text)
         with self.assertRaises(EVIDENCE.ValidationError):
             EVIDENCE.validate_doc_values(self.root)
 

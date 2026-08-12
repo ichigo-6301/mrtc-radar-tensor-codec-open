@@ -266,6 +266,34 @@ class CoordinatedReportAssetTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "curated-data hash mismatch"):
                 ASSETS.load_performance_report_data(root)
 
+    def test_performance_loader_rejects_scaling_efficiency_drift(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            for relative in (
+                "evidence/rdtc_v1_bitpacker_pipeline_ab.yaml",
+                "evidence/rdtc_v1_multiengine_rtl.yaml",
+                "evidence/data/rdtc_v1_bitpacker_pipeline_ab.csv",
+                "evidence/data/rdtc_v1_multiengine_scaling.csv",
+            ):
+                source = ROOT / relative
+                target = root / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(source, target)
+            csv_path = root / "evidence/data/rdtc_v1_multiengine_scaling.csv"
+            with csv_path.open("r", encoding="utf-8", newline="") as stream:
+                rows = list(csv.DictReader(stream))
+            rows[1]["scaling_efficiency_vs_single_engine"] = "0.500000"
+            with csv_path.open("w", encoding="utf-8", newline="") as stream:
+                writer = csv.DictWriter(stream, fieldnames=rows[0].keys(), lineterminator="\n")
+                writer.writeheader()
+                writer.writerows(rows)
+            yaml_path = root / "evidence/rdtc_v1_multiengine_rtl.yaml"
+            document = yaml.safe_load(yaml_path.read_text(encoding="utf-8"))
+            document["curated_data_sha256"] = ASSETS._sha256_file(csv_path)
+            yaml_path.write_text(yaml.safe_dump(document, sort_keys=False), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "efficiency mismatch for 2 Engines"):
+                ASSETS.load_performance_report_data(root)
+
     def test_stage1_loader_rejects_comparison_mutation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
