@@ -756,8 +756,16 @@ def validate_stage1_document_values(root):
             baseline = format(Decimal(row["baseline"]), ",.{}f".format(places))
             candidate = format(Decimal(row["candidate"]), ",.{}f".format(places))
             percent = "{}%".format(Decimal(row["delta_percent"]).quantize(Decimal("0.01")))
-            required = (baseline, candidate, percent) + ((unit,) if unit else ())
-            if not line or any(token not in line for token in required):
+            cells = [cell.strip() for cell in line.strip().strip("|").split("|")]
+            baseline_cell = "{}{}".format(baseline, " " + unit if unit else "")
+            candidate_cell = "{}{}".format(candidate, " " + unit if unit else "")
+            if (
+                len(cells) != 4
+                or cells[0] != label
+                or cells[1] != baseline_cell
+                or cells[2] != candidate_cell
+                or cells[3] != percent
+            ):
                 errors.append(
                     "{} missing bound Stage-1 endpoints {}: {} -> {} ({})".format(
                         document_name, comparison_id, baseline, candidate, percent

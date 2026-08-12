@@ -3,9 +3,11 @@
 
 from __future__ import print_function
 
+import csv
 import hashlib
 import json
 import sys
+import shutil
 import tempfile
 import unittest
 from decimal import Decimal, localcontext
@@ -16,6 +18,7 @@ import rdtc_power_2a_evidence as evidence
 
 
 COMMIT = "b" * 40
+CANONICAL_PACKAGE = Path(__file__).resolve().parents[2] / "evidence/rdtc_v1_power_architecture_ab"
 
 
 def digest(text):
@@ -278,6 +281,49 @@ class EvidenceContractTests(unittest.TestCase):
             (root / "power.rpt").write_text("Total Dynamic Power = 1.0 mW\n", encoding="utf-8")
             with self.assertRaisesRegex(evidence.ValidationError, "package inventory mismatch"):
                 evidence.validate(root)
+
+    def test_nested_package_file_is_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = write_package(Path(temp), gating_points())
+            nested = root / "extra"
+            nested.mkdir()
+            (nested / "raw-report.txt").write_text("sanitized\n", encoding="utf-8")
+            with self.assertRaisesRegex(evidence.ValidationError, "package inventory mismatch"):
+                evidence.validate(root)
+
+    def test_promoted_point_artifacts_are_bound_to_input_authorities(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp) / "package"
+            shutil.copytree(CANONICAL_PACKAGE, root)
+            with (root / "points.csv").open("r", encoding="utf-8", newline="") as stream:
+                reader = csv.DictReader(stream)
+                fields = tuple(reader.fieldnames)
+                points = list(reader)
+            replacement = digest("substituted-activity")
+            owner = "arch315-a0-active"
+            point_row = next(row for row in points if row["point_id"] == owner)
+            point_row["activity_sha256"] = replacement
+            with (root / "raw_reports.csv").open("r", encoding="utf-8", newline="") as stream:
+                reader = csv.DictReader(stream)
+                report_fields = tuple(reader.fieldnames)
+                reports = list(reader)
+            activity_row = next(
+                row for row in reports
+                if row["point_id"] == owner and row["report_kind"] == "activity"
+            )
+            activity_row["report_sha256"] = replacement
+            own_reports = sorted(
+                (row for row in reports if row["point_id"] == owner),
+                key=lambda row: row["report_kind"],
+            )
+            point_row["raw_report_set_sha256"] = hashlib.sha256(
+                json.dumps(own_reports, sort_keys=True, separators=(",", ":")).encode("ascii")
+            ).hexdigest()
+            evidence.write_csv(root / "points.csv", fields, points)
+            evidence.write_csv(root / "raw_reports.csv", report_fields, reports)
+            write_output_hashes(root)
+            with self.assertRaisesRegex(evidence.ValidationError, "promoted point artifact binding"):
+                evidence.validate(root, require_promotion=True)
 
     def test_promoted_input_authority_is_exact(self):
         with tempfile.TemporaryDirectory() as temp:

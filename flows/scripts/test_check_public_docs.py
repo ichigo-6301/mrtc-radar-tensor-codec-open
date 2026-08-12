@@ -14,6 +14,11 @@ SPEC.loader.exec_module(DOCS)
 REPO = SCRIPT.parents[2]
 
 
+def write_text_lf(path, text):
+    with path.open("w", encoding="utf-8", newline="") as stream:
+        stream.write(text)
+
+
 class Stage1DocumentBindingTests(unittest.TestCase):
     def setUp(self):
         self.temp = tempfile.TemporaryDirectory()
@@ -41,7 +46,18 @@ class Stage1DocumentBindingTests(unittest.TestCase):
     def test_stage1_endpoint_drift_is_rejected(self):
         path = self.root / "docs/en/asic_power_experiment.md"
         text = path.read_text(encoding="utf-8").replace("436.4352 mW", "999.0000 mW", 1)
-        path.write_text(text, encoding="utf-8", newline="\n")
+        write_text_lf(path, text)
+        errors = DOCS.validate_stage1_document_values(self.root)
+        self.assertTrue(any("architecture-315mhz:bursty:dynamic_mw" in error for error in errors))
+
+    def test_stage1_endpoint_columns_cannot_be_swapped(self):
+        path = self.root / "docs/en/asic_power_experiment.md"
+        text = path.read_text(encoding="utf-8")
+        text = text.replace(
+            "| BURST_IDLE dynamic power | 436.4352 mW | 109.8717 mW | -74.83% |",
+            "| BURST_IDLE dynamic power | 109.8717 mW | 436.4352 mW | -74.83% |",
+        )
+        write_text_lf(path, text)
         errors = DOCS.validate_stage1_document_values(self.root)
         self.assertTrue(any("architecture-315mhz:bursty:dynamic_mw" in error for error in errors))
 
@@ -51,7 +67,7 @@ class Stage1DocumentBindingTests(unittest.TestCase):
             "Activity Annotation Coverage is not verification test coverage",
             "Coverage",
         )
-        path.write_text(text, encoding="utf-8", newline="\n")
+        write_text_lf(path, text)
         errors = DOCS.validate_stage1_document_values(self.root)
         self.assertTrue(any("verification coverage" in error for error in errors))
 

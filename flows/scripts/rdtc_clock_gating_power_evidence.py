@@ -545,11 +545,27 @@ def validate_package(root):
             raise ValidationError("clock-gating denominator/count mismatch for {}".format(key))
     post_pct = decimal(clock_by_metric[("G1", "gated_pct_of_postmap_sequential_bits")]["value"], "postmap pct")
     pre_pct = decimal(clock_by_metric[("G1", "gated_pct_of_precompile_register_bits")]["value"], "precompile pct")
-    ring_pct = decimal(clock_by_metric[("G1", "ring_coverage_pct")]["value"], "Ring pct")
+    ring_gated_row = clock_by_metric[("G1", "ring_gated_bits")]
+    ring_total_row = clock_by_metric[("G1", "ring_total_bits")]
+    ring_pct_row = clock_by_metric[("G1", "ring_coverage_pct")]
+    ring_gated = decimal(ring_gated_row["value"], "Ring gated bits")
+    ring_total = decimal(ring_total_row["value"], "Ring total bits")
+    ring_pct = decimal(ring_pct_row["value"], "Ring pct")
+    if (
+        ring_total == 0
+        or ring_gated_row["denominator"] != decimal_text(ring_total)
+        or ring_total_row["denominator"] != "NA"
+        or ring_pct_row["denominator"] != decimal_text(ring_total)
+        or any(
+            row["denominator_kind"] != "ring_data_bits"
+            for row in (ring_gated_row, ring_total_row, ring_pct_row)
+        )
+    ):
+        raise ValidationError("Ring coverage denominator metadata drift")
     if (
         post_pct != Decimal("34816") * 100 / Decimal("50988")
         or pre_pct != Decimal("34816") * 100 / Decimal("55929")
-        or ring_pct != Decimal("32768") * 100 / Decimal("32768")
+        or ring_pct != ring_gated * 100 / ring_total
     ):
         raise ValidationError("clock-gating percentage denominator drift")
 
@@ -716,12 +732,18 @@ def validate_doc_values(root):
             baseline_token = ("{:,.%df}" % places).format(baseline)
             candidate_token = ("{:,.%df}" % places).format(candidate)
             percent_token = "{}%".format(percent)
-            required_tokens = (baseline_token, candidate_token, percent_token, unit)
             candidate_lines = [
                 item for item in text.splitlines()
                 if re.search(label_pattern, item, re.IGNORECASE)
             ]
-            if not any(all(token in line for token in required_tokens) for line in candidate_lines):
+            if not any(
+                baseline_token in line
+                and candidate_token in line
+                and percent_token in line
+                and unit in line
+                and line.index(baseline_token) < line.index(candidate_token) < line.index(percent_token)
+                for line in candidate_lines
+            ):
                 raise ValidationError(
                     "{} missing bound documentation endpoints {}: {} -> {} ({})".format(
                         document_name, comparison_id, baseline_token, candidate_token, percent_token
